@@ -23,6 +23,9 @@ export function CategoryPage() {
     .filter((product) => !product.sponsored)
     .sort((first, second) => first.priceInr - second.priceInr);
   const categoryFilters: CatalogCategory[] = ["Mobiles", "Laptops", "Accessories", "Footwear"];
+  const brandFilters = Array.from(
+    new Map(catalogProducts.map((product) => [product.brand, product.brandLogoUrl])).entries(),
+  );
 
   const productsToRender = [...sponsoredProducts, ...organicProducts];
 
@@ -44,6 +47,14 @@ export function CategoryPage() {
             ))}
           </div>
           <span className="plp-sort-pill">Sort: Best Price</span>
+        </div>
+        <div className="plp-brand-filter-row" role="list" aria-label="Brand filters">
+          {brandFilters.map(([brandName, logoUrl]) => (
+            <button key={brandName} type="button" className="plp-brand-filter-chip" role="listitem">
+              <img src={logoUrl} alt={`${brandName} logo`} />
+              <span>{brandName}</span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -76,6 +87,10 @@ export function CategoryPage() {
 
             <div className="plp-product-copy">
               <span className="plp-category-pill">{product.category}</span>
+              <div className="plp-brand-row">
+                <img src={product.brandLogoUrl} alt={`${product.brand} logo`} className="plp-brand-logo" />
+                <span>{product.brand}</span>
+              </div>
               <h2>{product.name}</h2>
               <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
 

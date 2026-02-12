@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { type ReactNode } from "react";
 import {
-  bankOfferStripItems,
+  bankOffers,
   catalogProducts,
   homeCategoryTiles,
   topBrandHighlights,
@@ -29,6 +29,56 @@ const heroSlides: HeroSlide[] = [
   },
 ];
 
+function CategoryIcon({
+  icon,
+}: {
+  icon: "electronics" | "fashion" | "beauty" | "home" | "grocery";
+}) {
+  if (icon === "electronics") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="12" rx="2" />
+        <path d="M8 20h8" />
+      </svg>
+    );
+  }
+
+  if (icon === "fashion") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4c0 2 1.8 3 4 3s4-1 4-3l4 3-2 13H6L4 7l4-3Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "beauty") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 4h6v3H9z" />
+        <path d="M8 7h8l-1 13H9L8 7Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "home") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m3 11 9-7 9 7" />
+        <path d="M6 10v10h12V10" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 7h14" />
+      <path d="M7 7v12h10V7" />
+      <path d="M9 11h6" />
+      <path d="M9 14h6" />
+    </svg>
+  );
+}
+
 function HomeSection({
   title,
   subtitle,
@@ -55,6 +105,12 @@ function HomeProductCard({ product, sponsored }: { product: CatalogProduct; spon
       <div className="home-media-wrap">
         {sponsored ? <span className="home-pill home-pill-sponsored">Sponsored</span> : null}
         <img
+          src={product.brandLogoUrl}
+          alt={`${product.brand} logo`}
+          className="home-product-brand-logo"
+          loading="lazy"
+        />
+        <img
           src={product.imageUrl}
           alt={`${product.name} ${product.category} product image`}
           className="home-media"
@@ -72,7 +128,7 @@ function HomeProductCard({ product, sponsored }: { product: CatalogProduct; spon
           <strong>{formatInr(product.priceInr)}</strong>
           <span>{formatInr(product.mrpInr)}</span>
         </div>
-        <p className="home-cashback-line">{formatInr(product.cashbackInr)} Cashback</p>
+        <span className="home-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
       </div>
     </article>
   );
@@ -120,18 +176,12 @@ export function HomePage() {
       </section>
 
       <HomeSection title="Shop by category" subtitle="Quick access to high-intent shopping lanes.">
-        <div className="home-horizontal-scroll" role="list" aria-label="Category cards">
+        <div className="home-category-grid" role="list" aria-label="Category cards">
           {homeCategoryTiles.map((category) => (
             <article key={category.name} className="home-category-card" role="listitem">
-              <div className="home-category-media-wrap">
-                <img
-                  src={category.imageUrl}
-                  alt={`${category.name} category`}
-                  className="home-category-media"
-                  loading="lazy"
-                />
-                <span className="home-category-icon">{category.iconText}</span>
-              </div>
+              <span className="home-category-icon-wrap" aria-hidden="true">
+                <CategoryIcon icon={category.icon} />
+              </span>
               <h3>{category.name}</h3>
               <p>{category.itemCount}</p>
             </article>
@@ -155,11 +205,12 @@ export function HomePage() {
           <h2>Bank Offers</h2>
           <p>10% off with HDFC | Axis | ICICI - More offers</p>
         </header>
-        <div className="home-offer-strip" role="list" aria-label="Bank offers">
-          {bankOfferStripItems.map((offer) => (
-            <span key={offer} className="home-offer-pill" role="listitem">
-              {offer}
-            </span>
+        <div className="home-bank-offer-row" role="list" aria-label="Bank offers">
+          {bankOffers.map((offer) => (
+            <article key={offer.bankName} className="home-bank-offer-card" role="listitem">
+              <img src={offer.logoUrl} alt={`${offer.bankName} logo`} className="home-bank-logo" />
+              <p>{offer.offerText}</p>
+            </article>
           ))}
         </div>
       </section>
@@ -171,7 +222,7 @@ export function HomePage() {
         <div className="home-brand-grid">
           {topBrandHighlights.map((brand) => (
             <article key={brand.name} className="home-brand-card">
-              <span className="home-brand-logo">{brand.name.slice(0, 2).toUpperCase()}</span>
+              <img src={brand.logoUrl} alt={`${brand.name} logo`} className="home-brand-logo-img" />
               <div>
                 <h3>{brand.name}</h3>
                 <p>{brand.focus}</p>

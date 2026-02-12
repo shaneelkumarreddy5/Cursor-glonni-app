@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { PageIntro } from "../components/ui/PageIntro";
-import { catalogProducts } from "../data/mockCatalog";
+import { bankOffers, catalogProducts } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
 import { formatInr } from "../utils/currency";
 
@@ -9,6 +9,43 @@ const checkoutItems = [
   { product: catalogProducts[4], quantity: 2 },
   { product: catalogProducts[8], quantity: 1 },
 ];
+
+function PaymentIcon({ method }: { method: "upi" | "card" | "netbanking" | "cod" }) {
+  if (method === "upi") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 18 10 6l4 6 6-6" />
+      </svg>
+    );
+  }
+
+  if (method === "card") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="6" width="18" height="12" rx="2" />
+        <path d="M3 10h18" />
+      </svg>
+    );
+  }
+
+  if (method === "netbanking") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10h18" />
+        <path d="m12 4 9 6H3l9-6Z" />
+        <path d="M6 10v7M10 10v7M14 10v7M18 10v7" />
+        <path d="M3 17h18" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 8h10v8H7z" />
+      <path d="M10 8V6h4v2" />
+    </svg>
+  );
+}
 
 export function CheckoutPage() {
   const itemTotal = checkoutItems.reduce(
@@ -82,24 +119,67 @@ export function CheckoutPage() {
               <label className="checkout-option">
                 <input type="radio" name="payment" defaultChecked />
                 <div>
-                  <strong>UPI</strong>
+                  <span className="checkout-payment-label">
+                    <PaymentIcon method="upi" />
+                    UPI
+                  </span>
                   <p>Pay instantly via UPI apps</p>
                 </div>
               </label>
               <label className="checkout-option">
                 <input type="radio" name="payment" />
                 <div>
-                  <strong>Credit / Debit Card</strong>
+                  <span className="checkout-payment-label">
+                    <PaymentIcon method="card" />
+                    Credit / Debit Card
+                  </span>
                   <p>Saved cards and EMI options</p>
                 </div>
               </label>
               <label className="checkout-option">
                 <input type="radio" name="payment" />
                 <div>
-                  <strong>Cash on Delivery</strong>
+                  <span className="checkout-payment-label">
+                    <PaymentIcon method="netbanking" />
+                    Net Banking
+                  </span>
+                  <p>Supported by major Indian banks</p>
+                </div>
+              </label>
+              <label className="checkout-option">
+                <input type="radio" name="payment" />
+                <div>
+                  <span className="checkout-payment-label">
+                    <PaymentIcon method="cod" />
+                    Cash on Delivery
+                  </span>
                   <p>Available on selected pincodes</p>
                 </div>
               </label>
+            </div>
+
+            <div className="checkout-bank-logo-row" aria-label="Supported bank cards">
+              {bankOffers.map((offer) => (
+                <img key={offer.bankName} src={offer.logoUrl} alt={`${offer.bankName} logo`} />
+              ))}
+            </div>
+
+            <div className="checkout-cashback-note">
+              Cashback will be credited after successful delivery confirmation.
+            </div>
+          </article>
+
+          <article className="card checkout-card">
+            <header className="section-header">
+              <h2>Bank Offers</h2>
+            </header>
+            <div className="checkout-bank-offers">
+              {bankOffers.map((offer) => (
+                <article key={offer.bankName} className="checkout-bank-offer-card">
+                  <img src={offer.logoUrl} alt={`${offer.bankName} logo`} />
+                  <p>{offer.offerText}</p>
+                </article>
+              ))}
             </div>
           </article>
         </div>

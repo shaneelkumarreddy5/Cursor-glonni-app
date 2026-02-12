@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PageIntro } from "../components/ui/PageIntro";
-import { catalogProducts } from "../data/mockCatalog";
+import { bankOffers, catalogProducts } from "../data/mockCatalog";
 import { formatInr } from "../utils/currency";
 
 type VendorOption = {
@@ -18,17 +18,17 @@ const vendorOptions: VendorOption[] = [
   {
     id: "v-1",
     name: "Nova Retail Hub",
-    priceInr: 27999,
+    priceInr: 71999,
     cashbackInr: 1300,
     deliveryEstimate: "Delivery by Monday, 16 Feb",
-    vendorOffer: "Extra ₹1,000 off on prepaid orders above ₹20,000.",
+    vendorOffer: "Extra ₹1,000 off on prepaid orders above ₹70,000.",
     couponCode: "NOVA1000",
     freebie: "Free Type-C cable",
   },
   {
     id: "v-2",
     name: "City Electronics Store",
-    priceInr: 28249,
+    priceInr: 72499,
     cashbackInr: 1300,
     deliveryEstimate: "Delivery by Tuesday, 17 Feb",
     vendorOffer: "Free screen guard and setup assistance.",
@@ -37,18 +37,12 @@ const vendorOptions: VendorOption[] = [
   {
     id: "v-3",
     name: "Glonni Verified Seller",
-    priceInr: 28599,
+    priceInr: 72999,
     cashbackInr: 1450,
     deliveryEstimate: "Delivery by Monday, 16 Feb",
     vendorOffer: "Bundle offer with 25W adapter at ₹499.",
     couponCode: "BUNDLE499",
   },
-];
-
-const bankOffers = [
-  "HDFC cards: 10% instant discount up to ₹2,000",
-  "Axis cards: 5% cashback up to ₹1,500",
-  "ICICI EMI: No-cost EMI for 6 months",
 ];
 
 export function ProductPage() {
@@ -97,7 +91,10 @@ export function ProductPage() {
 
         <article className="card pdp-buy-card">
           <div className="pdp-meta-row">
-            <span className="badge home-badge">{featuredProduct.brand}</span>
+            <div className="pdp-brand-header">
+              <img src={featuredProduct.brandLogoUrl} alt={`${featuredProduct.brand} logo`} />
+              <span>{featuredProduct.brand}</span>
+            </div>
             <span className="pdp-rating">Rating {featuredProduct.rating.toFixed(1)}</span>
           </div>
           <h2>{featuredProduct.name}</h2>
@@ -154,11 +151,14 @@ export function ProductPage() {
           <header className="section-header">
             <h2>Bank Offers</h2>
           </header>
-          <ul className="bullet-list">
+          <div className="pdp-bank-offer-list">
             {bankOffers.map((offer) => (
-              <li key={offer}>{offer}</li>
+              <article key={offer.bankName} className="pdp-bank-offer-card">
+                <img src={offer.logoUrl} alt={`${offer.bankName} logo`} />
+                <p>{offer.offerText}</p>
+              </article>
             ))}
-          </ul>
+          </div>
         </article>
       </section>
     </div>

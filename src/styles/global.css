@@ -1511,3 +1511,482 @@ ul {
     grid-column: 2;
   }
 }
+
+/* Strict white-theme overrides for MVP */
+:root {
+  background: #ffffff;
+  color: #111827;
+}
+
+body {
+  background: #ffffff;
+  color: #111827;
+}
+
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  backdrop-filter: none;
+}
+
+.brand-mark {
+  background: #ffffff;
+  border: 1px solid #ffc107;
+  color: #1f2937;
+  box-shadow: none;
+}
+
+.nav-link {
+  color: #374151;
+}
+
+.nav-link:hover {
+  background: #ffffff;
+  color: #111827;
+}
+
+.nav-link.active {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #ffc107;
+}
+
+.card,
+.home-landing .card,
+.plp-page .card,
+.pdp-page .card,
+.cart-page .card,
+.checkout-page .card,
+.order-success-page .card,
+.settings-page .card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 10px rgb(17 24 39 / 5%);
+}
+
+.badge,
+.home-badge,
+.plp-badge {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.btn-primary {
+  background: #ffc107;
+  border-color: #e0a800;
+  color: #1f2937;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.chip {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.thumb {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.muted-tag {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #4b5563;
+}
+
+.home-banner,
+.plp-intro {
+  background: #ffffff;
+}
+
+.home-banner-header p,
+.home-section-header p,
+.home-category-card p,
+.home-brand-card p,
+.home-spec-line,
+.plp-spec-line,
+.plp-rank-label,
+.pdp-specs,
+.checkout-option p,
+.cart-item-copy p,
+.settings-list-row p,
+.settings-profile-grid p {
+  color: #6b7280;
+}
+
+.home-carousel-slide,
+.home-category-card,
+.home-product-card,
+.home-brand-card,
+.home-bank-offer-card,
+.plp-product-card,
+.pdp-vendor-option,
+.checkout-option,
+.checkout-bank-offer-card,
+.settings-kpi-grid article,
+.settings-list-row,
+.settings-profile-grid article,
+.cart-item,
+.home-offer-card,
+.home-personalized {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.home-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.home-category-icon-wrap {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.65rem;
+  display: inline-grid;
+  place-items: center;
+  color: #4b5563;
+}
+
+.home-category-icon-wrap svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-category-card {
+  padding: 0.75rem;
+}
+
+.home-product-card {
+  overflow: hidden;
+}
+
+.home-product-brand-logo {
+  position: absolute;
+  top: 0.45rem;
+  left: 0.45rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  object-fit: contain;
+  padding: 0.18rem;
+}
+
+.home-media {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.home-slide-art-image,
+.cart-item-image,
+.pdp-main-image {
+  border: 1px solid #e5e7eb;
+}
+
+.home-pill {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.home-pill-sponsored {
+  background: #ffffff;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.home-cashback-badge,
+.plp-cashback-badge {
+  width: fit-content;
+  border: 1px solid #e0a800;
+  border-radius: 999px;
+  background: #ffc107;
+  color: #1f2937;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.16rem 0.48rem;
+}
+
+.home-bank-offer-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 0.65rem;
+  overflow-x: auto;
+}
+
+.home-bank-offer-card {
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.home-bank-logo {
+  width: 4.2rem;
+  height: 1.6rem;
+  object-fit: contain;
+}
+
+.home-bank-offer-card p {
+  color: #374151;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.home-brand-logo-img {
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.55rem;
+  object-fit: contain;
+  padding: 0.2rem;
+  background: #ffffff;
+}
+
+.plp-filter-chip,
+.plp-sort-pill {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.plp-brand-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.plp-brand-filter-chip {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.plp-brand-filter-chip img {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.plp-sponsored-pill {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #6b7280;
+}
+
+.plp-category-pill,
+.plp-rating-pill {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.plp-wishlist-button {
+  background: #ffffff;
+  border-color: #d1d5db;
+}
+
+.plp-image-wrap {
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.plp-price-headline span,
+.home-price-row span,
+.cart-item-price span,
+.pdp-mrp {
+  color: #9ca3af;
+}
+
+.plp-brand-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #4b5563;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.plp-brand-logo {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.pdp-brand-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+}
+
+.pdp-brand-header img {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  object-fit: contain;
+}
+
+.pdp-rating {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.pdp-bank-offer-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pdp-bank-offer-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.8rem;
+  background: #ffffff;
+  padding: 0.62rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.pdp-bank-offer-card img {
+  width: 4rem;
+  height: 1.4rem;
+  object-fit: contain;
+}
+
+.pdp-bank-offer-card p {
+  color: #374151;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.checkout-payment-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #111827;
+  font-weight: 700;
+}
+
+.checkout-payment-label svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: #374151;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.checkout-bank-logo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.checkout-bank-logo-row img {
+  width: 4rem;
+  height: 1.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.45rem;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 0.15rem;
+}
+
+.checkout-cashback-note {
+  border-left: 3px solid #ffc107;
+  padding-left: 0.55rem;
+  color: #4b5563;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.checkout-bank-offers {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.checkout-bank-offer-card {
+  padding: 0.55rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.checkout-bank-offer-card img {
+  width: 4rem;
+  height: 1.5rem;
+  object-fit: contain;
+}
+
+.checkout-bank-offer-card p {
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.home-cta-secondary {
+  border-color: #d1d5db;
+}
+
+.footer {
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+}
+
+.settings-link {
+  background: #ffffff;
+  color: #374151;
+}
+
+.settings-link.active {
+  background: #ffffff;
+  border: 1px solid #ffc107;
+  color: #111827;
+}
+
+.order-success-status {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+.order-success-cashback {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #ffc107;
+  color: #374151;
+}
