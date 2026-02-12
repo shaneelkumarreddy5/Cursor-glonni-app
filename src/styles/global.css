@@ -421,3 +421,337 @@ ul {
     grid-template-columns: 1fr;
   }
 }
+
+.home-landing {
+  --home-surface: #fffdf3;
+  --home-border: #efdeac;
+  --home-accent: #f4ba00;
+  --home-accent-strong: #a56900;
+  --home-text: #3e3518;
+  --home-muted: #74653f;
+}
+
+.home-landing .card {
+  background: var(--home-surface);
+  border-color: var(--home-border);
+  box-shadow: 0 12px 28px rgb(165 114 0 / 10%);
+}
+
+.home-badge {
+  background: #fff0b0;
+  border-color: #f4dc88;
+  color: #83560c;
+}
+
+.home-banner {
+  background:
+    radial-gradient(circle at 0% 0%, rgb(255 248 212 / 95%), transparent 43%),
+    radial-gradient(circle at 100% 0%, rgb(255 233 164 / 72%), transparent 47%),
+    var(--home-surface);
+}
+
+.home-banner-header {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.home-banner-header h1 {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  color: var(--home-text);
+}
+
+.home-banner-header p {
+  color: var(--home-muted);
+}
+
+.home-carousel-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+  scroll-snap-type: x mandatory;
+}
+
+.home-carousel-slide {
+  scroll-snap-align: start;
+  border: 1px solid #efd58c;
+  border-radius: 0.9rem;
+  background: #fff9df;
+  padding: 0.9rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 0.85rem;
+  min-height: 220px;
+}
+
+.home-carousel-slide h2 {
+  color: var(--home-text);
+  font-size: 1.1rem;
+}
+
+.home-carousel-slide p {
+  color: var(--home-muted);
+  margin-top: 0.5rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.93rem;
+}
+
+.home-cta {
+  background: linear-gradient(135deg, #f9c600, #ffc93c);
+  color: #573601;
+  border-color: #e9ba00;
+}
+
+.home-section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.home-section-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.home-section-header h2 {
+  font-size: clamp(1.03rem, 2vw, 1.22rem);
+  color: var(--home-text);
+}
+
+.home-section-header p {
+  color: var(--home-muted);
+  font-size: 0.92rem;
+}
+
+.home-horizontal-scroll {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(170px, 230px);
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.home-category-card {
+  border: 1px solid #edd898;
+  border-radius: 0.85rem;
+  background: #fff9e2;
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.home-category-card h3 {
+  font-size: 0.96rem;
+  color: var(--home-text);
+}
+
+.home-category-card p {
+  color: var(--home-muted);
+  font-size: 0.86rem;
+}
+
+.home-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 0.8rem;
+}
+
+.home-product-card {
+  border: 1px solid #edd89c;
+  border-radius: 0.85rem;
+  background: #fff9e4;
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.home-image-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.7rem;
+  border: 1px dashed #e4c762;
+  background:
+    linear-gradient(150deg, rgb(255 233 158 / 25%), rgb(255 233 158 / 8%)),
+    repeating-linear-gradient(
+      -45deg,
+      #fff7d8 0 10px,
+      #ffefbd 10px 20px
+    );
+  color: #845d14;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.home-slide-art {
+  aspect-ratio: 1 / 1;
+}
+
+.home-category-art {
+  aspect-ratio: 5 / 4;
+}
+
+.home-product-copy {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.home-product-copy h3 {
+  font-size: 0.95rem;
+  color: var(--home-text);
+}
+
+.home-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.home-pill {
+  border: 1px solid #efd68f;
+  border-radius: 99px;
+  background: #fff3c2;
+  color: #6d4f18;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.18rem 0.5rem;
+}
+
+.home-pill-sponsored {
+  background: #fbd57f;
+  border-color: #eab84c;
+  color: #684204;
+}
+
+.home-price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--home-text);
+}
+
+.home-price-row strong {
+  font-size: 0.96rem;
+}
+
+.home-price-row span {
+  color: #8f7f5f;
+  text-decoration: line-through;
+  font-size: 0.86rem;
+}
+
+.home-brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.home-brand-card {
+  border: 1px solid #edd89f;
+  border-radius: 0.85rem;
+  background: #fff9e5;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.home-brand-logo {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.55rem;
+  border: 1px solid #e0bc63;
+  background: linear-gradient(145deg, #ffe495, #ffd86c);
+  color: #614000;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.home-brand-card h3 {
+  font-size: 0.92rem;
+  color: var(--home-text);
+}
+
+.home-brand-card p {
+  color: var(--home-muted);
+  font-size: 0.82rem;
+}
+
+.home-offer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 0.8rem;
+}
+
+.home-offer-card {
+  border: 1px solid #ebd08e;
+  border-radius: 0.85rem;
+  background: #fff7db;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.home-offer-bank {
+  width: fit-content;
+  border-radius: 99px;
+  border: 1px solid #e8cc84;
+  background: #fff0b9;
+  color: #6f4c10;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.18rem 0.5rem;
+}
+
+.home-offer-card h3 {
+  color: var(--home-text);
+  font-size: 0.95rem;
+}
+
+.home-offer-card p {
+  color: var(--home-muted);
+  font-size: 0.86rem;
+}
+
+.home-offer-code {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #765318;
+}
+
+.home-personalized {
+  border: 1px dashed #dfbd6d;
+  border-radius: 0.85rem;
+  background: #fff6d7;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.home-personalized h3 {
+  color: var(--home-text);
+  font-size: 0.98rem;
+}
+
+.home-personalized p {
+  color: var(--home-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .home-carousel-slide {
+    grid-template-columns: 1fr;
+  }
+
+  .home-slide-art {
+    aspect-ratio: 16 / 9;
+  }
+}
