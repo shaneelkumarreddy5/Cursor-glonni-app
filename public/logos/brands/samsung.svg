@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="1" y="1" width="62" height="62" rx="12" fill="#ffffff" stroke="#d1d5db"/>
+  <ellipse cx="32" cy="32" rx="23" ry="15" fill="#1428a0"/>
+  <text x="32" y="37" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" fill="#ffffff">S</text>
+</svg>

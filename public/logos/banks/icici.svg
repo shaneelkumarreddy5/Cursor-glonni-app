@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 64">
+  <rect width="220" height="64" rx="8" fill="#ffffff"/>
+  <ellipse cx="30" cy="32" rx="18" ry="20" fill="#8b3d2e"/>
+  <path d="M24 16h12v32H24z" fill="#f48a1f"/>
+  <text x="60" y="39" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#8b3d2e">ICICI BANK</text>
+</svg>
