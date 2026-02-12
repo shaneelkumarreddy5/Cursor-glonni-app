@@ -755,3 +755,232 @@ ul {
     aspect-ratio: 16 / 9;
   }
 }
+
+.plp-page {
+  --plp-surface: #fffdf3;
+  --plp-border: #efdeac;
+  --plp-card: #fff9e4;
+  --plp-card-border: #edd89b;
+  --plp-text: #3f3518;
+  --plp-muted: #75643d;
+  --plp-accent: #f3bc13;
+  --plp-accent-strong: #8d5d0b;
+}
+
+.plp-page .card {
+  background: var(--plp-surface);
+  border-color: var(--plp-border);
+  box-shadow: 0 12px 28px rgb(165 114 0 / 10%);
+}
+
+.plp-intro {
+  display: grid;
+  gap: 0.7rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgb(255 248 212 / 96%), transparent 45%),
+    radial-gradient(circle at 100% 0%, rgb(255 233 164 / 70%), transparent 52%),
+    var(--plp-surface);
+}
+
+.plp-badge {
+  width: fit-content;
+  background: #fff0b0;
+  border-color: #f4dc88;
+  color: #83560c;
+}
+
+.plp-intro h1 {
+  color: var(--plp-text);
+  font-size: clamp(1.3rem, 2.6vw, 1.9rem);
+}
+
+.plp-intro p {
+  color: var(--plp-muted);
+  max-width: 72ch;
+}
+
+.plp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.plp-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.plp-filter-chip {
+  border: 1px solid #e8cb7c;
+  border-radius: 99px;
+  padding: 0.35rem 0.72rem;
+  background: #fff4cb;
+  color: #6e4b12;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.plp-sort-pill {
+  border: 1px solid #e6ca7b;
+  border-radius: 99px;
+  background: #fff1bf;
+  color: #6d4a10;
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 0.35rem 0.72rem;
+}
+
+.plp-summary p {
+  color: var(--plp-muted);
+  font-weight: 600;
+}
+
+.plp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.plp-product-card {
+  border: 1px solid var(--plp-card-border);
+  border-radius: 0.95rem;
+  background: var(--plp-card);
+  display: grid;
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.plp-image-wrap {
+  position: relative;
+  border-bottom: 1px solid #ecdba7;
+  background: #fffdf6;
+}
+
+.plp-product-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.plp-sponsored-pill {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  border: 1px solid #e5b150;
+  border-radius: 99px;
+  background: #fbd57f;
+  color: #684204;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+}
+
+.plp-wishlist-button {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #ebd594;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 92%);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.plp-wishlist-button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: #8e6110;
+  stroke-width: 1.8;
+}
+
+.plp-product-copy {
+  padding: 0.1rem 0.75rem 0.75rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.plp-category-pill {
+  width: fit-content;
+  border: 1px solid #ead8a1;
+  border-radius: 99px;
+  background: #fff5d0;
+  color: #735117;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+}
+
+.plp-product-copy h2 {
+  font-size: 0.95rem;
+  color: var(--plp-text);
+  min-height: 2.5em;
+}
+
+.plp-price-block {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.plp-price-block strong {
+  color: var(--plp-text);
+  font-size: 1.03rem;
+}
+
+.plp-price-block span {
+  color: var(--plp-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.plp-offer-line {
+  color: #7a5a23;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.plp-rating-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.plp-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #e7d084;
+  border-radius: 99px;
+  background: #fff2c7;
+  color: #6a4a12;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.18rem 0.45rem;
+}
+
+.plp-rating-pill svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  fill: #d3930d;
+}
+
+.plp-rank-label {
+  font-size: 0.74rem;
+  color: #816a3a;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .plp-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
