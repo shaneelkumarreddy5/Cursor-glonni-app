@@ -1,0 +1,34 @@
+{
+  "name": "glonni-storefront",
+  "version": "1.0.0",
+  "description": "Glonni modern e-commerce storefront frontend scaffold",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaneelkumarreddy5/Cursor-glonni-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/shaneelkumarreddy5/Cursor-glonni-app/issues"
+  },
+  "homepage": "https://github.com/shaneelkumarreddy5/Cursor-glonni-app#readme",
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
