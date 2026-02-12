@@ -16,26 +16,44 @@ import {
   SupportSettingsPage,
   WalletSettingsPage,
 } from "../pages/settings/SettingsPages";
-import { ROUTES } from "./paths";
+import { ROUTES, ROUTE_SEGMENTS, SETTINGS_ROUTE_SEGMENTS } from "./paths";
 
 export function AppRouter() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
+      <Route path={ROUTES.home} element={<MainLayout />}>
         <Route index element={<HomePage />} />
-        <Route path={ROUTES.category.slice(1)} element={<CategoryPage />} />
-        <Route path={ROUTES.product.slice(1)} element={<ProductPage />} />
-        <Route path={ROUTES.cart.slice(1)} element={<CartPage />} />
-        <Route path={ROUTES.checkout.slice(1)} element={<CheckoutPage />} />
+        <Route path={ROUTE_SEGMENTS.category} element={<CategoryPage />} />
+        <Route path={ROUTE_SEGMENTS.product} element={<ProductPage />} />
+        <Route path={ROUTE_SEGMENTS.cart} element={<CartPage />} />
+        <Route path={ROUTE_SEGMENTS.checkout} element={<CheckoutPage />} />
 
-        <Route path={ROUTES.settings.slice(1)} element={<SettingsLayout />}>
+        <Route path={ROUTE_SEGMENTS.settings} element={<SettingsLayout />}>
           <Route index element={<SettingsOverviewPage />} />
-          <Route path="orders" element={<OrdersSettingsPage />} />
-          <Route path="wallet" element={<WalletSettingsPage />} />
-          <Route path="support" element={<SupportSettingsPage />} />
-          <Route path="profile" element={<ProfileSettingsPage />} />
-          <Route path="addresses" element={<AddressesSettingsPage />} />
-          <Route path="notifications" element={<NotificationsSettingsPage />} />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.orders}
+            element={<OrdersSettingsPage />}
+          />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.wallet}
+            element={<WalletSettingsPage />}
+          />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.support}
+            element={<SupportSettingsPage />}
+          />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.profile}
+            element={<ProfileSettingsPage />}
+          />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.addresses}
+            element={<AddressesSettingsPage />}
+          />
+          <Route
+            path={SETTINGS_ROUTE_SEGMENTS.notifications}
+            element={<NotificationsSettingsPage />}
+          />
         </Route>
       </Route>
 

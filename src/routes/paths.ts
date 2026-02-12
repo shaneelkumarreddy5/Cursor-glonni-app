@@ -1,16 +1,35 @@
+export const ROUTE_SEGMENTS = {
+  category: "category",
+  product: "product",
+  cart: "cart",
+  checkout: "checkout",
+  settings: "settings",
+} as const;
+
+export const SETTINGS_ROUTE_SEGMENTS = {
+  orders: "orders",
+  wallet: "wallet",
+  support: "support",
+  profile: "profile",
+  addresses: "addresses",
+  notifications: "notifications",
+} as const;
+
+const settingsRoot = `/${ROUTE_SEGMENTS.settings}` as const;
+
 export const ROUTES = {
   home: "/",
-  category: "/category",
-  product: "/product",
-  cart: "/cart",
-  checkout: "/checkout",
-  settings: "/settings",
-  settingsOrders: "/settings/orders",
-  settingsWallet: "/settings/wallet",
-  settingsSupport: "/settings/support",
-  settingsProfile: "/settings/profile",
-  settingsAddresses: "/settings/addresses",
-  settingsNotifications: "/settings/notifications",
+  category: `/${ROUTE_SEGMENTS.category}`,
+  product: `/${ROUTE_SEGMENTS.product}`,
+  cart: `/${ROUTE_SEGMENTS.cart}`,
+  checkout: `/${ROUTE_SEGMENTS.checkout}`,
+  settings: settingsRoot,
+  settingsOrders: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.orders}`,
+  settingsWallet: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.wallet}`,
+  settingsSupport: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.support}`,
+  settingsProfile: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.profile}`,
+  settingsAddresses: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.addresses}`,
+  settingsNotifications: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.notifications}`,
 } as const;
 
 export type NavItem = {
