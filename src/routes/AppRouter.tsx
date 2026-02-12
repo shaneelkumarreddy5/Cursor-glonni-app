@@ -6,6 +6,7 @@ import { CategoryPage } from "../pages/CategoryPage";
 import { CheckoutPage } from "../pages/CheckoutPage";
 import { HomePage } from "../pages/HomePage";
 import { NotFoundPage } from "../pages/NotFoundPage";
+import { OrderSuccessPage } from "../pages/OrderSuccessPage";
 import { ProductPage } from "../pages/ProductPage";
 import {
   AddressesSettingsPage,
@@ -27,6 +28,7 @@ export function AppRouter() {
         <Route path={ROUTE_SEGMENTS.product} element={<ProductPage />} />
         <Route path={ROUTE_SEGMENTS.cart} element={<CartPage />} />
         <Route path={ROUTE_SEGMENTS.checkout} element={<CheckoutPage />} />
+        <Route path={ROUTE_SEGMENTS.orderSuccess} element={<OrderSuccessPage />} />
 
         <Route path={ROUTE_SEGMENTS.settings} element={<SettingsLayout />}>
           <Route index element={<SettingsOverviewPage />} />

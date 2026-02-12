@@ -1,160 +1,5 @@
-type ProductCategory = "Mobiles" | "Laptops" | "Footwear";
-
-type MockProduct = {
-  id: string;
-  name: string;
-  category: ProductCategory;
-  priceInr: number;
-  cashbackInr: number;
-  rating: number;
-  isSponsored: boolean;
-  bestOfferLine?: string;
-  imageUrl: string;
-};
-
-const mockProducts: MockProduct[] = [
-  {
-    id: "sp-1",
-    name: "Glonni Spark X7 5G",
-    category: "Mobiles",
-    priceInr: 27999,
-    cashbackInr: 1300,
-    rating: 4.6,
-    isSponsored: true,
-    bestOfferLine: "Best offer: Instant ₹2,000 bank discount on select cards.",
-    imageUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "sp-2",
-    name: "PixelEdge Pro 128GB",
-    category: "Mobiles",
-    priceInr: 32999,
-    cashbackInr: 1600,
-    rating: 4.7,
-    isSponsored: true,
-    bestOfferLine: "Best offer: Exchange bonus up to ₹4,500.",
-    imageUrl: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "sp-3",
-    name: "AeroBook Slim 14",
-    category: "Laptops",
-    priceInr: 58999,
-    cashbackInr: 2500,
-    rating: 4.5,
-    isSponsored: true,
-    bestOfferLine: "Best offer: No-cost EMI plus ₹3,000 instant discount.",
-    imageUrl: "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "sp-4",
-    name: "SprintFlex Runner Elite",
-    category: "Footwear",
-    priceInr: 4299,
-    cashbackInr: 260,
-    rating: 4.4,
-    isSponsored: true,
-    bestOfferLine: "Best offer: Buy two running essentials and save ₹700.",
-    imageUrl: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-1",
-    name: "UrbanStep Knit Slip-On",
-    category: "Footwear",
-    priceInr: 1899,
-    cashbackInr: 120,
-    rating: 4.2,
-    isSponsored: false,
-    imageUrl: "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-2",
-    name: "TrailEdge Trekking Shoe",
-    category: "Footwear",
-    priceInr: 2499,
-    cashbackInr: 150,
-    rating: 4.3,
-    isSponsored: false,
-    bestOfferLine: "Best offer: Flat ₹300 off with coupon STEP300.",
-    imageUrl: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-3",
-    name: "MotoNova G15 5G",
-    category: "Mobiles",
-    priceInr: 11999,
-    cashbackInr: 500,
-    rating: 4.3,
-    isSponsored: false,
-    bestOfferLine: "Best offer: Extra ₹1,000 off on prepaid orders.",
-    imageUrl: "https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-4",
-    name: "Redmi Pulse Note 12",
-    category: "Mobiles",
-    priceInr: 13499,
-    cashbackInr: 550,
-    rating: 4.1,
-    isSponsored: false,
-    imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-5",
-    name: "Vivo LiteCam 5G",
-    category: "Mobiles",
-    priceInr: 16999,
-    cashbackInr: 700,
-    rating: 4.4,
-    isSponsored: false,
-    bestOfferLine: "Best offer: Student deal worth ₹1,200.",
-    imageUrl: "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-6",
-    name: "ThinkCore Student 15",
-    category: "Laptops",
-    priceInr: 45999,
-    cashbackInr: 1800,
-    rating: 4.5,
-    isSponsored: false,
-    bestOfferLine: "Best offer: Cashback boost to ₹2,500 on UPI payment.",
-    imageUrl: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-7",
-    name: "SwiftBook Air 13",
-    category: "Laptops",
-    priceInr: 52999,
-    cashbackInr: 2100,
-    rating: 4.6,
-    isSponsored: false,
-    imageUrl: "https://images.unsplash.com/photo-1484788984921-03950022c9ef?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "og-8",
-    name: "CreatorPro Vision 16",
-    category: "Laptops",
-    priceInr: 79999,
-    cashbackInr: 3200,
-    rating: 4.7,
-    isSponsored: false,
-    bestOfferLine: "Best offer: Bundle savings worth ₹5,000 on accessories.",
-    imageUrl: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=1200&q=80",
-  },
-];
-
-const categoryFilters: ProductCategory[] = ["Mobiles", "Laptops", "Footwear"];
-
-const inrFormatter = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
-
-function formatInr(value: number) {
-  return inrFormatter.format(value);
-}
+import { catalogProducts, type CatalogCategory } from "../data/mockCatalog";
+import { formatInr } from "../utils/currency";
 
 function StarIcon() {
   return (
@@ -173,10 +18,11 @@ function WishlistIcon() {
 }
 
 export function CategoryPage() {
-  const sponsoredProducts = mockProducts.filter((product) => product.isSponsored).slice(0, 4);
-  const organicProducts = mockProducts
-    .filter((product) => !product.isSponsored)
+  const sponsoredProducts = catalogProducts.filter((product) => product.sponsored).slice(0, 4);
+  const organicProducts = catalogProducts
+    .filter((product) => !product.sponsored)
     .sort((first, second) => first.priceInr - second.priceInr);
+  const categoryFilters: CatalogCategory[] = ["Mobiles", "Laptops", "Accessories", "Footwear"];
 
   const productsToRender = [...sponsoredProducts, ...organicProducts];
 
@@ -184,7 +30,7 @@ export function CategoryPage() {
     <div className="plp-page stack">
       <section className="card plp-intro">
         <span className="badge plp-badge">PLP</span>
-        <h1>Category Listing - Mobiles, Laptops, and Footwear</h1>
+        <h1>Category Listing - Mobiles, Laptops, Accessories, and Footwear</h1>
         <p>
           First 4 cards are sponsored placements. All remaining cards are organic products sorted
           by best price.
@@ -212,7 +58,7 @@ export function CategoryPage() {
         {productsToRender.map((product, index) => (
           <article key={product.id} className="plp-product-card">
             <div className="plp-image-wrap">
-              {product.isSponsored ? <span className="plp-sponsored-pill">Sponsored</span> : null}
+              {product.sponsored ? <span className="plp-sponsored-pill">Sponsored</span> : null}
               <button
                 type="button"
                 className="plp-wishlist-button"
@@ -231,10 +77,14 @@ export function CategoryPage() {
             <div className="plp-product-copy">
               <span className="plp-category-pill">{product.category}</span>
               <h2>{product.name}</h2>
+              <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
 
               <div className="plp-price-block">
-                <strong>{formatInr(product.priceInr)}</strong>
-                <span>Cashback: {formatInr(product.cashbackInr)}</span>
+                <div className="plp-price-headline">
+                  <strong>{formatInr(product.priceInr)}</strong>
+                  <span>{formatInr(product.mrpInr)}</span>
+                </div>
+                <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
               </div>
 
               {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}

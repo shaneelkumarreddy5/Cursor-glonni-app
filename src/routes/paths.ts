@@ -3,6 +3,7 @@ export const ROUTE_SEGMENTS = {
   product: "product",
   cart: "cart",
   checkout: "checkout",
+  orderSuccess: "order-success",
   settings: "settings",
 } as const;
 
@@ -23,6 +24,7 @@ export const ROUTES = {
   product: `/${ROUTE_SEGMENTS.product}`,
   cart: `/${ROUTE_SEGMENTS.cart}`,
   checkout: `/${ROUTE_SEGMENTS.checkout}`,
+  orderSuccess: `/${ROUTE_SEGMENTS.orderSuccess}`,
   settings: settingsRoot,
   settingsOrders: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.orders}`,
   settingsWallet: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.wallet}`,

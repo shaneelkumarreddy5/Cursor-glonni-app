@@ -33,7 +33,7 @@ export function MainLayout() {
       </main>
 
       <footer className="footer">
-        <p>Glonni storefront scaffold - UI and routing placeholders only.</p>
+        <p>Glonni MVP storefront - cashback-first shopping experience for Indian users.</p>
       </footer>
     </div>
   );
