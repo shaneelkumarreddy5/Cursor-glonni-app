@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { MainLayout } from "../layouts/MainLayout";
 import { SettingsLayout } from "../layouts/SettingsLayout";
 import { CartPage } from "../pages/CartPage";
@@ -12,6 +12,7 @@ import {
   NotificationsSettingsPage,
   OrdersSettingsPage,
   ProfileSettingsPage,
+  SettingsOverviewPage,
   SupportSettingsPage,
   WalletSettingsPage,
 } from "../pages/settings/SettingsPages";
@@ -28,7 +29,7 @@ export function AppRouter() {
         <Route path={ROUTES.checkout.slice(1)} element={<CheckoutPage />} />
 
         <Route path={ROUTES.settings.slice(1)} element={<SettingsLayout />}>
-          <Route index element={<Navigate to={ROUTES.settingsOrders} replace />} />
+          <Route index element={<SettingsOverviewPage />} />
           <Route path="orders" element={<OrdersSettingsPage />} />
           <Route path="wallet" element={<WalletSettingsPage />} />
           <Route path="support" element={<SupportSettingsPage />} />

@@ -1,5 +1,19 @@
 import { SettingsPageTemplate } from "../../components/settings/SettingsPageTemplate";
 
+export function SettingsOverviewPage() {
+  return (
+    <SettingsPageTemplate
+      title="Settings Overview"
+      description="Central hub for account tools, preferences, and support modules."
+      bullets={[
+        "Use the sidebar to navigate each settings area",
+        "Each module is UI-only placeholder content",
+        "No backend, auth, or business logic is connected yet",
+      ]}
+    />
+  );
+}
+
 export function OrdersSettingsPage() {
   return (
     <SettingsPageTemplate

@@ -24,7 +24,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: "Product", to: ROUTES.product },
   { label: "Cart", to: ROUTES.cart },
   { label: "Checkout", to: ROUTES.checkout },
-  { label: "Settings", to: ROUTES.settingsOrders },
+  { label: "Settings", to: ROUTES.settings },
 ];
 
 export const SETTINGS_NAV_ITEMS: NavItem[] = [
