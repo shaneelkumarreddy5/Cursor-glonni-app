@@ -17,7 +17,25 @@ import {
   SupportSettingsPage,
   WalletSettingsPage,
 } from "../pages/settings/SettingsPages";
-import { ROUTES, ROUTE_SEGMENTS, SETTINGS_ROUTE_SEGMENTS } from "./paths";
+import {
+  VendorAdsPage,
+  VendorDashboardPage,
+  VendorLandingRedirect,
+  VendorLoginPage,
+  VendorOrdersPage,
+  VendorProductsPage,
+  VendorProtectedLayoutRoute,
+  VendorProviderRoute,
+  VendorSettingsPage,
+  VendorSupportPage,
+  VendorWalletPage,
+} from "../vendor/VendorPages";
+import {
+  ROUTES,
+  ROUTE_SEGMENTS,
+  SETTINGS_ROUTE_SEGMENTS,
+  VENDOR_ROUTE_SEGMENTS,
+} from "./paths";
 
 export function AppRouter() {
   return (
@@ -61,6 +79,21 @@ export function AppRouter() {
             path={SETTINGS_ROUTE_SEGMENTS.notifications}
             element={<NotificationsSettingsPage />}
           />
+        </Route>
+      </Route>
+
+      <Route path={ROUTE_SEGMENTS.vendor} element={<VendorProviderRoute />}>
+        <Route index element={<VendorLandingRedirect />} />
+        <Route path={VENDOR_ROUTE_SEGMENTS.login} element={<VendorLoginPage />} />
+
+        <Route element={<VendorProtectedLayoutRoute />}>
+          <Route path={VENDOR_ROUTE_SEGMENTS.dashboard} element={<VendorDashboardPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.products} element={<VendorProductsPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.orders} element={<VendorOrdersPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.wallet} element={<VendorWalletPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.ads} element={<VendorAdsPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.support} element={<VendorSupportPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.settings} element={<VendorSettingsPage />} />
         </Route>
       </Route>
 

@@ -37,6 +37,9 @@ export function MainLayout() {
           </form>
 
           <div className="topbar-actions">
+            <NavLink to={ROUTES.vendor} className="topbar-action-link">
+              Vendor
+            </NavLink>
             <NavLink to={ROUTES.settingsOrders} className="topbar-action-link">
               Orders
             </NavLink>

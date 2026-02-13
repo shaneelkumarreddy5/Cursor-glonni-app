@@ -5,6 +5,7 @@ export const ROUTE_SEGMENTS = {
   checkout: "checkout",
   orderSuccess: "order-success",
   settings: "settings",
+  vendor: "vendor",
 } as const;
 
 export const SETTINGS_ROUTE_SEGMENTS = {
@@ -17,6 +18,18 @@ export const SETTINGS_ROUTE_SEGMENTS = {
 } as const;
 
 const settingsRoot = `/${ROUTE_SEGMENTS.settings}` as const;
+const vendorRoot = `/${ROUTE_SEGMENTS.vendor}` as const;
+
+export const VENDOR_ROUTE_SEGMENTS = {
+  login: "login",
+  dashboard: "dashboard",
+  products: "products",
+  orders: "orders",
+  wallet: "wallet",
+  ads: "ads",
+  support: "support",
+  settings: "settings",
+} as const;
 
 export const ROUTES = {
   home: "/",
@@ -34,6 +47,15 @@ export const ROUTES = {
   settingsProfile: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.profile}`,
   settingsAddresses: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.addresses}`,
   settingsNotifications: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.notifications}`,
+  vendor: vendorRoot,
+  vendorLogin: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.login}`,
+  vendorDashboard: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.dashboard}`,
+  vendorProducts: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.products}`,
+  vendorOrders: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.orders}`,
+  vendorWallet: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.wallet}`,
+  vendorAds: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.ads}`,
+  vendorSupport: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.support}`,
+  vendorSettings: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.settings}`,
 } as const;
 
 export type NavItem = {
@@ -57,4 +79,14 @@ export const SETTINGS_NAV_ITEMS: NavItem[] = [
   { label: "Profile", to: ROUTES.settingsProfile },
   { label: "Addresses", to: ROUTES.settingsAddresses },
   { label: "Notifications", to: ROUTES.settingsNotifications },
+];
+
+export const VENDOR_NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", to: ROUTES.vendorDashboard },
+  { label: "Products", to: ROUTES.vendorProducts },
+  { label: "Orders", to: ROUTES.vendorOrders },
+  { label: "Wallet", to: ROUTES.vendorWallet },
+  { label: "Ads", to: ROUTES.vendorAds },
+  { label: "Support", to: ROUTES.vendorSupport },
+  { label: "Settings", to: ROUTES.vendorSettings },
 ];
