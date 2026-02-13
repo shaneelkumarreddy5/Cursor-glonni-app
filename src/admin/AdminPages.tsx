@@ -564,17 +564,18 @@ export function AdminProductDetailPage() {
   const pricingFlag = getProductPricingFlag(product.id);
   const productAuditLog = getProductAuditLog(product.id);
   const vendorProfile = getVendorById(product.vendorId);
+  const targetProductId = product.id;
   const isApprovalBlockedByRule =
     pricingRuleResult.isViolation && product.exceptionRequest.status !== "Approved";
   const hasPendingExceptionRequest = product.exceptionRequest.status === "Requested";
 
   function handleApproveProduct() {
-    const result = approveProduct(product.id);
+    const result = approveProduct(targetProductId);
     setFeedbackMessage(result.message);
   }
 
   function handleRejectProduct() {
-    const result = rejectProduct(product.id, rejectionReasonInput);
+    const result = rejectProduct(targetProductId, rejectionReasonInput);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setRejectionReasonInput("");
@@ -582,7 +583,7 @@ export function AdminProductDetailPage() {
   }
 
   function handleApproveException() {
-    const result = approvePriceException(product.id, exceptionDecisionReasonInput);
+    const result = approvePriceException(targetProductId, exceptionDecisionReasonInput);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setExceptionDecisionReasonInput("");
@@ -590,7 +591,7 @@ export function AdminProductDetailPage() {
   }
 
   function handleRejectException() {
-    const result = rejectPriceException(product.id, exceptionDecisionReasonInput);
+    const result = rejectPriceException(targetProductId, exceptionDecisionReasonInput);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setExceptionDecisionReasonInput("");
