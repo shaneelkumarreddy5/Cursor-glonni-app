@@ -1,5 +1,6 @@
 import {
   createContext,
+  useEffect,
   useContext,
   useMemo,
   useState,
@@ -90,7 +91,39 @@ export type VendorOrder = {
   paymentMethod: "COD" | "Online";
   status: VendorOrderStatus;
   visibilityState: VendorOrderVisibilityState;
+  returnWindowClosed: boolean;
+  noReturnSelected: boolean;
   updatedAtIso: string;
+};
+
+export type VendorWalletEntryStatus = "Pending" | "Available" | "Adjusted";
+
+export type VendorWalletEntry = {
+  id: string;
+  orderId: string;
+  productName: string;
+  amountInr: number;
+  status: VendorWalletEntryStatus;
+  note: string;
+  updatedAtIso: string;
+};
+
+type VendorWalletAdjustment = {
+  id: string;
+  orderId: string;
+  productName: string;
+  amountInr: number;
+  reason: "Cancelled" | "Return Requested";
+  createdAtIso: string;
+  reversalDueAtIso: string;
+  reversalCreated: boolean;
+  reversalCreatedAtIso: string | null;
+};
+
+type VendorWalletSummary = {
+  pendingInr: number;
+  availableInr: number;
+  adjustmentsInr: number;
 };
 
 type VendorContextValue = {
@@ -103,6 +136,10 @@ type VendorContextValue = {
   summaryMetrics: VendorSummaryMetrics;
   vendorProducts: VendorProduct[];
   vendorOrders: VendorOrder[];
+  walletEntries: VendorWalletEntry[];
+  walletSummary: VendorWalletSummary;
+  lastSettledAmountInr: number;
+  nextSettlementDateIso: string;
   loginVendor: (email: string, password: string) => VendorLoginResult;
   submitOnboarding: (
     payload: VendorOnboardingData,
@@ -130,6 +167,10 @@ type VendorContextValue = {
 
 const MOCK_VENDOR_NAME = "Astra Retail LLP";
 const MOCK_VENDOR_PENDING_SETTLEMENT_INR = 125430;
+const MOCK_LAST_SETTLED_AMOUNT_INR = 38640;
+const MOCK_NEXT_SETTLEMENT_DATE_ISO = new Date(
+  Date.now() + 2 * 24 * 60 * 60 * 1000,
+).toISOString();
 
 const CATEGORY_PRICE_BENCHMARKS: Record<
   VendorProductPayload["category"],
@@ -256,6 +297,8 @@ function createSeedVendorOrders(): VendorOrder[] {
       paymentMethod: "Online",
       status: "New",
       visibilityState: "None",
+      returnWindowClosed: false,
+      noReturnSelected: false,
       updatedAtIso: now.toISOString(),
     },
     {
@@ -267,6 +310,8 @@ function createSeedVendorOrders(): VendorOrder[] {
       paymentMethod: "COD",
       status: "Packed",
       visibilityState: "None",
+      returnWindowClosed: false,
+      noReturnSelected: false,
       updatedAtIso: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
     },
     {
@@ -278,6 +323,8 @@ function createSeedVendorOrders(): VendorOrder[] {
       paymentMethod: "COD",
       status: "Shipped",
       visibilityState: "Return Requested",
+      returnWindowClosed: false,
+      noReturnSelected: false,
       updatedAtIso: new Date(now.getTime() - 16 * 60 * 60 * 1000).toISOString(),
     },
     {
@@ -289,9 +336,94 @@ function createSeedVendorOrders(): VendorOrder[] {
       paymentMethod: "Online",
       status: "Delivered",
       visibilityState: "Cancelled",
+      returnWindowClosed: true,
+      noReturnSelected: false,
       updatedAtIso: new Date(now.getTime() - 28 * 60 * 60 * 1000).toISOString(),
     },
+    {
+      id: "VORD-500511",
+      productName: "Adidas Runstep Pro",
+      quantity: 1,
+      amountInr: 4299,
+      customerAddressMasked: "Whitefield, Bengaluru - ******",
+      paymentMethod: "Online",
+      status: "Delivered",
+      visibilityState: "None",
+      returnWindowClosed: true,
+      noReturnSelected: false,
+      updatedAtIso: new Date(now.getTime() - 52 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VORD-500612",
+      productName: "Buds Lite ANC",
+      quantity: 2,
+      amountInr: 5998,
+      customerAddressMasked: "Powai, Mumbai - ******",
+      paymentMethod: "COD",
+      status: "Delivered",
+      visibilityState: "None",
+      returnWindowClosed: false,
+      noReturnSelected: true,
+      updatedAtIso: new Date(now.getTime() - 34 * 60 * 60 * 1000).toISOString(),
+    },
   ];
+}
+
+function createSeedWalletAdjustments(orders: VendorOrder[]): VendorWalletAdjustment[] {
+  return orders
+    .filter((order) => order.visibilityState !== "None")
+    .map((order) => {
+      const now = Date.now();
+      const isReturnRequested = order.visibilityState === "Return Requested";
+      const reversalDueAtMs = isReturnRequested ? now - 30_000 : now + 120_000;
+      const adjustmentReason: VendorWalletAdjustment["reason"] =
+        order.visibilityState === "Cancelled" ? "Cancelled" : "Return Requested";
+
+      return {
+        id: `WADJ-${order.id}`,
+        orderId: order.id,
+        productName: order.productName,
+        amountInr: order.amountInr,
+        reason: adjustmentReason,
+        createdAtIso: new Date(now).toISOString(),
+        reversalDueAtIso: new Date(reversalDueAtMs).toISOString(),
+        reversalCreated: false,
+        reversalCreatedAtIso: null,
+      };
+    });
+}
+
+function applyWalletAdjustmentTransitions(
+  currentAdjustments: VendorWalletAdjustment[],
+  now = new Date(),
+) {
+  let hasChanges = false;
+  const nextAdjustments = currentAdjustments.map((adjustment) => {
+    if (adjustment.reversalCreated) {
+      return adjustment;
+    }
+
+    if (now.getTime() >= new Date(adjustment.reversalDueAtIso).getTime()) {
+      hasChanges = true;
+      return {
+        ...adjustment,
+        reversalCreated: true,
+        reversalCreatedAtIso: now.toISOString(),
+      };
+    }
+
+    return adjustment;
+  });
+
+  return hasChanges ? nextAdjustments : currentAdjustments;
+}
+
+function isOrderSettlementAvailable(order: VendorOrder) {
+  return (
+    order.status === "Delivered" &&
+    order.visibilityState === "None" &&
+    (order.returnWindowClosed || order.noReturnSelected)
+  );
 }
 
 function getBenchmarkValidationError(payload: VendorProductPayload) {
@@ -350,6 +482,22 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     useState<VendorProduct[]>(createSeedVendorProducts);
   const [vendorOrders, setVendorOrders] =
     useState<VendorOrder[]>(createSeedVendorOrders);
+  const [walletAdjustments, setWalletAdjustments] = useState<VendorWalletAdjustment[]>(
+    () => createSeedWalletAdjustments(createSeedVendorOrders()),
+  );
+
+  useEffect(() => {
+    const refreshWalletAdjustments = () => {
+      setWalletAdjustments((currentAdjustments) =>
+        applyWalletAdjustmentTransitions(currentAdjustments),
+      );
+    };
+
+    refreshWalletAdjustments();
+    const refreshHandle = window.setInterval(refreshWalletAdjustments, 30_000);
+
+    return () => window.clearInterval(refreshHandle);
+  }, []);
 
   function loginVendor(email: string, password: string): VendorLoginResult {
     if (!email.trim() || !password.trim()) {
@@ -582,6 +730,87 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     };
   }, [vendorOrders, vendorProducts]);
 
+  const walletEntries = useMemo<VendorWalletEntry[]>(() => {
+    const orderEntries: VendorWalletEntry[] = vendorOrders
+      .filter((order) => order.visibilityState === "None")
+      .map((order): VendorWalletEntry => ({
+        id: `WENTRY-${order.id}`,
+        orderId: order.id,
+        productName: order.productName,
+        amountInr: order.amountInr,
+        status: isOrderSettlementAvailable(order) ? "Available" : "Pending",
+        note: isOrderSettlementAvailable(order)
+          ? order.noReturnSelected
+            ? "Available after customer selected No Return."
+            : "Available after delivery and return window closure."
+          : "Pending until delivery and return policy completion.",
+        updatedAtIso: order.updatedAtIso,
+      }));
+
+    const adjustmentEntries = walletAdjustments.flatMap((adjustment) => {
+      const deductionEntry: VendorWalletEntry = {
+        id: `${adjustment.id}-deduct`,
+        orderId: adjustment.orderId,
+        productName: adjustment.productName,
+        amountInr: -Math.abs(adjustment.amountInr),
+        status: "Adjusted",
+        note:
+          adjustment.reason === "Cancelled"
+            ? "Temporary deduction for cancelled order."
+            : "Temporary deduction for return requested order.",
+        updatedAtIso: adjustment.createdAtIso,
+      };
+
+      if (!adjustment.reversalCreated) {
+        return [deductionEntry];
+      }
+
+      const reversalEntry: VendorWalletEntry = {
+        id: `${adjustment.id}-reverse`,
+        orderId: adjustment.orderId,
+        productName: adjustment.productName,
+        amountInr: Math.abs(adjustment.amountInr),
+        status: "Adjusted",
+        note: "Auto-adjust reversal credited (mock).",
+        updatedAtIso: adjustment.reversalCreatedAtIso ?? adjustment.createdAtIso,
+      };
+
+      return [deductionEntry, reversalEntry];
+    });
+
+    return [...orderEntries, ...adjustmentEntries].sort(
+      (first, second) =>
+        new Date(second.updatedAtIso).getTime() -
+        new Date(first.updatedAtIso).getTime(),
+    );
+  }, [vendorOrders, walletAdjustments]);
+
+  const walletSummary = useMemo<VendorWalletSummary>(() => {
+    return walletEntries.reduce(
+      (summary, walletEntry) => {
+        if (walletEntry.status === "Pending") {
+          return {
+            ...summary,
+            pendingInr: summary.pendingInr + walletEntry.amountInr,
+          };
+        }
+
+        if (walletEntry.status === "Available") {
+          return {
+            ...summary,
+            availableInr: summary.availableInr + walletEntry.amountInr,
+          };
+        }
+
+        return {
+          ...summary,
+          adjustmentsInr: summary.adjustmentsInr + walletEntry.amountInr,
+        };
+      },
+      { pendingInr: 0, availableInr: 0, adjustmentsInr: 0 },
+    );
+  }, [walletEntries]);
+
   const value = useMemo<VendorContextValue>(
     () => ({
       isLoggedIn,
@@ -593,6 +822,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       summaryMetrics,
       vendorProducts,
       vendorOrders,
+      walletEntries,
+      walletSummary,
+      lastSettledAmountInr: MOCK_LAST_SETTLED_AMOUNT_INR,
+      nextSettlementDateIso: MOCK_NEXT_SETTLEMENT_DATE_ISO,
       loginVendor,
       submitOnboarding,
       addVendorProduct,
@@ -608,6 +841,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       isLoggedIn,
       onboardingData,
       summaryMetrics,
+      walletEntries,
+      walletSummary,
       vendorOrders,
       vendorProducts,
       vendorStatus,

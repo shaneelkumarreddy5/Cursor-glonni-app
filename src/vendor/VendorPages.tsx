@@ -13,6 +13,7 @@ import {
   type VendorOnboardingData,
   type VendorOrder,
   type VendorOrderStatus,
+  type VendorWalletEntryStatus,
   type VendorProduct,
   type VendorProductExtraOffer,
   type VendorProductExtraOfferType,
@@ -132,6 +133,16 @@ function getOrderStatusClass(status: VendorOrderStatus) {
     return "vendor-order-status-badge vendor-order-status-shipped";
   }
   return "vendor-order-status-badge vendor-order-status-delivered";
+}
+
+function getWalletStatusClass(status: VendorWalletEntryStatus) {
+  if (status === "Pending") {
+    return "vendor-wallet-status-badge vendor-wallet-status-pending";
+  }
+  if (status === "Available") {
+    return "vendor-wallet-status-badge vendor-wallet-status-available";
+  }
+  return "vendor-wallet-status-badge vendor-wallet-status-adjusted";
 }
 
 function getNextVendorOrderStatus(
@@ -1205,11 +1216,82 @@ export function VendorOrdersPage() {
 }
 
 export function VendorWalletPage() {
+  const {
+    walletEntries,
+    walletSummary,
+    lastSettledAmountInr,
+    nextSettlementDateIso,
+  } = useVendor();
+
+  const sortedWalletEntries = useMemo(
+    () =>
+      [...walletEntries].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [walletEntries],
+  );
+
   return (
-    <VendorPlaceholderPage
-      title="Wallet"
-      description="Review settlements and payout history in INR."
-    />
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Wallet & Settlements"
+        description="Track pending, available, and adjusted settlement entries for your orders."
+      />
+
+      <section className="vendor-summary-grid">
+        <article className="vendor-summary-card">
+          <h3>Pending</h3>
+          <p>{formatInr(walletSummary.pendingInr)}</p>
+        </article>
+        <article className="vendor-summary-card">
+          <h3>Available</h3>
+          <p>{formatInr(walletSummary.availableInr)}</p>
+        </article>
+        <article className="vendor-summary-card">
+          <h3>Adjustments</h3>
+          <p>{formatInr(walletSummary.adjustmentsInr)}</p>
+        </article>
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Wallet Entries</h2>
+        </header>
+        <div className="stack-sm">
+          {sortedWalletEntries.map((walletEntry) => (
+            <article key={walletEntry.id} className="vendor-wallet-row">
+              <div>
+                <h3>{walletEntry.orderId}</h3>
+                <p>{walletEntry.productName}</p>
+                <p>{walletEntry.note}</p>
+                <p>Updated: {formatTimestamp(walletEntry.updatedAtIso)}</p>
+              </div>
+              <div className="vendor-wallet-amount-col">
+                <span className={getWalletStatusClass(walletEntry.status)}>
+                  {walletEntry.status}
+                </span>
+                <strong>{formatInr(walletEntry.amountInr)}</strong>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Settlement Info (Mock)</h2>
+        </header>
+        <p>
+          Last settled amount: <strong>{formatInr(lastSettledAmountInr)}</strong>
+        </p>
+        <p>
+          Next settlement date:{" "}
+          <strong>{formatTimestamp(nextSettlementDateIso)}</strong>
+        </p>
+      </section>
+    </div>
   );
 }
 
