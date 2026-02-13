@@ -24,6 +24,8 @@ export const VENDOR_ROUTE_SEGMENTS = {
   login: "login",
   onboarding: "onboarding",
   dashboard: "dashboard",
+  analytics: "analytics",
+  reports: "reports",
   products: "products",
   orders: "orders",
   returnsRto: "returns-rto",
@@ -53,6 +55,8 @@ export const ROUTES = {
   vendorLogin: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.login}`,
   vendorOnboarding: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.onboarding}`,
   vendorDashboard: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.dashboard}`,
+  vendorAnalytics: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.analytics}`,
+  vendorReports: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.reports}`,
   vendorProducts: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.products}`,
   vendorOrders: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.orders}`,
   vendorReturnsRto: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.returnsRto}`,
@@ -87,6 +91,8 @@ export const SETTINGS_NAV_ITEMS: NavItem[] = [
 
 export const VENDOR_NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", to: ROUTES.vendorDashboard },
+  { label: "Analytics", to: ROUTES.vendorAnalytics },
+  { label: "Reports", to: ROUTES.vendorReports },
   { label: "Products", to: ROUTES.vendorProducts },
   { label: "Orders", to: ROUTES.vendorOrders },
   { label: "Returns & RTO", to: ROUTES.vendorReturnsRto },

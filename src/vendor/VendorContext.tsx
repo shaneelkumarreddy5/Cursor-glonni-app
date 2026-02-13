@@ -148,6 +148,48 @@ export type VendorAdPayload = {
   budgetInr: number;
 };
 
+export type VendorBankDetails = {
+  accountHolderName: string;
+  accountNumber: string;
+  ifscCode: string;
+  bankName: string;
+  updatedAtIso: string;
+};
+
+export type VendorBankDetailsInput = Omit<VendorBankDetails, "updatedAtIso">;
+export type VendorBankDetailsReviewStatus = "Verified" | "Under Review";
+
+export type VendorNotificationPreferences = {
+  orderUpdates: boolean;
+  settlementUpdates: boolean;
+  adsUpdates: boolean;
+  policyUpdates: boolean;
+};
+
+export type VendorSupportTicketCategory =
+  | "Orders"
+  | "Settlements"
+  | "Returns & RTO"
+  | "Ads & Visibility"
+  | "Compliance";
+export type VendorSupportTicketStatus = "Open" | "In Progress" | "Resolved";
+
+export type VendorSupportTicket = {
+  id: string;
+  category: VendorSupportTicketCategory;
+  subject: string;
+  message: string;
+  status: VendorSupportTicketStatus;
+  createdAtIso: string;
+  updatedAtIso: string;
+};
+
+export type VendorSupportTicketPayload = {
+  category: VendorSupportTicketCategory;
+  subject: string;
+  message: string;
+};
+
 export type VendorWalletEntryStatus = "Pending" | "Available" | "Adjusted";
 
 export type VendorWalletEntry = {
@@ -185,6 +227,16 @@ type VendorAdMutationResult = {
   message: string;
 };
 
+type VendorSettingsMutationResult = {
+  ok: boolean;
+  message: string;
+};
+
+type VendorSupportTicketMutationResult = {
+  ok: boolean;
+  message: string;
+};
+
 type VendorContextValue = {
   isLoggedIn: boolean;
   vendorName: string;
@@ -198,6 +250,11 @@ type VendorContextValue = {
   vendorReturnCases: VendorReturnCase[];
   vendorRtoCases: VendorRtoCase[];
   vendorAds: VendorAd[];
+  bankDetails: VendorBankDetails;
+  bankDetailsReviewStatus: VendorBankDetailsReviewStatus;
+  notificationPreferences: VendorNotificationPreferences;
+  complianceAccepted: boolean;
+  supportTickets: VendorSupportTicket[];
   walletEntries: VendorWalletEntry[];
   walletSummary: VendorWalletSummary;
   lastSettledAmountInr: number;
@@ -223,6 +280,17 @@ type VendorContextValue = {
     nextStatus: VendorOrderStatus,
   ) => VendorOrderMutationResult;
   createVendorAd: (payload: VendorAdPayload) => VendorAdMutationResult;
+  updateBankDetails: (
+    payload: VendorBankDetailsInput,
+  ) => VendorSettingsMutationResult;
+  setVendorNotificationPreference: (
+    key: keyof VendorNotificationPreferences,
+    value: boolean,
+  ) => void;
+  setComplianceAccepted: (value: boolean) => void;
+  createSupportTicket: (
+    payload: VendorSupportTicketPayload,
+  ) => VendorSupportTicketMutationResult;
   getVendorAdStatus: (ad: VendorAd) => VendorAdStatus;
   getVendorAdAmountSpent: (ad: VendorAd) => number;
   getVendorAdRemainingDays: (ad: VendorAd) => number;
@@ -269,6 +337,10 @@ function createVendorProductId() {
 
 function createVendorAdId() {
   return `VAD-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function createVendorSupportTicketId() {
+  return `VTK-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 function getVendorAdStatus(ad: VendorAd, now = new Date()): VendorAdStatus {
@@ -549,6 +621,51 @@ function createSeedVendorAds(products: VendorProduct[]): VendorAd[] {
   ];
 }
 
+function createSeedVendorBankDetails(): VendorBankDetails {
+  return {
+    accountHolderName: "Astra Retail LLP",
+    accountNumber: "001234567890",
+    ifscCode: "HDFC0000456",
+    bankName: "HDFC Bank",
+    updatedAtIso: new Date().toISOString(),
+  };
+}
+
+function createSeedVendorNotificationPreferences(): VendorNotificationPreferences {
+  return {
+    orderUpdates: true,
+    settlementUpdates: true,
+    adsUpdates: true,
+    policyUpdates: false,
+  };
+}
+
+function createSeedVendorSupportTickets(): VendorSupportTicket[] {
+  const now = Date.now();
+  return [
+    {
+      id: "VTK-730114",
+      category: "Orders",
+      subject: "Delay noticed for packed order",
+      message:
+        "Courier pickup is delayed for one packed order. Please confirm if SLA is impacted.",
+      status: "Open",
+      createdAtIso: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
+      updatedAtIso: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VTK-730251",
+      category: "Settlements",
+      subject: "Need clarification on adjustment entry",
+      message:
+        "One adjustment line item appears against an RTO case. Sharing here for reconciliation.",
+      status: "In Progress",
+      createdAtIso: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
+      updatedAtIso: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+}
+
 function createSeedWalletAdjustments(
   orders: VendorOrder[],
   returnCases: VendorReturnCase[],
@@ -678,6 +795,10 @@ const SEEDED_VENDOR_ORDERS = createSeedVendorOrders();
 const SEEDED_VENDOR_RETURN_CASES = createSeedVendorReturnCases(SEEDED_VENDOR_ORDERS);
 const SEEDED_VENDOR_RTO_CASES = createSeedVendorRtoCases();
 const SEEDED_VENDOR_ADS = createSeedVendorAds(SEEDED_VENDOR_PRODUCTS);
+const SEEDED_VENDOR_BANK_DETAILS = createSeedVendorBankDetails();
+const SEEDED_VENDOR_NOTIFICATION_PREFERENCES =
+  createSeedVendorNotificationPreferences();
+const SEEDED_VENDOR_SUPPORT_TICKETS = createSeedVendorSupportTickets();
 const SEEDED_WALLET_ADJUSTMENTS = createSeedWalletAdjustments(
   SEEDED_VENDOR_ORDERS,
   SEEDED_VENDOR_RETURN_CASES,
@@ -695,6 +816,17 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const [vendorProducts, setVendorProducts] =
     useState<VendorProduct[]>(SEEDED_VENDOR_PRODUCTS);
   const [vendorAds, setVendorAds] = useState<VendorAd[]>(SEEDED_VENDOR_ADS);
+  const [bankDetails, setBankDetails] = useState<VendorBankDetails>(
+    SEEDED_VENDOR_BANK_DETAILS,
+  );
+  const [bankDetailsReviewStatus, setBankDetailsReviewStatus] =
+    useState<VendorBankDetailsReviewStatus>("Verified");
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<VendorNotificationPreferences>(SEEDED_VENDOR_NOTIFICATION_PREFERENCES);
+  const [complianceAccepted, setComplianceAccepted] = useState(false);
+  const [supportTickets, setSupportTickets] = useState<VendorSupportTicket[]>(
+    SEEDED_VENDOR_SUPPORT_TICKETS,
+  );
   const [vendorOrders, setVendorOrders] =
     useState<VendorOrder[]>(SEEDED_VENDOR_ORDERS);
   const [vendorReturnCases, setVendorReturnCases] =
@@ -811,6 +943,14 @@ export function VendorProvider({ children }: { children: ReactNode }) {
 
     setOnboardingData(payload);
     setVendorStatus("Under Scrutiny");
+    setBankDetails({
+      accountHolderName: payload.bankAccountHolderName.trim(),
+      accountNumber: payload.bankAccountNumber.trim(),
+      ifscCode: payload.bankIfscCode.trim().toUpperCase(),
+      bankName: payload.bankName.trim(),
+      updatedAtIso: new Date().toISOString(),
+    });
+    setBankDetailsReviewStatus("Under Review");
 
     return {
       ok: true,
@@ -1043,6 +1183,73 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     return { ok: true, message: "Ad created successfully." };
   }
 
+  function updateBankDetails(
+    payload: VendorBankDetailsInput,
+  ): VendorSettingsMutationResult {
+    if (
+      !payload.accountHolderName.trim() ||
+      !payload.accountNumber.trim() ||
+      !payload.ifscCode.trim() ||
+      !payload.bankName.trim()
+    ) {
+      return { ok: false, message: "Complete all bank detail fields to continue." };
+    }
+
+    const nowIso = new Date().toISOString();
+    setBankDetails({
+      accountHolderName: payload.accountHolderName.trim(),
+      accountNumber: payload.accountNumber.trim(),
+      ifscCode: payload.ifscCode.trim().toUpperCase(),
+      bankName: payload.bankName.trim(),
+      updatedAtIso: nowIso,
+    });
+    setBankDetailsReviewStatus("Under Review");
+
+    return {
+      ok: true,
+      message: "Bank details updated and sent for review.",
+    };
+  }
+
+  function setVendorNotificationPreference(
+    key: keyof VendorNotificationPreferences,
+    value: boolean,
+  ) {
+    setNotificationPreferences((currentPreferences) => ({
+      ...currentPreferences,
+      [key]: value,
+    }));
+  }
+
+  function updateComplianceAccepted(value: boolean) {
+    setComplianceAccepted(value);
+  }
+
+  function createSupportTicket(
+    payload: VendorSupportTicketPayload,
+  ): VendorSupportTicketMutationResult {
+    if (!payload.subject.trim()) {
+      return { ok: false, message: "Ticket subject is required." };
+    }
+    if (!payload.message.trim()) {
+      return { ok: false, message: "Ticket description is required." };
+    }
+
+    const nowIso = new Date().toISOString();
+    const nextTicket: VendorSupportTicket = {
+      id: createVendorSupportTicketId(),
+      category: payload.category,
+      subject: payload.subject.trim(),
+      message: payload.message.trim(),
+      status: "Open",
+      createdAtIso: nowIso,
+      updatedAtIso: nowIso,
+    };
+    setSupportTickets((currentTickets) => [nextTicket, ...currentTickets]);
+
+    return { ok: true, message: "Support ticket created successfully." };
+  }
+
   function getVendorProductVisibilityPriority(
     productId: string,
     category: VendorProductPayload["category"],
@@ -1189,6 +1396,11 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       vendorReturnCases,
       vendorRtoCases,
       vendorAds,
+      bankDetails,
+      bankDetailsReviewStatus,
+      notificationPreferences,
+      complianceAccepted,
+      supportTickets,
       walletEntries,
       walletSummary,
       lastSettledAmountInr: MOCK_LAST_SETTLED_AMOUNT_INR,
@@ -1201,6 +1413,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       rejectVendorProduct,
       updateVendorOrderStatus,
       createVendorAd,
+      updateBankDetails,
+      setVendorNotificationPreference,
+      setComplianceAccepted: updateComplianceAccepted,
+      createSupportTicket,
       getVendorAdStatus,
       getVendorAdAmountSpent,
       getVendorAdRemainingDays,
@@ -1211,8 +1427,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     }),
     [
       isLoggedIn,
+      bankDetails,
+      bankDetailsReviewStatus,
+      complianceAccepted,
+      notificationPreferences,
       onboardingData,
       summaryMetrics,
+      supportTickets,
       walletEntries,
       walletSummary,
       vendorAds,

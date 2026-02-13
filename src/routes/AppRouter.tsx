@@ -19,6 +19,7 @@ import {
 } from "../pages/settings/SettingsPages";
 import {
   VendorAdsPage,
+  VendorAnalyticsPage,
   VendorDashboardPage,
   VendorLandingRedirect,
   VendorLoginPage,
@@ -27,6 +28,7 @@ import {
   VendorProductsPage,
   VendorProtectedLayoutRoute,
   VendorProviderRoute,
+  VendorReportsPage,
   VendorReturnsRtoPage,
   VendorSettingsPage,
   VendorSupportPage,
@@ -91,6 +93,8 @@ export function AppRouter() {
         <Route element={<VendorProtectedLayoutRoute />}>
           <Route path={VENDOR_ROUTE_SEGMENTS.onboarding} element={<VendorOnboardingPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.dashboard} element={<VendorDashboardPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.analytics} element={<VendorAnalyticsPage />} />
+          <Route path={VENDOR_ROUTE_SEGMENTS.reports} element={<VendorReportsPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.products} element={<VendorProductsPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.orders} element={<VendorOrdersPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.returnsRto} element={<VendorReturnsRtoPage />} />

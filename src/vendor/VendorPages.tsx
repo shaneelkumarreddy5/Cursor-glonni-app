@@ -11,8 +11,10 @@ import { VendorLayout } from "./VendorLayout";
 import {
   VendorProvider,
   type VendorAdPayload,
+  type VendorBankDetailsInput,
   type VendorAdType,
   type VendorAdStatus,
+  type VendorNotificationPreferences,
   type VendorOnboardingData,
   type VendorOrder,
   type VendorOrderStatus,
@@ -25,6 +27,9 @@ import {
   type VendorProductPayload,
   type VendorProductSpecification,
   type VendorProductStatus,
+  type VendorSupportTicketCategory,
+  type VendorSupportTicketPayload,
+  type VendorSupportTicketStatus,
   useVendor,
 } from "./VendorContext";
 
@@ -61,6 +66,14 @@ const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
   "Sponsored Product": 120,
   "Sponsored Category": 240,
 };
+
+const SUPPORT_TICKET_CATEGORIES: VendorSupportTicketCategory[] = [
+  "Orders",
+  "Settlements",
+  "Returns & RTO",
+  "Ads & Visibility",
+  "Compliance",
+];
 
 function VendorSectionHeader({
   title,
@@ -232,6 +245,16 @@ function getRtoResolutionClass(status: VendorRtoResolutionStatus) {
     return "vendor-rto-status-badge vendor-rto-status-review";
   }
   return "vendor-rto-status-badge vendor-rto-status-reversed";
+}
+
+function getSupportTicketStatusClass(status: VendorSupportTicketStatus) {
+  if (status === "Open") {
+    return "vendor-support-ticket-status vendor-support-ticket-open";
+  }
+  if (status === "In Progress") {
+    return "vendor-support-ticket-status vendor-support-ticket-progress";
+  }
+  return "vendor-support-ticket-status vendor-support-ticket-resolved";
 }
 
 function formatTimestamp(isoDate: string) {
@@ -567,6 +590,146 @@ export function VendorDashboardPage() {
         <article className="vendor-summary-card">
           <h3>Pending Settlement</h3>
           <p>{formatInr(summaryMetrics.pendingSettlementInr)}</p>
+        </article>
+      </section>
+    </div>
+  );
+}
+
+export function VendorAnalyticsPage() {
+  const {
+    vendorOrders,
+    vendorReturnCases,
+    vendorAds,
+    getVendorAdStatus,
+    getVendorAdAmountSpent,
+  } = useVendor();
+
+  const analytics = useMemo(() => {
+    const totalSalesInr = vendorOrders
+      .filter((order) => order.visibilityState !== "Cancelled")
+      .reduce((sum, order) => sum + order.amountInr, 0);
+    const ordersCount = vendorOrders.length;
+    const returnsCount = vendorReturnCases.length;
+    const activeAds = vendorAds.filter((ad) => getVendorAdStatus(ad) === "Active");
+    const adSpendInr = vendorAds.reduce(
+      (sum, ad) => sum + getVendorAdAmountSpent(ad),
+      0,
+    );
+
+    return {
+      totalSalesInr,
+      ordersCount,
+      returnsCount,
+      activeAdsCount: activeAds.length,
+      adSpendInr,
+    };
+  }, [getVendorAdAmountSpent, getVendorAdStatus, vendorAds, vendorOrders, vendorReturnCases]);
+
+  const sortedAds = useMemo(
+    () =>
+      [...vendorAds].sort(
+        (first, second) =>
+          new Date(second.startedAtIso).getTime() -
+          new Date(first.startedAtIso).getTime(),
+      ),
+    [vendorAds],
+  );
+
+  return (
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Analytics"
+        description="View sales, order outcomes, and ad performance metrics from mock frontend data."
+      />
+
+      <section className="vendor-summary-grid">
+        <article className="vendor-summary-card">
+          <h3>Total Sales</h3>
+          <p>{formatInr(analytics.totalSalesInr)}</p>
+        </article>
+        <article className="vendor-summary-card">
+          <h3>Orders Count</h3>
+          <p>{analytics.ordersCount}</p>
+        </article>
+        <article className="vendor-summary-card">
+          <h3>Returns Count</h3>
+          <p>{analytics.returnsCount}</p>
+        </article>
+        <article className="vendor-summary-card">
+          <h3>Ads Performance (Mock)</h3>
+          <p>{analytics.activeAdsCount} Active Ads</p>
+          <span className="vendor-summary-subtext">
+            Total spent: {formatInr(analytics.adSpendInr)}
+          </span>
+        </article>
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Ads Performance Breakdown</h2>
+        </header>
+        <div className="stack-sm">
+          {sortedAds.map((ad) => (
+            <article key={ad.id} className="vendor-analytics-row">
+              <div>
+                <h3>{ad.id}</h3>
+                <p>
+                  {ad.type === "Sponsored Product"
+                    ? `Sponsored Product • ${ad.productName ?? "Unknown"}`
+                    : `Sponsored Category • ${ad.category ?? "Unknown"}`}
+                </p>
+              </div>
+              <div className="vendor-analytics-row-meta">
+                <span className="vendor-summary-subtext">
+                  {getVendorAdStatus(ad)} • Spent {formatInr(getVendorAdAmountSpent(ad))}
+                </span>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function VendorReportsPage() {
+  return (
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Reports"
+        description="View-only report placeholders for exports and audits."
+      />
+
+      <section className="vendor-reports-grid">
+        <article className="vendor-placeholder-card vendor-report-card">
+          <header className="section-header">
+            <h2>Orders Report</h2>
+          </header>
+          <p>Includes order IDs, statuses, payment methods, and delivery progression.</p>
+          <button type="button" className="btn btn-secondary" disabled>
+            View (Mock)
+          </button>
+        </article>
+
+        <article className="vendor-placeholder-card vendor-report-card">
+          <header className="section-header">
+            <h2>Settlements Report</h2>
+          </header>
+          <p>Includes pending/available/adjusted entries and settlement summary references.</p>
+          <button type="button" className="btn btn-secondary" disabled>
+            View (Mock)
+          </button>
+        </article>
+
+        <article className="vendor-placeholder-card vendor-report-card">
+          <header className="section-header">
+            <h2>Returns / RTO Report</h2>
+          </header>
+          <p>Includes return timelines, RTO deductions, and auto-adjust reversal events.</p>
+          <button type="button" className="btn btn-secondary" disabled>
+            View (Mock)
+          </button>
         </article>
       </section>
     </div>
@@ -1103,23 +1266,6 @@ export function VendorProductsPage() {
             ))}
           </div>
         </article>
-      </section>
-    </div>
-  );
-}
-
-function VendorPlaceholderPage({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="stack vendor-page">
-      <VendorSectionHeader title={title} description={description} />
-      <section className="vendor-placeholder-card">
-        <p>{title} page placeholder is ready for upcoming implementation.</p>
       </section>
     </div>
   );
@@ -1706,11 +1852,147 @@ export function VendorAdsPage() {
 }
 
 export function VendorSupportPage() {
+  const { supportTickets, createSupportTicket } = useVendor();
+  const [category, setCategory] = useState<VendorSupportTicketCategory>("Orders");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const categoryCounts = useMemo(
+    () =>
+      SUPPORT_TICKET_CATEGORIES.map((ticketCategory) => ({
+        category: ticketCategory,
+        count: supportTickets.filter((ticket) => ticket.category === ticketCategory).length,
+      })),
+    [supportTickets],
+  );
+
+  const sortedTickets = useMemo(
+    () =>
+      [...supportTickets].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [supportTickets],
+  );
+
+  function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const payload: VendorSupportTicketPayload = {
+      category,
+      subject,
+      message,
+    };
+    const result = createSupportTicket(payload);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setCategory("Orders");
+      setSubject("");
+      setMessage("");
+    }
+  }
+
   return (
-    <VendorPlaceholderPage
-      title="Support"
-      description="Manage support tickets and escalations."
-    />
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Support"
+        description="Raise support tickets by category and track existing ticket status."
+      />
+
+      {feedbackMessage ? (
+        <section className="vendor-placeholder-card">
+          <p className="vendor-auth-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Ticket Categories</h2>
+        </header>
+        <div className="vendor-ticket-category-row">
+          {categoryCounts.map((ticketCategory) => (
+            <span key={ticketCategory.category} className="vendor-ticket-category-chip">
+              {ticketCategory.category}: {ticketCategory.count}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="vendor-support-grid">
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>Ticket List</h2>
+          </header>
+          <div className="stack-sm">
+            {sortedTickets.map((ticket) => (
+              <article key={ticket.id} className="vendor-support-ticket-row">
+                <div className="vendor-support-ticket-heading">
+                  <h3>{ticket.id}</h3>
+                  <span className={getSupportTicketStatusClass(ticket.status)}>
+                    {ticket.status}
+                  </span>
+                </div>
+                <p>
+                  {ticket.category} • {ticket.subject}
+                </p>
+                <p>{ticket.message}</p>
+                <p>Updated: {formatTimestamp(ticket.updatedAtIso)}</p>
+              </article>
+            ))}
+          </div>
+        </article>
+
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>New Ticket (Mock)</h2>
+          </header>
+          <form className="vendor-onboarding-form" onSubmit={handleCreateTicket}>
+            <label className="field">
+              Category
+              <select
+                className="order-select"
+                value={category}
+                onChange={(event) =>
+                  setCategory(event.target.value as VendorSupportTicketCategory)
+                }
+              >
+                {SUPPORT_TICKET_CATEGORIES.map((ticketCategory) => (
+                  <option key={ticketCategory} value={ticketCategory}>
+                    {ticketCategory}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              Subject
+              <input
+                type="text"
+                value={subject}
+                onChange={(event) => setSubject(event.target.value)}
+                placeholder="Brief ticket title"
+              />
+            </label>
+
+            <label className="field">
+              Description
+              <textarea
+                className="order-textarea"
+                rows={4}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="Describe the issue in detail"
+              />
+            </label>
+
+            <button type="submit" className="btn btn-primary">
+              Raise Ticket
+            </button>
+          </form>
+        </article>
+      </section>
+    </div>
   );
 }
 
@@ -1720,15 +2002,82 @@ export function VendorSettingsPage() {
     approveVendor,
     hasCompletedOnboarding,
     onboardingData,
+    bankDetails,
+    bankDetailsReviewStatus,
+    updateBankDetails,
+    notificationPreferences,
+    setVendorNotificationPreference,
+    complianceAccepted,
+    setComplianceAccepted,
   } = useVendor();
+  const [bankFormState, setBankFormState] = useState<VendorBankDetailsInput>({
+    accountHolderName: bankDetails.accountHolderName,
+    accountNumber: bankDetails.accountNumber,
+    ifscCode: bankDetails.ifscCode,
+    bankName: bankDetails.bankName,
+  });
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const notificationRows: Array<{
+    key: keyof VendorNotificationPreferences;
+    label: string;
+    hint: string;
+  }> = [
+    {
+      key: "orderUpdates",
+      label: "Order updates",
+      hint: "Receive notifications for status changes and delivery milestones.",
+    },
+    {
+      key: "settlementUpdates",
+      label: "Settlement updates",
+      hint: "Receive notifications for wallet credits and settlement cycles.",
+    },
+    {
+      key: "adsUpdates",
+      label: "Ads updates",
+      hint: "Receive performance alerts for sponsored ads.",
+    },
+    {
+      key: "policyUpdates",
+      label: "Policy updates",
+      hint: "Receive notifications when compliance or platform policies change.",
+    },
+  ];
+
+  function updateBankField<Key extends keyof VendorBankDetailsInput>(
+    key: Key,
+    value: VendorBankDetailsInput[Key],
+  ) {
+    setBankFormState((currentState) => ({
+      ...currentState,
+      [key]: value,
+    }));
+  }
+
+  function handleBankDetailsSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = updateBankDetails(bankFormState);
+    setFeedbackMessage(result.message);
+  }
 
   return (
     <div className="stack vendor-page">
       <VendorSectionHeader
         title="Settings"
-        description="Vendor profile and approval controls (mock)."
+        description="Manage business profile, banking review status, notifications, and compliance."
       />
+
+      {feedbackMessage ? (
+        <section className="vendor-placeholder-card">
+          <p className="vendor-auth-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
       <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Account & Approval Controls</h2>
+        </header>
         <p>
           Current vendor status: <strong>{vendorStatus}</strong>
         </p>
@@ -1750,21 +2099,147 @@ export function VendorSettingsPage() {
             Open Onboarding Form
           </Link>
         </div>
+      </section>
 
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Business Info (Read-only)</h2>
+        </header>
         {hasCompletedOnboarding && onboardingData ? (
           <div className="vendor-onboarding-preview">
             <p>
-              Onboarding submitted for <strong>{onboardingData.businessName}</strong>.
+              Business name: <strong>{onboardingData.businessName}</strong>
             </p>
             <p>Owner: {onboardingData.ownerName}</p>
             <p>Phone: {onboardingData.phone}</p>
-            <p>
-              Pending settlement reference: {formatInr(125430)}
-            </p>
+            <p>GST: {onboardingData.gstNumber || "Not provided"}</p>
+            <p>Address: {onboardingData.businessAddress}</p>
           </div>
         ) : (
-          <p>Onboarding has not been submitted yet.</p>
+          <p>Onboarding business info is not available yet.</p>
         )}
+      </section>
+
+      <section className="vendor-settings-grid">
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>Bank Details</h2>
+          </header>
+          <p>
+            Review status:{" "}
+            <span
+              className={
+                bankDetailsReviewStatus === "Under Review"
+                  ? "vendor-support-ticket-status vendor-support-ticket-progress"
+                  : "vendor-support-ticket-status vendor-support-ticket-resolved"
+              }
+            >
+              {bankDetailsReviewStatus}
+            </span>
+          </p>
+          <form className="vendor-onboarding-form" onSubmit={handleBankDetailsSave}>
+            <label className="field">
+              Account Holder Name
+              <input
+                type="text"
+                value={bankFormState.accountHolderName}
+                onChange={(event) =>
+                  updateBankField("accountHolderName", event.target.value)
+                }
+              />
+            </label>
+
+            <label className="field">
+              Account Number
+              <input
+                type="text"
+                value={bankFormState.accountNumber}
+                onChange={(event) => updateBankField("accountNumber", event.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              IFSC Code
+              <input
+                type="text"
+                value={bankFormState.ifscCode}
+                onChange={(event) => updateBankField("ifscCode", event.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              Bank Name
+              <input
+                type="text"
+                value={bankFormState.bankName}
+                onChange={(event) => updateBankField("bankName", event.target.value)}
+              />
+            </label>
+
+            <p>Last updated: {formatTimestamp(bankDetails.updatedAtIso)}</p>
+
+            <button type="submit" className="btn btn-primary">
+              Save Bank Details
+            </button>
+          </form>
+        </article>
+
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>Notification Preferences</h2>
+          </header>
+          <div className="vendor-notification-grid">
+            {notificationRows.map((row) => (
+              <label key={row.key} className="vendor-toggle-row">
+                <div>
+                  <strong>{row.label}</strong>
+                  <p>{row.hint}</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences[row.key]}
+                  onChange={(event) =>
+                    setVendorNotificationPreference(row.key, event.target.checked)
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        </article>
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Compliance</h2>
+        </header>
+
+        <div className="vendor-compliance-grid">
+          <article className="vendor-compliance-card">
+            <h3>Platform Policies</h3>
+            <ul>
+              <li>Follow catalog quality and listing integrity standards.</li>
+              <li>Honor customer return rights as per platform policy window.</li>
+              <li>Keep support responses timely for escalated cases.</li>
+            </ul>
+          </article>
+          <article className="vendor-compliance-card">
+            <h3>Pricing Rules</h3>
+            <ul>
+              <li>Do not publish misleading MRP-to-sale price gaps.</li>
+              <li>Ad sponsorship impacts visibility only, never cashback logic.</li>
+              <li>Platform benchmark checks can move products to review/rejected.</li>
+            </ul>
+          </article>
+        </div>
+
+        <label className="vendor-compliance-toggle">
+          <input
+            type="checkbox"
+            checked={complianceAccepted}
+            onChange={(event) => setComplianceAccepted(event.target.checked)}
+          />
+          I accept and will follow the current platform compliance and pricing rules.
+        </label>
       </section>
     </div>
   );
