@@ -6,6 +6,13 @@ import {
 } from "react";
 import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes/paths";
+import {
+  type PriceExceptionJustification,
+  type ProductModerationStatus,
+  type ProductPricingFlag,
+  useProductModeration,
+} from "../state/ProductModerationContext";
+import { ACTIVE_VENDOR_ID } from "../state/VendorLifecycleContext";
 import { formatInr } from "../utils/currency";
 import { VendorLayout } from "./VendorLayout";
 import {
@@ -74,6 +81,13 @@ const SUPPORT_TICKET_CATEGORIES: VendorSupportTicketCategory[] = [
   "Returns",
   "Ads",
   "Account",
+];
+
+const PRICE_EXCEPTION_JUSTIFICATIONS: PriceExceptionJustification[] = [
+  "Low stock",
+  "High demand",
+  "Logistics",
+  "Exclusivity",
 ];
 
 function VendorSectionHeader({
@@ -147,6 +161,26 @@ function getProductStatusClass(status: VendorProductStatus) {
   }
   if (status === "Live") {
     return "vendor-product-status vendor-product-status-live";
+  }
+  return "vendor-product-status vendor-product-status-rejected";
+}
+
+function getVendorModerationStatusClass(status: ProductModerationStatus) {
+  if (status === "Live") {
+    return "vendor-product-status vendor-product-status-live";
+  }
+  if (status === "Rejected") {
+    return "vendor-product-status vendor-product-status-rejected";
+  }
+  return "vendor-product-status vendor-product-status-review";
+}
+
+function getVendorPricingFlagClass(flag: ProductPricingFlag) {
+  if (flag === "OK") {
+    return "vendor-product-status vendor-product-status-live";
+  }
+  if (flag === "Exception Requested") {
+    return "vendor-product-status vendor-product-status-review";
   }
   return "vendor-product-status vendor-product-status-rejected";
 }
@@ -577,6 +611,8 @@ export function VendorOnboardingPage() {
 
 export function VendorDashboardPage() {
   const { summaryMetrics } = useVendor();
+  const { getProductsByVendor, getProductPricingFlag } = useProductModeration();
+  const moderationDecisions = getProductsByVendor(ACTIVE_VENDOR_ID);
 
   return (
     <div className="stack vendor-page">
@@ -602,6 +638,49 @@ export function VendorDashboardPage() {
           <h3>Pending Settlement</h3>
           <p>{formatInr(summaryMetrics.pendingSettlementInr)}</p>
         </article>
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Admin Product Decisions</h2>
+        </header>
+        {moderationDecisions.length > 0 ? (
+          <div className="stack-sm">
+            {moderationDecisions.map((product) => {
+              const pricingFlag = getProductPricingFlag(product.id);
+              return (
+                <article key={product.id} className="vendor-moderation-row">
+                  <div className="vendor-product-heading">
+                    <h3>{product.productName}</h3>
+                    <span className={getVendorModerationStatusClass(product.status)}>
+                      {product.status}
+                    </span>
+                    <span className={getVendorPricingFlagClass(pricingFlag)}>
+                      {pricingFlag}
+                    </span>
+                  </div>
+                  <p>
+                    Listed price: {formatInr(product.listedPriceInr)} • Last decision:{" "}
+                    {formatTimestamp(product.updatedAtIso)}
+                  </p>
+                  {product.statusReason ? (
+                    <p className="vendor-reject-reason">
+                      Admin product reason: {product.statusReason}
+                    </p>
+                  ) : null}
+                  {product.exceptionRequest.adminReason ? (
+                    <p>Exception decision reason: {product.exceptionRequest.adminReason}</p>
+                  ) : null}
+                  {product.exceptionRequest.status === "Requested" ? (
+                    <p>Price exception request is pending admin review.</p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p>No admin product decisions available yet.</p>
+        )}
       </section>
     </div>
   );
@@ -757,6 +836,8 @@ export function VendorProductsPage() {
     rejectVendorProduct,
     getVendorProductVisibilityPriority,
   } = useVendor();
+  const { getProductsByVendor, getProductPricingFlag, requestPriceException } =
+    useProductModeration();
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [formState, setFormState] = useState<VendorProductFormState>(
@@ -766,7 +847,17 @@ export function VendorProductsPage() {
   const [rejectReasonByProductId, setRejectReasonByProductId] = useState<
     Record<string, string>
   >({});
+  const [exceptionJustificationByProductId, setExceptionJustificationByProductId] =
+    useState<Record<string, PriceExceptionJustification>>({});
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const moderatedProducts = getProductsByVendor(ACTIVE_VENDOR_ID);
+  const moderatedProductById = useMemo(
+    () =>
+      Object.fromEntries(
+        moderatedProducts.map((moderatedProduct) => [moderatedProduct.id, moderatedProduct]),
+      ),
+    [moderatedProducts],
+  );
 
   const sortedProducts = useMemo(
     () =>
@@ -950,6 +1041,16 @@ export function VendorProductsPage() {
     }
   }
 
+  function getSelectedExceptionJustification(productId: string): PriceExceptionJustification {
+    return exceptionJustificationByProductId[productId] ?? "Low stock";
+  }
+
+  function handleRequestPriceException(productId: string) {
+    const selectedJustification = getSelectedExceptionJustification(productId);
+    const result = requestPriceException(productId, selectedJustification);
+    setFeedbackMessage(result.message);
+  }
+
   return (
     <div className="stack vendor-page">
       <VendorSectionHeader
@@ -962,6 +1063,86 @@ export function VendorProductsPage() {
           <p className="vendor-auth-feedback">{feedbackMessage}</p>
         </section>
       ) : null}
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Price Exception Requests</h2>
+        </header>
+        <p>
+          Request admin exception if a product price is flagged as a benchmark violation.
+        </p>
+
+        {moderatedProducts.length > 0 ? (
+          <div className="stack-sm">
+            {moderatedProducts.map((moderatedProduct) => {
+              const pricingFlag = getProductPricingFlag(moderatedProduct.id);
+              const exceptionStatus = moderatedProduct.exceptionRequest.status;
+              const canRequestException =
+                pricingFlag === "Violation" &&
+                exceptionStatus !== "Requested" &&
+                exceptionStatus !== "Approved";
+
+              return (
+                <article key={moderatedProduct.id} className="vendor-moderation-row">
+                  <div className="vendor-product-heading">
+                    <h3>{moderatedProduct.productName}</h3>
+                    <span className={getVendorModerationStatusClass(moderatedProduct.status)}>
+                      {moderatedProduct.status}
+                    </span>
+                    <span className={getVendorPricingFlagClass(pricingFlag)}>{pricingFlag}</span>
+                  </div>
+                  <p>
+                    Listed price: {formatInr(moderatedProduct.listedPriceInr)} • Benchmarks:{" "}
+                    Amazon {formatInr(moderatedProduct.benchmarks.amazonPriceInr)} / Flipkart{" "}
+                    {formatInr(moderatedProduct.benchmarks.flipkartPriceInr)} / MSRP{" "}
+                    {formatInr(moderatedProduct.benchmarks.msrpInr)}
+                  </p>
+                  <p>
+                    Exception status:{" "}
+                    <strong>{moderatedProduct.exceptionRequest.status}</strong>
+                    {moderatedProduct.exceptionRequest.justification
+                      ? ` • ${moderatedProduct.exceptionRequest.justification}`
+                      : ""}
+                  </p>
+                  {moderatedProduct.exceptionRequest.adminReason ? (
+                    <p>Admin exception reason: {moderatedProduct.exceptionRequest.adminReason}</p>
+                  ) : null}
+
+                  <div className="vendor-exception-controls">
+                    <select
+                      className="order-select"
+                      value={getSelectedExceptionJustification(moderatedProduct.id)}
+                      onChange={(event) =>
+                        setExceptionJustificationByProductId((currentState) => ({
+                          ...currentState,
+                          [moderatedProduct.id]:
+                            event.target.value as PriceExceptionJustification,
+                        }))
+                      }
+                    >
+                      {PRICE_EXCEPTION_JUSTIFICATIONS.map((justification) => (
+                        <option key={justification} value={justification}>
+                          {justification}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={!canRequestException}
+                      onClick={() => handleRequestPriceException(moderatedProduct.id)}
+                    >
+                      Request Price Exception
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p>No moderated products available for exception flow yet.</p>
+        )}
+      </section>
 
       <section className="vendor-products-grid">
         <article className="vendor-placeholder-card">
@@ -1175,117 +1356,147 @@ export function VendorProductsPage() {
           </div>
 
           <div className="stack-sm">
-            {sortedProducts.map((product) => (
-              <article key={product.id} className="vendor-product-row">
-                <div className="vendor-product-copy">
-                  <div className="vendor-product-heading">
-                    <h3>{product.productName}</h3>
-                    {getVendorProductVisibilityPriority(product.id, product.category) > 0 ? (
-                      <span className="vendor-sponsored-tag">Sponsored</span>
-                    ) : null}
-                    <span className={getProductStatusClass(product.status)}>
-                      {product.status}
-                    </span>
-                  </div>
-                  <p>
-                    {product.category} • {product.brand}
-                  </p>
-                  <p>
-                    Price: {formatInr(product.priceInr)} • Stock: {product.stockQuantity}
-                  </p>
-                  <p>
-                    Specs:{" "}
-                    {product.specifications
-                      .map((specification) => `${specification.key}: ${specification.value}`)
-                      .join(" | ")}
-                  </p>
-                  <p>
-                    Extra offers:{" "}
-                    {product.extraOffers.length > 0
-                      ? product.extraOffers
-                          .map((extraOffer) => `${extraOffer.type} - ${extraOffer.value}`)
-                          .join(" | ")
-                      : "None"}
-                  </p>
-                  <p>Last updated: {formatTimestamp(product.updatedAtIso)}</p>
-                  {product.status === "Rejected" && product.rejectionReason ? (
-                    <p className="vendor-reject-reason">
-                      Rejection reason: {product.rejectionReason}
-                    </p>
-                  ) : null}
-                </div>
+            {sortedProducts.map((product) => {
+              const moderatedDecision = moderatedProductById[product.id];
+              const moderatedFlag = moderatedDecision
+                ? getProductPricingFlag(moderatedDecision.id)
+                : null;
 
-                <div className="vendor-product-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={product.status === "Live" || !canPublishProducts}
-                    title={
-                      !canPublishProducts
-                        ? "Product actions are available only when status is Approved."
-                        : product.status === "Live"
-                          ? "Live products cannot be edited."
-                          : "Edit product"
-                    }
-                    onClick={() => startProductEdit(product)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={product.status === "Live" || !canPublishProducts}
-                    onClick={() => handleApprove(product.id)}
-                  >
-                    Approve Product
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={!canPublishProducts}
-                    onClick={() => openRejectPanel(product.id)}
-                  >
-                    Reject Product
-                  </button>
-                </div>
-
-                {rejectingProductId === product.id ? (
-                  <div className="vendor-reject-panel">
-                    <label className="field">
-                      Rejection reason (required)
-                      <textarea
-                        className="order-textarea"
-                        rows={3}
-                        value={rejectReasonByProductId[product.id] ?? ""}
-                        onChange={(event) =>
-                          setRejectReasonByProductId((currentState) => ({
-                            ...currentState,
-                            [product.id]: event.target.value,
-                          }))
-                        }
-                        placeholder="Reason for rejecting this product"
-                      />
-                    </label>
-                    <div className="inline-actions">
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => confirmReject(product.id)}
-                      >
-                        Confirm Rejection
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setRejectingProductId(null)}
-                      >
-                        Cancel
-                      </button>
+              return (
+                <article key={product.id} className="vendor-product-row">
+                  <div className="vendor-product-copy">
+                    <div className="vendor-product-heading">
+                      <h3>{product.productName}</h3>
+                      {getVendorProductVisibilityPriority(product.id, product.category) > 0 ? (
+                        <span className="vendor-sponsored-tag">Sponsored</span>
+                      ) : null}
+                      <span className={getProductStatusClass(product.status)}>
+                        {product.status}
+                      </span>
+                      {moderatedFlag ? (
+                        <span className={getVendorPricingFlagClass(moderatedFlag)}>
+                          {moderatedFlag}
+                        </span>
+                      ) : null}
                     </div>
+                    <p>
+                      {product.category} • {product.brand}
+                    </p>
+                    <p>
+                      Price: {formatInr(product.priceInr)} • Stock: {product.stockQuantity}
+                    </p>
+                    <p>
+                      Specs:{" "}
+                      {product.specifications
+                        .map((specification) => `${specification.key}: ${specification.value}`)
+                        .join(" | ")}
+                    </p>
+                    <p>
+                      Extra offers:{" "}
+                      {product.extraOffers.length > 0
+                        ? product.extraOffers
+                            .map((extraOffer) => `${extraOffer.type} - ${extraOffer.value}`)
+                            .join(" | ")
+                        : "None"}
+                    </p>
+                    <p>Last updated: {formatTimestamp(product.updatedAtIso)}</p>
+                    {moderatedDecision ? (
+                      <p>
+                        Admin moderation status: {moderatedDecision.status}
+                        {moderatedDecision.exceptionRequest.status !== "None"
+                          ? ` • Exception ${moderatedDecision.exceptionRequest.status}`
+                          : ""}
+                      </p>
+                    ) : null}
+                    {moderatedDecision?.statusReason ? (
+                      <p className="vendor-reject-reason">
+                        Admin moderation reason: {moderatedDecision.statusReason}
+                      </p>
+                    ) : null}
+                    {moderatedDecision?.exceptionRequest.adminReason ? (
+                      <p>
+                        Admin exception reason: {moderatedDecision.exceptionRequest.adminReason}
+                      </p>
+                    ) : null}
+                    {product.status === "Rejected" && product.rejectionReason ? (
+                      <p className="vendor-reject-reason">
+                        Rejection reason: {product.rejectionReason}
+                      </p>
+                    ) : null}
                   </div>
-                ) : null}
-              </article>
-            ))}
+
+                  <div className="vendor-product-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={product.status === "Live" || !canPublishProducts}
+                      title={
+                        !canPublishProducts
+                          ? "Product actions are available only when status is Approved."
+                          : product.status === "Live"
+                            ? "Live products cannot be edited."
+                            : "Edit product"
+                      }
+                      onClick={() => startProductEdit(product)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={product.status === "Live" || !canPublishProducts}
+                      onClick={() => handleApprove(product.id)}
+                    >
+                      Approve Product
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={!canPublishProducts}
+                      onClick={() => openRejectPanel(product.id)}
+                    >
+                      Reject Product
+                    </button>
+                  </div>
+
+                  {rejectingProductId === product.id ? (
+                    <div className="vendor-reject-panel">
+                      <label className="field">
+                        Rejection reason (required)
+                        <textarea
+                          className="order-textarea"
+                          rows={3}
+                          value={rejectReasonByProductId[product.id] ?? ""}
+                          onChange={(event) =>
+                            setRejectReasonByProductId((currentState) => ({
+                              ...currentState,
+                              [product.id]: event.target.value,
+                            }))
+                          }
+                          placeholder="Reason for rejecting this product"
+                        />
+                      </label>
+                      <div className="inline-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => confirmReject(product.id)}
+                        >
+                          Confirm Rejection
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setRejectingProductId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
           </div>
         </article>
       </section>

@@ -2871,6 +2871,26 @@ body {
   font-size: 0.86rem;
 }
 
+.vendor-moderation-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem;
+}
+
+.vendor-moderation-row p {
+  color: #64748b !important;
+  font-size: 0.82rem !important;
+}
+
+.vendor-exception-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+}
+
 .vendor-onboarding-form {
   display: grid;
   gap: 0.7rem;
@@ -3987,6 +4007,62 @@ body {
   font-weight: 700;
 }
 
+.admin-product-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-product-table-head {
+  border-bottom: 1px solid var(--border);
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: grid;
+  grid-template-columns:
+    minmax(210px, 1.2fr)
+    minmax(100px, 0.7fr)
+    minmax(150px, 1fr)
+    auto
+    auto
+    auto;
+  gap: 0.6rem;
+  min-width: 980px;
+  padding-bottom: 0.55rem;
+}
+
+.admin-product-table-body {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 980px;
+}
+
+.admin-product-table-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.84rem;
+  display: grid;
+  grid-template-columns:
+    minmax(210px, 1.2fr)
+    minmax(100px, 0.7fr)
+    minmax(150px, 1fr)
+    auto
+    auto
+    auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem;
+}
+
+.admin-product-table-row:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px #bfdbfe inset;
+}
+
+.admin-product-name-cell {
+  font-weight: 700;
+}
+
 .admin-vendor-detail-topbar {
   display: flex;
   align-items: flex-start;
@@ -4045,6 +4121,36 @@ body {
 .admin-action-feedback {
   color: #334155 !important;
   font-weight: 700;
+}
+
+.admin-product-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-violation-box {
+  border: 1px solid #fecaca;
+  border-left: 3px solid #ef4444;
+  border-radius: 12px;
+  background: #fef2f2;
+  display: grid;
+  gap: 0.38rem;
+  padding: 0.62rem;
+}
+
+.admin-violation-box p {
+  color: #991b1b !important;
+  font-size: 0.83rem !important;
+}
+
+.admin-violation-box ul {
+  margin: 0;
+  color: #991b1b;
+  font-size: 0.81rem;
+  display: grid;
+  gap: 0.3rem;
 }
 
 .admin-audit-row {

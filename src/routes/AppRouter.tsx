@@ -4,6 +4,7 @@ import {
   AdminDashboardPage,
   AdminLoginPage,
   AdminOrdersPage,
+  AdminProductDetailPage,
   AdminProductsPage,
   AdminProtectedLayoutRoute,
   AdminProviderRoute,
@@ -112,6 +113,10 @@ export function AppRouter() {
             element={<AdminVendorDetailPage />}
           />
           <Route path={ADMIN_ROUTE_SEGMENTS.products} element={<AdminProductsPage />} />
+          <Route
+            path={`${ADMIN_ROUTE_SEGMENTS.products}/:productId`}
+            element={<AdminProductDetailPage />}
+          />
           <Route path={ADMIN_ROUTE_SEGMENTS.orders} element={<AdminOrdersPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.returnsRto} element={<AdminReturnsRtoPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.ads} element={<AdminAdsPage />} />

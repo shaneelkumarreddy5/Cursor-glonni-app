@@ -2,10 +2,17 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../routes/paths";
 import {
+  type PriceExceptionStatus,
+  type ProductModerationStatus,
+  type ProductPricingFlag,
+  useProductModeration,
+} from "../state/ProductModerationContext";
+import {
   type VendorActionType,
   type VendorLifecycleRecord,
   useVendorLifecycle,
 } from "../state/VendorLifecycleContext";
+import { formatInr } from "../utils/currency";
 import { AdminProvider, useAdmin } from "./AdminContext";
 import { AdminLayout } from "./AdminLayout";
 
@@ -47,6 +54,33 @@ function getAdminVendorStatusClass(status: VendorLifecycleRecord["status"]) {
     return "admin-status-badge admin-status-suspended";
   }
   return "admin-status-badge admin-status-scrutiny";
+}
+
+function getAdminProductStatusClass(status: ProductModerationStatus) {
+  if (status === "Live") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (status === "Rejected") {
+    return "admin-status-badge admin-status-rejected";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
+function getProductPricingFlagClass(flag: ProductPricingFlag) {
+  if (flag === "OK") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (flag === "Exception Requested") {
+    return "admin-status-badge admin-status-suspended";
+  }
+  return "admin-status-badge admin-status-rejected";
+}
+
+function getExceptionStatusLabel(status: PriceExceptionStatus) {
+  if (status === "None") {
+    return "Not requested";
+  }
+  return status;
 }
 
 function formatDate(isoDate: string) {
@@ -438,11 +472,383 @@ export function AdminVendorDetailPage() {
 }
 
 export function AdminProductsPage() {
+  const { products, getProductPricingFlag } = useProductModeration();
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort(
+        (first, second) =>
+          new Date(second.submittedAtIso).getTime() -
+          new Date(first.submittedAtIso).getTime(),
+      ),
+    [products],
+  );
+
   return (
-    <AdminPlaceholderPage
-      title="Products"
-      description="Catalog moderation, visibility controls, and product governance."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Products"
+        description="Review product submissions, enforce pricing rules, and decide exceptions."
+      />
+
+      <section className="admin-placeholder-card">
+        <div className="admin-product-table-wrap">
+          <div className="admin-product-table-head" role="presentation">
+            <span>Product</span>
+            <span>Brand</span>
+            <span>Vendor</span>
+            <span>Listed Price</span>
+            <span>Status</span>
+            <span>Pricing Flag</span>
+          </div>
+
+          <div className="admin-product-table-body">
+            {sortedProducts.map((product) => {
+              const pricingFlag = getProductPricingFlag(product.id);
+              return (
+                <Link
+                  key={product.id}
+                  to={ROUTES.adminProductDetail(product.id)}
+                  className="admin-product-table-row"
+                >
+                  <span className="admin-product-name-cell">{product.productName}</span>
+                  <span>{product.brand}</span>
+                  <span>{product.vendorName}</span>
+                  <span>{formatInr(product.listedPriceInr)}</span>
+                  <span className={getAdminProductStatusClass(product.status)}>
+                    {product.status}
+                  </span>
+                  <span className={getProductPricingFlagClass(pricingFlag)}>{pricingFlag}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function AdminProductDetailPage() {
+  const { productId } = useParams();
+  const {
+    getProductById,
+    getProductPricingRuleResult,
+    getProductPricingFlag,
+    getProductAuditLog,
+    approveProduct,
+    rejectProduct,
+    approvePriceException,
+    rejectPriceException,
+  } = useProductModeration();
+  const { getVendorById } = useVendorLifecycle();
+  const product = productId ? getProductById(productId) : undefined;
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+  const [exceptionDecisionReasonInput, setExceptionDecisionReasonInput] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  if (!product) {
+    return (
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Product not found"
+          description="The product record is unavailable in current mock state."
+        />
+        <Link to={ROUTES.adminProducts} className="btn btn-secondary">
+          Back to Products
+        </Link>
+      </section>
+    );
+  }
+
+  const pricingRuleResult = getProductPricingRuleResult(product.id);
+  const pricingFlag = getProductPricingFlag(product.id);
+  const productAuditLog = getProductAuditLog(product.id);
+  const vendorProfile = getVendorById(product.vendorId);
+  const targetProductId = product.id;
+  const isApprovalBlockedByRule =
+    pricingRuleResult.isViolation && product.exceptionRequest.status !== "Approved";
+  const hasPendingExceptionRequest = product.exceptionRequest.status === "Requested";
+
+  function handleApproveProduct() {
+    const result = approveProduct(targetProductId);
+    setFeedbackMessage(result.message);
+  }
+
+  function handleRejectProduct() {
+    const result = rejectProduct(targetProductId, rejectionReasonInput);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setRejectionReasonInput("");
+    }
+  }
+
+  function handleApproveException() {
+    const result = approvePriceException(targetProductId, exceptionDecisionReasonInput);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setExceptionDecisionReasonInput("");
+    }
+  }
+
+  function handleRejectException() {
+    const result = rejectPriceException(targetProductId, exceptionDecisionReasonInput);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setExceptionDecisionReasonInput("");
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="admin-placeholder-card">
+        <div className="admin-vendor-detail-topbar">
+          <div>
+            <AdminSectionHeader
+              title={product.productName}
+              description={`${product.brand} • Submitted ${formatDateTime(product.submittedAtIso)}`}
+            />
+          </div>
+          <div className="admin-product-status-row">
+            <span className={getAdminProductStatusClass(product.status)}>{product.status}</span>
+            <span className={getProductPricingFlagClass(pricingFlag)}>{pricingFlag}</span>
+          </div>
+        </div>
+        <p className="admin-vendor-status-message">
+          Listed price: <strong>{formatInr(product.listedPriceInr)}</strong>
+        </p>
+        {product.statusReason ? (
+          <p className="admin-vendor-status-message">
+            Current status reason: <strong>{product.statusReason}</strong>
+          </p>
+        ) : null}
+        <Link to={ROUTES.adminProducts} className="btn btn-secondary">
+          Back to Products
+        </Link>
+      </section>
+
+      <section className="admin-vendor-detail-grid">
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Product Details"
+            description="Full product details submitted for admin moderation."
+          />
+          <div className="admin-details-list">
+            <p>
+              <strong>Product ID:</strong> {product.id}
+            </p>
+            <p>
+              <strong>Category:</strong> {product.category}
+            </p>
+            <p>
+              <strong>Description:</strong> {product.description}
+            </p>
+            <p>
+              <strong>Specifications:</strong> {product.keySpecifications.join(" • ")}
+            </p>
+            <p>
+              <strong>Last updated:</strong> {formatDateTime(product.updatedAtIso)}
+            </p>
+          </div>
+        </article>
+
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Vendor Details"
+            description="Seller details linked to this product submission."
+          />
+          <div className="admin-details-list">
+            <p>
+              <strong>Vendor Name:</strong> {product.vendorName}
+            </p>
+            <p>
+              <strong>Business Type:</strong>{" "}
+              {vendorProfile ? vendorProfile.businessType : "Not available"}
+            </p>
+            <p>
+              <strong>Vendor Status:</strong>{" "}
+              {vendorProfile ? vendorProfile.status : "Not available"}
+            </p>
+            <p>
+              <strong>Vendor Email:</strong>{" "}
+              {vendorProfile ? vendorProfile.businessDetails.email : "Not available"}
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="admin-vendor-detail-grid">
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Pricing Benchmarks"
+            description="Mock benchmark prices used for platform pricing discipline."
+          />
+          <div className="admin-details-list">
+            <p>
+              <strong>Amazon:</strong> {formatInr(product.benchmarks.amazonPriceInr)}
+            </p>
+            <p>
+              <strong>Flipkart:</strong> {formatInr(product.benchmarks.flipkartPriceInr)}
+            </p>
+            <p>
+              <strong>MSRP:</strong> {formatInr(product.benchmarks.msrpInr)}
+            </p>
+            <p>
+              <strong>Highest allowed by rule:</strong>{" "}
+              {formatInr(pricingRuleResult.highestAllowedPriceInr)}
+            </p>
+          </div>
+        </article>
+
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Pricing Rule Result"
+            description="Rule: listed price must not exceed Amazon/Flipkart/MSRP."
+          />
+          {pricingRuleResult.isViolation ? (
+            <div className="admin-violation-box">
+              <p>
+                <strong>Violation detected:</strong>
+              </p>
+              <ul>
+                {pricingRuleResult.violationMessages.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="admin-vendor-status-message">
+              Pricing is within benchmark limits. Product is eligible for approval.
+            </p>
+          )}
+        </article>
+      </section>
+
+      <section className="admin-vendor-detail-grid">
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Product Approval Actions"
+            description="Approve to move Live or reject with mandatory reason."
+          />
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleApproveProduct}
+              disabled={isApprovalBlockedByRule}
+              title={
+                isApprovalBlockedByRule
+                  ? "Pricing violation detected. Approve exception first or adjust price."
+                  : "Approve product"
+              }
+            >
+              Approve Product
+            </button>
+          </div>
+          <label className="field">
+            Rejection reason (mandatory)
+            <textarea
+              className="order-textarea"
+              rows={3}
+              value={rejectionReasonInput}
+              onChange={(event) => setRejectionReasonInput(event.target.value)}
+              placeholder="Enter reason if rejecting this product"
+            />
+          </label>
+          <button type="button" className="btn btn-secondary" onClick={handleRejectProduct}>
+            Reject Product
+          </button>
+        </article>
+
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Price Exception Flow"
+            description="Approve or reject vendor exception request with mandatory reason."
+          />
+          <p className="admin-vendor-status-message">
+            Exception status:{" "}
+            <strong>{getExceptionStatusLabel(product.exceptionRequest.status)}</strong>
+          </p>
+          <p className="admin-vendor-status-message">
+            Vendor justification:{" "}
+            <strong>
+              {product.exceptionRequest.justification
+                ? product.exceptionRequest.justification
+                : "No request submitted."}
+            </strong>
+          </p>
+          {product.exceptionRequest.adminReason ? (
+            <p className="admin-vendor-status-message">
+              Latest admin exception reason:{" "}
+              <strong>{product.exceptionRequest.adminReason}</strong>
+            </p>
+          ) : null}
+          {!hasPendingExceptionRequest ? (
+            <p className="admin-vendor-status-message">
+              No pending request. Exception actions are enabled only when status is Requested.
+            </p>
+          ) : null}
+
+          <label className="field">
+            Exception decision reason (mandatory)
+            <textarea
+              className="order-textarea"
+              rows={3}
+              value={exceptionDecisionReasonInput}
+              onChange={(event) => setExceptionDecisionReasonInput(event.target.value)}
+              placeholder="Enter reason for exception decision"
+            />
+          </label>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleApproveException}
+              disabled={!hasPendingExceptionRequest}
+            >
+              Approve Exception
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleRejectException}
+              disabled={!hasPendingExceptionRequest}
+            >
+              Reject Exception
+            </button>
+          </div>
+        </article>
+      </section>
+
+      {feedbackMessage ? (
+        <section className="admin-placeholder-card">
+          <p className="admin-action-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Product Audit Log (Admin Only)"
+          description="Tracks approval, rejection, and exception actions."
+        />
+        {productAuditLog.length > 0 ? (
+          <div className="stack-sm">
+            {productAuditLog.map((entry) => (
+              <article key={entry.id} className="admin-audit-row">
+                <div className="admin-audit-row-top">
+                  <span className="admin-status-badge">{entry.actionType}</span>
+                  <strong>{formatDateTime(entry.createdAtIso)}</strong>
+                </div>
+                <p>{entry.reason}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="admin-vendor-status-message">
+            No admin product actions logged for this product yet.
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
 
