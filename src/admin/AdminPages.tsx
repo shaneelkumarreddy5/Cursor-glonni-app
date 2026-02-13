@@ -261,6 +261,7 @@ export function AdminVendorDetailPage() {
   }
 
   const vendorAuditLog = getVendorAuditLog(vendor.id);
+  const targetVendorId = vendor.id;
 
   function handleVendorAction(actionType: VendorActionType) {
     const actionMap: Record<VendorActionType, (id: string, reason: string) => { ok: boolean; message: string }> = {
@@ -268,7 +269,7 @@ export function AdminVendorDetailPage() {
       Rejected: rejectVendor,
       Suspended: suspendVendor,
     };
-    const result = actionMap[actionType](vendor.id, reasonInput);
+    const result = actionMap[actionType](targetVendorId, reasonInput);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setReasonInput("");

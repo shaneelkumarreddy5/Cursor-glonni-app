@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { ROUTES, VENDOR_NAV_ITEMS } from "../routes/paths";
 import { useVendor } from "./VendorContext";
 
-const SUSPENDED_BLOCKED_ROUTES = new Set([
+const SUSPENDED_BLOCKED_ROUTES: Set<string> = new Set([
   ROUTES.vendorProducts,
   ROUTES.vendorOrders,
   ROUTES.vendorReturnsRto,
