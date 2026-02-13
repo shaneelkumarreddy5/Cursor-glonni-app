@@ -1978,6 +1978,21 @@ input {
   border-style: dashed;
 }
 
+.order-admin-resolution {
+  border: 1px solid var(--border);
+  border-left: 3px solid #2563eb;
+  border-radius: 10px;
+  background: #eff6ff;
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.52rem;
+}
+
+.order-admin-resolution p {
+  color: #1e3a8a !important;
+  font-size: 0.8rem !important;
+}
+
 .order-select,
 .order-textarea {
   border: 1px solid var(--border);
@@ -4061,6 +4076,122 @@ body {
 
 .admin-product-name-cell {
   font-weight: 700;
+}
+
+.admin-orders-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-orders-table-head {
+  border-bottom: 1px solid var(--border);
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 0.9fr)
+    minmax(140px, 1fr)
+    minmax(140px, 1fr)
+    minmax(150px, 1fr)
+    auto
+    auto
+    auto;
+  gap: 0.6rem;
+  min-width: 980px;
+  padding-bottom: 0.55rem;
+}
+
+.admin-orders-table-body {
+  display: grid;
+  gap: 0.55rem;
+  min-width: 980px;
+}
+
+.admin-orders-table-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.84rem;
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 0.9fr)
+    minmax(140px, 1fr)
+    minmax(140px, 1fr)
+    minmax(150px, 1fr)
+    auto
+    auto
+    auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem;
+}
+
+.admin-orders-table-row:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 0 0 1px #bfdbfe inset;
+}
+
+.admin-order-timeline {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.admin-order-timeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  color: #64748b;
+  font-size: 0.81rem;
+}
+
+.admin-order-timeline-step.is-current {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.admin-order-timeline-step.is-complete {
+  color: #166534;
+  font-weight: 700;
+}
+
+.admin-order-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentcolor;
+  margin-top: 0.22rem;
+}
+
+.admin-order-timeline-step small {
+  color: #64748b;
+  font-size: 0.73rem;
+}
+
+.admin-dispute-controls {
+  display: grid;
+  gap: 0.52rem;
+}
+
+.admin-ops-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.62rem;
+}
+
+.admin-ops-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.admin-ops-row h3 {
+  font-size: 0.9rem;
 }
 
 .admin-vendor-detail-topbar {

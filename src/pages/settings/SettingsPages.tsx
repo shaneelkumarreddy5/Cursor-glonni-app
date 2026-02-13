@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageIntro } from "../../components/ui/PageIntro";
 import { ROUTES } from "../../routes/paths";
+import { useOrderOperations } from "../../state/OrderOperationsContext";
 import { type OrderRecord, useCommerce } from "../../state/CommerceContext";
 import { formatInr } from "../../utils/currency";
 
@@ -240,6 +241,7 @@ export function OrdersSettingsPage() {
     markOrderShipped,
     markOrderDelivered,
   } = useCommerce();
+  const { getUserOrderResolutionByOrderId } = useOrderOperations();
   const [activeAction, setActiveAction] = useState<{
     orderId: string;
     mode: ActionMode;
@@ -347,6 +349,7 @@ export function OrdersSettingsPage() {
             const returnDisabledTooltip = getReturnDisabledTooltip(order);
             const cancelDisabledTooltip = getCancelDisabledTooltip(order);
             const supportLink = `${ROUTES.settingsSupport}?orderId=${encodeURIComponent(order.id)}`;
+            const adminResolution = getUserOrderResolutionByOrderId(order.id);
 
             return (
               <div key={order.id} className="stack-sm">
@@ -421,6 +424,25 @@ export function OrdersSettingsPage() {
                     {order.returnReason ? <p>Return reason: {order.returnReason}</p> : null}
                     {order.pickupStatus === "Pickup Pending" ? (
                       <p>Pickup status: Pickup pending</p>
+                    ) : null}
+                    {adminResolution ? (
+                      <div className="order-admin-resolution">
+                        <p>
+                          <strong>Admin reason:</strong>{" "}
+                          {adminResolution.reason ?? "No reason shared."}
+                        </p>
+                        <p>
+                          <strong>Refund status:</strong> {adminResolution.userRefundStatus}
+                        </p>
+                        <p>
+                          <strong>Cashback status:</strong>{" "}
+                          {adminResolution.userCashbackStatus}
+                        </p>
+                        <p>
+                          <strong>Updated:</strong>{" "}
+                          {formatOrderDate(adminResolution.updatedAtIso)}
+                        </p>
+                      </div>
                     ) : null}
                   </div>
                   <div className="order-price-col">

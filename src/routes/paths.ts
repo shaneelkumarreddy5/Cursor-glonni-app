@@ -86,6 +86,8 @@ export const ROUTES = {
   adminProductDetail: (productId: string) =>
     `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.products}/${productId}`,
   adminOrders: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.orders}`,
+  adminOrderDetail: (orderId: string) =>
+    `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.orders}/${orderId}`,
   adminReturnsRto: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.returnsRto}`,
   adminAds: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.ads}`,
   adminSupport: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.support}`,

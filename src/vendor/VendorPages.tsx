@@ -6,6 +6,7 @@ import {
 } from "react";
 import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes/paths";
+import { useOrderOperations } from "../state/OrderOperationsContext";
 import {
   type PriceExceptionJustification,
   type ProductModerationStatus,
@@ -312,6 +313,10 @@ function formatTimestamp(isoDate: string) {
   }).format(new Date(isoDate));
 }
 
+function formatSignedInr(value: number) {
+  return value > 0 ? `+${formatInr(value)}` : formatInr(value);
+}
+
 export function VendorProviderRoute() {
   return (
     <VendorProvider>
@@ -612,7 +617,9 @@ export function VendorOnboardingPage() {
 export function VendorDashboardPage() {
   const { summaryMetrics } = useVendor();
   const { getProductsByVendor, getProductPricingFlag } = useProductModeration();
+  const { getVendorOrderResolutionFeed } = useOrderOperations();
   const moderationDecisions = getProductsByVendor(ACTIVE_VENDOR_ID);
+  const operationsDecisions = getVendorOrderResolutionFeed(ACTIVE_VENDOR_ID);
 
   return (
     <div className="stack vendor-page">
@@ -680,6 +687,42 @@ export function VendorDashboardPage() {
           </div>
         ) : (
           <p>No admin product decisions available yet.</p>
+        )}
+      </section>
+
+      <section className="vendor-placeholder-card">
+        <header className="section-header">
+          <h2>Admin Order, RTO, and Dispute Decisions</h2>
+        </header>
+        {operationsDecisions.length > 0 ? (
+          <div className="stack-sm">
+            {operationsDecisions.map((decision) => (
+              <article key={decision.orderId} className="vendor-moderation-row">
+                <div className="vendor-product-heading">
+                  <h3>{decision.orderId}</h3>
+                  <span className={getVendorPricingFlagClass("OK")}>
+                    Wallet {formatSignedInr(decision.vendorWalletAdjustmentInr)}
+                  </span>
+                </div>
+                <p>
+                  Product: {decision.productName} • Vendor wallet status:{" "}
+                  {decision.vendorWalletStatus}
+                </p>
+                <p>
+                  User refund: {decision.userRefundStatus} • User cashback:{" "}
+                  {decision.userCashbackStatus}
+                </p>
+                {decision.reason ? (
+                  <p className="vendor-reject-reason">
+                    Admin reason: {decision.reason}
+                  </p>
+                ) : null}
+                <p>Updated: {formatTimestamp(decision.updatedAtIso)}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p>No admin operational decisions available for your orders yet.</p>
         )}
       </section>
     </div>

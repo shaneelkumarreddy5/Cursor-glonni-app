@@ -3,6 +3,7 @@ import {
   AdminAdsPage,
   AdminDashboardPage,
   AdminLoginPage,
+  AdminOrderDetailPage,
   AdminOrdersPage,
   AdminProductDetailPage,
   AdminProductsPage,
@@ -118,6 +119,10 @@ export function AppRouter() {
             element={<AdminProductDetailPage />}
           />
           <Route path={ADMIN_ROUTE_SEGMENTS.orders} element={<AdminOrdersPage />} />
+          <Route
+            path={`${ADMIN_ROUTE_SEGMENTS.orders}/:orderId`}
+            element={<AdminOrderDetailPage />}
+          />
           <Route path={ADMIN_ROUTE_SEGMENTS.returnsRto} element={<AdminReturnsRtoPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.ads} element={<AdminAdsPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.support} element={<AdminSupportPage />} />
