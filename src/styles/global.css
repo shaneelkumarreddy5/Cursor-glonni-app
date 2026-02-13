@@ -2847,7 +2847,135 @@ body {
   padding: 0.62rem;
 }
 
+.vendor-products-grid {
+  display: grid;
+  gap: 0.82rem;
+}
+
+.vendor-subform-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.72rem;
+}
+
+.vendor-inline-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+}
+
+.vendor-inline-grid input,
+.vendor-inline-grid select {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.5rem 0.62rem;
+}
+
+.vendor-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.vendor-product-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.62rem;
+  padding: 0.68rem;
+}
+
+.vendor-product-copy p {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.vendor-product-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.vendor-product-heading h3 {
+  font-size: 0.92rem;
+}
+
+.vendor-product-status {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+}
+
+.vendor-product-status-draft {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.vendor-product-status-review {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.vendor-product-status-live {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.vendor-product-status-rejected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.vendor-product-actions {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.vendor-product-actions .btn {
+  width: 100%;
+}
+
+.vendor-reject-reason {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+.vendor-reject-panel {
+  border-top: 1px dashed var(--border-strong);
+  margin-top: 0.25rem;
+  padding-top: 0.62rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
 @media (min-width: 980px) {
+  .vendor-products-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vendor-inline-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .vendor-product-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .vendor-body {
     grid-template-columns: 220px minmax(0, 1fr);
     min-height: calc(100vh - 73px);
