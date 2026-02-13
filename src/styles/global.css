@@ -2276,6 +2276,14 @@ body {
   color: #121212;
 }
 
+.settings-link,
+.settings-link:hover,
+.settings-link.active {
+  border-color: #e2e2e2;
+  background: #ffffff;
+  color: #2f2f2f;
+}
+
 .page-content {
   width: min(1180px, 100%);
   padding: 0.8rem 0.8rem 6.6rem;
@@ -2287,6 +2295,13 @@ body {
 }
 
 .badge {
+  border-color: #e5e5e5;
+  background: #ffffff;
+  color: #3f3f3f;
+}
+
+.home-badge,
+.plp-badge {
   border-color: #e5e5e5;
   background: #ffffff;
   color: #3f3f3f;
@@ -2369,6 +2384,12 @@ body {
 
 .order-success-cashback {
   border-left-color: #ffc107;
+}
+
+.order-success-status {
+  border-color: #e2e2e2;
+  background: #ffffff;
+  color: #2f2f2f;
 }
 
 .checkout-cashback-note {
