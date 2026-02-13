@@ -11,6 +11,7 @@ import {
 } from "../data/mockCatalog";
 import { getVendorOptionsForProduct } from "../data/mockCommerce";
 import { ROUTES } from "../routes/paths";
+import { useAdMonetization } from "../state/AdMonetizationContext";
 import { useCommerce } from "../state/CommerceContext";
 import { formatInr } from "../utils/currency";
 
@@ -183,8 +184,17 @@ function HomeProductCard({
 export function HomePage() {
   const navigate = useNavigate();
   const { addToCart } = useCommerce();
-  const sponsoredProducts = catalogProducts.filter((product) => product.sponsored).slice(0, 4);
-  const organicProducts = catalogProducts.filter((product) => !product.sponsored);
+  const { getCatalogSponsoredFlag } = useAdMonetization();
+  const catalogProductsWithVisibility = catalogProducts.map((product) => ({
+    ...product,
+    sponsored: getCatalogSponsoredFlag(product.id, product.sponsored),
+  }));
+  const sponsoredProducts = catalogProductsWithVisibility
+    .filter((product) => product.sponsored)
+    .slice(0, 4);
+  const organicProducts = catalogProductsWithVisibility.filter(
+    (product) => !product.sponsored,
+  );
   const storefrontFeed = [...sponsoredProducts, ...organicProducts.slice(0, 6)];
   const recommendedProducts = organicProducts
     .slice()
@@ -273,11 +283,11 @@ export function HomePage() {
         subtitle="Sponsored placements are clearly marked, followed by top organic picks."
       >
         <div className="home-product-grid">
-          {storefrontFeed.map((product, index) => (
+          {storefrontFeed.map((product) => (
             <HomeProductCard
               key={product.id}
               product={product}
-              sponsored={index < 4}
+              sponsored={product.sponsored}
               onAddToCart={addDefaultConfigurationToCart}
               onBuyNow={handleBuyNow}
             />

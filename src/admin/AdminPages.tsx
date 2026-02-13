@@ -1,6 +1,11 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../routes/paths";
+import {
+  type AdStatus,
+  type AdType,
+  useAdMonetization,
+} from "../state/AdMonetizationContext";
 import {
   type AdminFaultAssignee,
   type AdminOrderStatus,
@@ -26,7 +31,6 @@ import { AdminLayout } from "./AdminLayout";
 
 const STATIC_USERS_COUNT = 12450;
 const STATIC_ORDERS_COUNT = 28871;
-const STATIC_ACTIVE_ADS_COUNT = 119;
 
 type AdminPlaceholderPageProps = {
   title: string;
@@ -128,6 +132,19 @@ function getRtoStatusClass(status: AdminRtoAdjustmentStatus) {
   return "admin-status-badge admin-status-scrutiny";
 }
 
+function getAdminAdStatusClass(status: AdStatus) {
+  if (status === "Active") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (status === "Paused") {
+    return "admin-status-badge admin-status-suspended";
+  }
+  if (status === "Expired") {
+    return "admin-status-badge admin-status-rejected";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
 function getTimelineStepClass(isCompleted: boolean, isCurrent: boolean) {
   if (isCompleted) {
     return "admin-order-timeline-step is-complete";
@@ -144,6 +161,10 @@ function formatDate(isoDate: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(isoDate));
+}
+
+function formatOptionalDate(isoDate: string | null) {
+  return isoDate ? formatDate(isoDate) : "Not started";
 }
 
 function formatDateTime(isoDate: string) {
@@ -235,16 +256,30 @@ export function AdminLoginPage() {
 
 export function AdminDashboardPage() {
   const { vendors } = useVendorLifecycle();
+  const { ads, revenueSummary } = useAdMonetization();
   const pendingApprovals = vendors.filter(
     (vendor) => vendor.status === "Under Scrutiny",
   ).length;
   const totalVendors = vendors.length;
-  const adminMetrics = [
+  const activeAdsCount = ads.filter((ad) => ad.status === "Active").length;
+  const adminMetrics: Array<{ label: string; value: string | number }> = [
     { label: "Total Users", value: STATIC_USERS_COUNT },
     { label: "Total Vendors", value: totalVendors },
     { label: "Total Orders", value: STATIC_ORDERS_COUNT },
     { label: "Pending Approvals", value: pendingApprovals },
-    { label: "Active Ads", value: STATIC_ACTIVE_ADS_COUNT },
+    { label: "Active Ads", value: activeAdsCount },
+    {
+      label: "Total Ad Revenue",
+      value: formatInr(revenueSummary.totalAdRevenueInr),
+    },
+    {
+      label: "Active Ad Revenue",
+      value: formatInr(revenueSummary.activeAdRevenueInr),
+    },
+    {
+      label: "Completed Ad Revenue",
+      value: formatInr(revenueSummary.completedAdRevenueInr),
+    },
   ];
 
   return (
@@ -258,7 +293,11 @@ export function AdminDashboardPage() {
         {adminMetrics.map((metric) => (
           <article key={metric.label} className="admin-overview-card">
             <h3>{metric.label}</h3>
-            <p>{metric.value.toLocaleString("en-IN")}</p>
+            <p>
+              {typeof metric.value === "number"
+                ? metric.value.toLocaleString("en-IN")
+                : metric.value}
+            </p>
           </article>
         ))}
       </section>
@@ -1424,11 +1463,447 @@ export function AdminReturnsRtoPage() {
 }
 
 export function AdminAdsPage() {
+  const {
+    ads,
+    pricingSlabs,
+    auditLog,
+    catalogVisibilityRows,
+    revenueSummary,
+    approveAd,
+    pauseAd,
+    resumeAd,
+    stopAd,
+    updatePricingSlab,
+    setCatalogSponsoredOverride,
+  } = useAdMonetization();
+  const [adReasonById, setAdReasonById] = useState<Record<string, string>>({});
+  const [pricingReasonByType, setPricingReasonByType] = useState<Record<AdType, string>>({
+    "Sponsored Product": "",
+    "Sponsored Category": "",
+  });
+  const [pricingDraftByType, setPricingDraftByType] = useState<
+    Record<
+      AdType,
+      {
+        dailyPriceInput: string;
+        minimumDurationInput: string;
+      }
+    >
+  >({
+    "Sponsored Product": { dailyPriceInput: "", minimumDurationInput: "" },
+    "Sponsored Category": { dailyPriceInput: "", minimumDurationInput: "" },
+  });
+  const [visibilityReasonByProductId, setVisibilityReasonByProductId] = useState<
+    Record<string, string>
+  >({});
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPricingDraftByType({
+      "Sponsored Product": {
+        dailyPriceInput: String(
+          pricingSlabs.find((slab) => slab.adType === "Sponsored Product")?.dailyPriceInr ?? 0,
+        ),
+        minimumDurationInput: String(
+          pricingSlabs.find((slab) => slab.adType === "Sponsored Product")
+            ?.minimumDurationDays ?? 1,
+        ),
+      },
+      "Sponsored Category": {
+        dailyPriceInput: String(
+          pricingSlabs.find((slab) => slab.adType === "Sponsored Category")?.dailyPriceInr ?? 0,
+        ),
+        minimumDurationInput: String(
+          pricingSlabs.find((slab) => slab.adType === "Sponsored Category")
+            ?.minimumDurationDays ?? 1,
+        ),
+      },
+    });
+  }, [pricingSlabs]);
+
+  const sortedAds = useMemo(
+    () =>
+      [...ads].sort(
+        (first, second) =>
+          new Date(second.requestedAtIso).getTime() -
+          new Date(first.requestedAtIso).getTime(),
+      ),
+    [ads],
+  );
+
+  function handleApprove(adId: string) {
+    const result = approveAd(adId);
+    setFeedbackMessage(result.message);
+  }
+
+  function handlePause(adId: string) {
+    const result = pauseAd(adId, adReasonById[adId] ?? "");
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setAdReasonById((currentReasons) => ({ ...currentReasons, [adId]: "" }));
+    }
+  }
+
+  function handleResume(adId: string) {
+    const result = resumeAd(adId);
+    setFeedbackMessage(result.message);
+  }
+
+  function handleStop(adId: string) {
+    const result = stopAd(adId, adReasonById[adId] ?? "");
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setAdReasonById((currentReasons) => ({ ...currentReasons, [adId]: "" }));
+    }
+  }
+
+  function updatePricingDraft(
+    adType: AdType,
+    field: "dailyPriceInput" | "minimumDurationInput",
+    value: string,
+  ) {
+    setPricingDraftByType((currentDrafts) => ({
+      ...currentDrafts,
+      [adType]: {
+        ...currentDrafts[adType],
+        [field]: value,
+      },
+    }));
+  }
+
+  function handlePricingSave(adType: AdType) {
+    const draft = pricingDraftByType[adType];
+    const dailyPriceInr = Number(draft.dailyPriceInput);
+    const minimumDurationDays = Number(draft.minimumDurationInput);
+    const result = updatePricingSlab(
+      adType,
+      dailyPriceInr,
+      minimumDurationDays,
+      pricingReasonByType[adType] ?? "",
+    );
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setPricingReasonByType((currentReasons) => ({ ...currentReasons, [adType]: "" }));
+    }
+  }
+
+  function handleVisibilityOverride(productId: string, isSponsored: boolean) {
+    const result = setCatalogSponsoredOverride(
+      productId,
+      isSponsored,
+      visibilityReasonByProductId[productId] ?? "",
+    );
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setVisibilityReasonByProductId((currentReasons) => ({
+        ...currentReasons,
+        [productId]: "",
+      }));
+    }
+  }
+
   return (
-    <AdminPlaceholderPage
-      title="Ads"
-      description="Sponsored placements review and campaign-level controls."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Ads Control, Pricing & Revenue"
+        description="Admin-only controls for ad approvals, pricing slabs, monetization visibility, and audit tracing."
+      />
+
+      {feedbackMessage ? (
+        <section className="admin-placeholder-card">
+          <p className="admin-action-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="admin-overview-grid">
+        <article className="admin-overview-card">
+          <h3>Total Ad Revenue</h3>
+          <p>{formatInr(revenueSummary.totalAdRevenueInr)}</p>
+        </article>
+        <article className="admin-overview-card">
+          <h3>Active Ad Revenue</h3>
+          <p>{formatInr(revenueSummary.activeAdRevenueInr)}</p>
+        </article>
+        <article className="admin-overview-card">
+          <h3>Completed Ad Revenue</h3>
+          <p>{formatInr(revenueSummary.completedAdRevenueInr)}</p>
+        </article>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Ads Control Dashboard"
+          description="View all ad campaigns with approval, pause, resume, and stop controls."
+        />
+        <div className="admin-ads-table-wrap">
+          <div className="admin-ads-table-head" role="presentation">
+            <span>Vendor</span>
+            <span>Ad Type</span>
+            <span>Status</span>
+            <span>Start Date</span>
+            <span>End Date</span>
+            <span>Amount Paid</span>
+          </div>
+          <div className="admin-ads-table-body">
+            {sortedAds.map((ad) => (
+              <article key={ad.id} className="admin-ads-table-row">
+                <span className="admin-vendor-name-cell">{ad.vendorName}</span>
+                <span>{ad.type}</span>
+                <span className={getAdminAdStatusClass(ad.status)}>{ad.status}</span>
+                <span>{formatOptionalDate(ad.startDateIso)}</span>
+                <span>{formatOptionalDate(ad.endDateIso)}</span>
+                <span>{formatInr(ad.amountPaidInr)}</span>
+
+                <div className="admin-ads-row-controls">
+                  <p className="admin-vendor-status-message">
+                    Campaign ID: <strong>{ad.id}</strong>
+                    {ad.type === "Sponsored Product"
+                      ? ` • Product: ${ad.productName ?? "Unknown"}`
+                      : ` • Category: ${ad.category ?? "Unknown"}`}
+                  </p>
+                  <div className="inline-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => handleApprove(ad.id)}
+                      disabled={ad.status !== "Pending"}
+                    >
+                      Approve Ad
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handlePause(ad.id)}
+                      disabled={ad.status !== "Active"}
+                    >
+                      Pause Ad
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleResume(ad.id)}
+                      disabled={ad.status !== "Paused"}
+                    >
+                      Resume Ad
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleStop(ad.id)}
+                      disabled={ad.status === "Expired"}
+                    >
+                      Stop Ad
+                    </button>
+                  </div>
+                  <label className="field">
+                    Pause/stop reason (required for pause and stop)
+                    <textarea
+                      className="order-textarea"
+                      rows={2}
+                      value={adReasonById[ad.id] ?? ""}
+                      onChange={(event) =>
+                        setAdReasonById((currentReasons) => ({
+                          ...currentReasons,
+                          [ad.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Enter reason for pause/stop action"
+                    />
+                  </label>
+                  {ad.latestAdminActionLabel ? (
+                    <p className="admin-vendor-status-message">
+                      Last admin action: <strong>{ad.latestAdminActionLabel}</strong>
+                      {ad.latestAdminReason ? ` • ${ad.latestAdminReason}` : ""}
+                      {ad.latestAdminActionAtIso
+                        ? ` • ${formatDateTime(ad.latestAdminActionAtIso)}`
+                        : ""}
+                    </p>
+                  ) : (
+                    <p className="admin-vendor-status-message">
+                      No admin action recorded yet for this ad.
+                    </p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Ad Pricing Slabs (Admin Controlled)"
+          description="Set daily price and minimum duration. Vendors can view pricing but cannot edit it."
+        />
+        <div className="stack-sm">
+          {pricingSlabs.map((slab) => (
+            <article key={slab.adType} className="admin-pricing-row">
+              <div className="admin-pricing-grid">
+                <p>
+                  <strong>{slab.adType}</strong>
+                </p>
+                <label className="field">
+                  Daily price (₹)
+                  <input
+                    type="number"
+                    min={1}
+                    value={pricingDraftByType[slab.adType].dailyPriceInput}
+                    onChange={(event) =>
+                      updatePricingDraft(slab.adType, "dailyPriceInput", event.target.value)
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Minimum duration (days)
+                  <input
+                    type="number"
+                    min={1}
+                    value={pricingDraftByType[slab.adType].minimumDurationInput}
+                    onChange={(event) =>
+                      updatePricingDraft(
+                        slab.adType,
+                        "minimumDurationInput",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label className="field">
+                  Pricing change reason (required)
+                  <input
+                    type="text"
+                    value={pricingReasonByType[slab.adType] ?? ""}
+                    onChange={(event) =>
+                      setPricingReasonByType((currentReasons) => ({
+                        ...currentReasons,
+                        [slab.adType]: event.target.value,
+                      }))
+                    }
+                    placeholder="Explain why this slab is changing"
+                  />
+                </label>
+              </div>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handlePricingSave(slab.adType)}
+                >
+                  Update Pricing Slab
+                </button>
+              </div>
+              <p className="admin-vendor-status-message">
+                Last updated: <strong>{formatDateTime(slab.updatedAtIso)}</strong>
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Visibility Overrides (Admin Only)"
+          description="Override storefront sponsorship labels and placement at product level."
+        />
+        <p className="admin-vendor-status-message">
+          Sponsored products are prioritized before organic products and always labeled Sponsored
+          in storefront listings.
+        </p>
+        <div className="stack-sm">
+          {catalogVisibilityRows.map((row) => (
+            <article key={row.productId} className="admin-visibility-row">
+              <div className="admin-ops-row-head">
+                <h3>{row.productName}</h3>
+                <span className={getAdminAdStatusClass(row.effectiveSponsored ? "Active" : "Paused")}>
+                  {row.effectiveSponsored ? "Sponsored" : "Organic"}
+                </span>
+              </div>
+              <p>
+                <strong>Category:</strong> {row.category}
+              </p>
+              <p>
+                <strong>Default visibility:</strong>{" "}
+                {row.defaultSponsored ? "Sponsored" : "Organic"}
+              </p>
+              <p>
+                <strong>Latest override reason:</strong>{" "}
+                {row.overrideReason ? row.overrideReason : "No override reason recorded."}
+              </p>
+              {row.updatedAtIso ? (
+                <p>
+                  <strong>Updated:</strong> {formatDateTime(row.updatedAtIso)}
+                </p>
+              ) : null}
+              <label className="field">
+                Override reason (required)
+                <input
+                  type="text"
+                  value={visibilityReasonByProductId[row.productId] ?? ""}
+                  onChange={(event) =>
+                    setVisibilityReasonByProductId((currentReasons) => ({
+                      ...currentReasons,
+                      [row.productId]: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter reason for visibility override"
+                />
+              </label>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleVisibilityOverride(row.productId, true)}
+                >
+                  Set Sponsored
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleVisibilityOverride(row.productId, false)}
+                >
+                  Set Organic
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Ads Audit Log (Admin Only)"
+          description="Tracks ad approvals, pauses, stops, pricing changes, and visibility overrides."
+        />
+        {auditLog.length > 0 ? (
+          <div className="stack-sm">
+            {auditLog.map((entry) => (
+              <article key={entry.id} className="admin-audit-row">
+                <div className="admin-audit-row-top">
+                  <span className="admin-status-badge">{entry.actionType}</span>
+                  <strong>{formatDateTime(entry.createdAtIso)}</strong>
+                </div>
+                {entry.vendorName ? (
+                  <p>
+                    <strong>Vendor:</strong> {entry.vendorName}
+                  </p>
+                ) : null}
+                {entry.adId ? (
+                  <p>
+                    <strong>Ad ID:</strong> {entry.adId}
+                  </p>
+                ) : null}
+                <p>{entry.reason}</p>
+                {entry.metadata ? <p>{entry.metadata}</p> : null}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="admin-vendor-status-message">
+            No ad-related admin actions are logged yet.
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
 

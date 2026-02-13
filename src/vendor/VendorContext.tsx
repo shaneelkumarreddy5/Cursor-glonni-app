@@ -11,6 +11,10 @@ import {
   type VendorLifecycleStatus,
   useVendorLifecycle,
 } from "../state/VendorLifecycleContext";
+import {
+  type AdPricingSlab,
+  useAdMonetization,
+} from "../state/AdMonetizationContext";
 import { formatInr } from "../utils/currency";
 
 export type VendorStatus = VendorLifecycleStatus;
@@ -130,7 +134,14 @@ export type VendorRtoCase = {
 };
 
 export type VendorAdType = "Sponsored Product" | "Sponsored Category";
-export type VendorAdStatus = "Active" | "Expired";
+export type VendorAdStatus = "Pending" | "Active" | "Paused" | "Expired";
+
+export type VendorAdPricingSlab = {
+  adType: VendorAdType;
+  dailyPriceInr: number;
+  minimumDurationDays: number;
+  updatedAtIso: string;
+};
 
 export type VendorAd = {
   id: string;
@@ -142,7 +153,12 @@ export type VendorAd = {
   budgetInr: number;
   fixedPriceInr: number;
   perDayRateInr: number;
-  startedAtIso: string;
+  startedAtIso: string | null;
+  endDateIso: string | null;
+  status: VendorAdStatus;
+  latestAdminActionLabel: string | null;
+  latestAdminReason: string | null;
+  latestAdminActionAtIso: string | null;
 };
 
 export type VendorAdPayload = {
@@ -273,6 +289,7 @@ type VendorContextValue = {
   vendorReturnCases: VendorReturnCase[];
   vendorRtoCases: VendorRtoCase[];
   vendorAds: VendorAd[];
+  adPricingSlabs: VendorAdPricingSlab[];
   bankDetails: VendorBankDetails;
   bankDetailsReviewStatus: VendorBankDetailsReviewStatus;
   notificationPreferences: VendorNotificationPreferences;
@@ -342,10 +359,6 @@ const MOCK_LAST_SETTLED_AMOUNT_INR = 38640;
 const MOCK_NEXT_SETTLEMENT_DATE_ISO = new Date(
   Date.now() + 2 * 24 * 60 * 60 * 1000,
 ).toISOString();
-const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
-  "Sponsored Product": 120,
-  "Sponsored Category": 240,
-};
 
 const CATEGORY_PRICE_BENCHMARKS: Record<
   VendorProductPayload["category"],
@@ -368,10 +381,6 @@ function createVendorProductId() {
   return `VPRD-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-function createVendorAdId() {
-  return `VAD-${Math.floor(100000 + Math.random() * 900000)}`;
-}
-
 function createVendorSupportTicketId() {
   return `VTK-${Math.floor(100000 + Math.random() * 900000)}`;
 }
@@ -381,21 +390,37 @@ function createVendorSupportMessageId() {
 }
 
 function getVendorAdStatus(ad: VendorAd, now = new Date()): VendorAdStatus {
-  const adEndDateMs =
-    new Date(ad.startedAtIso).getTime() + ad.durationDays * 24 * 60 * 60 * 1000;
-  return now.getTime() < adEndDateMs ? "Active" : "Expired";
+  if (ad.status === "Expired") {
+    return "Expired";
+  }
+  if (!ad.endDateIso) {
+    return ad.status;
+  }
+  return now.getTime() >= new Date(ad.endDateIso).getTime() ? "Expired" : ad.status;
 }
 
 function getVendorAdRemainingDays(ad: VendorAd, now = new Date()) {
-  const adEndDateMs =
-    new Date(ad.startedAtIso).getTime() + ad.durationDays * 24 * 60 * 60 * 1000;
-  const remainingMs = adEndDateMs - now.getTime();
+  const adStatus = getVendorAdStatus(ad, now);
+  if (adStatus === "Pending") {
+    return ad.durationDays;
+  }
+  if (!ad.endDateIso) {
+    return ad.durationDays;
+  }
+  const remainingMs = new Date(ad.endDateIso).getTime() - now.getTime();
   return Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
 }
 
 function getVendorAdAmountSpent(ad: VendorAd, now = new Date()) {
+  const adStatus = getVendorAdStatus(ad, now);
+  if (adStatus === "Pending" || !ad.startedAtIso) {
+    return 0;
+  }
   const startedMs = new Date(ad.startedAtIso).getTime();
-  const elapsedMs = Math.max(0, now.getTime() - startedMs);
+  const billingEndMs = ad.endDateIso
+    ? Math.min(now.getTime(), new Date(ad.endDateIso).getTime())
+    : now.getTime();
+  const elapsedMs = Math.max(0, billingEndMs - startedMs);
   const elapsedDays = Math.ceil(elapsedMs / (24 * 60 * 60 * 1000));
   const billableDays = Math.min(ad.durationDays, elapsedDays);
   return Math.min(ad.fixedPriceInr, billableDays * ad.perDayRateInr);
@@ -610,50 +635,6 @@ function createSeedVendorRtoCases(): VendorRtoCase[] {
       rtoChargeInr: 180,
       resolutionStatus: "Under Review",
       updatedAtIso: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
-}
-
-function createSeedVendorAds(products: VendorProduct[]): VendorAd[] {
-  const now = Date.now();
-  const liveProduct = products.find((product) => product.status === "Live") ?? null;
-  const reviewProduct =
-    products.find((product) => product.status === "Under Review") ?? null;
-
-  const activeProductStartedAtIso = new Date(
-    now - 2 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const expiredCategoryStartedAtIso = new Date(
-    now - 12 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
-  const activeProductPerDay = VENDOR_AD_DAILY_RATES_INR["Sponsored Product"];
-  const expiredCategoryPerDay = VENDOR_AD_DAILY_RATES_INR["Sponsored Category"];
-
-  return [
-    {
-      id: "VAD-110220",
-      type: "Sponsored Product",
-      productId: liveProduct?.id ?? reviewProduct?.id ?? null,
-      productName: liveProduct?.productName ?? reviewProduct?.productName ?? null,
-      category: liveProduct?.category ?? reviewProduct?.category ?? null,
-      durationDays: 7,
-      budgetInr: 1200,
-      fixedPriceInr: activeProductPerDay * 7,
-      perDayRateInr: activeProductPerDay,
-      startedAtIso: activeProductStartedAtIso,
-    },
-    {
-      id: "VAD-110347",
-      type: "Sponsored Category",
-      productId: null,
-      productName: null,
-      category: "Mobiles",
-      durationDays: 5,
-      budgetInr: 1800,
-      fixedPriceInr: expiredCategoryPerDay * 5,
-      perDayRateInr: expiredCategoryPerDay,
-      startedAtIso: expiredCategoryStartedAtIso,
     },
   ];
 }
@@ -890,7 +871,6 @@ const SEEDED_VENDOR_PRODUCTS = createSeedVendorProducts();
 const SEEDED_VENDOR_ORDERS = createSeedVendorOrders();
 const SEEDED_VENDOR_RETURN_CASES = createSeedVendorReturnCases(SEEDED_VENDOR_ORDERS);
 const SEEDED_VENDOR_RTO_CASES = createSeedVendorRtoCases();
-const SEEDED_VENDOR_ADS = createSeedVendorAds(SEEDED_VENDOR_PRODUCTS);
 const SEEDED_VENDOR_BANK_DETAILS = createSeedVendorBankDetails();
 const SEEDED_VENDOR_NOTIFICATION_PREFERENCES =
   createSeedVendorNotificationPreferences();
@@ -905,13 +885,13 @@ const VendorContext = createContext<VendorContextValue | null>(null);
 
 export function VendorProvider({ children }: { children: ReactNode }) {
   const { getVendorById, syncVendorStatus } = useVendorLifecycle();
+  const { getAdsForVendor, pricingSlabs, createVendorAdRequest } = useAdMonetization();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [onboardingData, setOnboardingData] = useState<VendorOnboardingData | null>(
     null,
   );
   const [vendorProducts, setVendorProducts] =
     useState<VendorProduct[]>(SEEDED_VENDOR_PRODUCTS);
-  const [vendorAds, setVendorAds] = useState<VendorAd[]>(SEEDED_VENDOR_ADS);
   const [bankDetails, setBankDetails] = useState<VendorBankDetails>(
     SEEDED_VENDOR_BANK_DETAILS,
   );
@@ -936,6 +916,37 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const vendorName = activeVendorProfile?.vendorName ?? MOCK_VENDOR_NAME;
   const vendorStatus = activeVendorProfile?.status ?? "Under Scrutiny";
   const vendorStatusReason = activeVendorProfile?.statusReason ?? null;
+  const vendorAds = useMemo<VendorAd[]>(
+    () =>
+      getAdsForVendor(ACTIVE_VENDOR_ID).map((ad) => ({
+        id: ad.id,
+        type: ad.type,
+        productId: ad.productId,
+        productName: ad.productName,
+        category: ad.category,
+        durationDays: ad.durationDays,
+        budgetInr: ad.budgetInr,
+        fixedPriceInr: ad.amountPaidInr,
+        perDayRateInr: ad.dailyPriceInr,
+        startedAtIso: ad.startDateIso,
+        endDateIso: ad.endDateIso,
+        status: ad.status,
+        latestAdminActionLabel: ad.latestAdminActionLabel,
+        latestAdminReason: ad.latestAdminReason,
+        latestAdminActionAtIso: ad.latestAdminActionAtIso,
+      })),
+    [getAdsForVendor],
+  );
+  const adPricingSlabs = useMemo<VendorAdPricingSlab[]>(
+    () =>
+      pricingSlabs.map((slab: AdPricingSlab) => ({
+        adType: slab.adType,
+        dailyPriceInr: slab.dailyPriceInr,
+        minimumDurationDays: slab.minimumDurationDays,
+        updatedAtIso: slab.updatedAtIso,
+      })),
+    [pricingSlabs],
+  );
 
   useEffect(() => {
     const refreshWalletAdjustments = () => {
@@ -1302,24 +1313,20 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       return { ok: false, message: "Select a category for Sponsored Category ad." };
     }
 
-    const perDayRateInr = VENDOR_AD_DAILY_RATES_INR[payload.type];
-    const fixedPriceInr = perDayRateInr * payload.durationDays;
-
-    if (payload.budgetInr < fixedPriceInr) {
-      return {
-        ok: false,
-        message: `Budget is lower than fixed pricing (${formatInr(fixedPriceInr)}).`,
-      };
-    }
-
     const selectedProduct =
       payload.productId !== null
         ? vendorProducts.find((product) => product.id === payload.productId) ?? null
         : null;
+    if (payload.type === "Sponsored Product" && payload.productId && !selectedProduct) {
+      return {
+        ok: false,
+        message: "Selected product is not available for ad creation.",
+      };
+    }
 
-    const nowIso = new Date().toISOString();
-    const nextAd: VendorAd = {
-      id: createVendorAdId(),
+    return createVendorAdRequest({
+      vendorId: ACTIVE_VENDOR_ID,
+      vendorName,
       type: payload.type,
       productId: payload.type === "Sponsored Product" ? payload.productId : null,
       productName:
@@ -1330,13 +1337,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
           : payload.category,
       durationDays: payload.durationDays,
       budgetInr: payload.budgetInr,
-      fixedPriceInr,
-      perDayRateInr,
-      startedAtIso: nowIso,
-    };
-
-    setVendorAds((currentAds) => [nextAd, ...currentAds]);
-    return { ok: true, message: "Ad created successfully." };
+    });
   }
 
   function updateBankDetails(
@@ -1694,6 +1695,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       vendorReturnCases,
       vendorRtoCases,
       vendorAds,
+      adPricingSlabs,
       bankDetails,
       bankDetailsReviewStatus,
       notificationPreferences,
@@ -1739,6 +1741,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       walletEntries,
       walletSummary,
       vendorAds,
+      adPricingSlabs,
       vendorOrders,
       vendorReturnCases,
       vendorRtoCases,

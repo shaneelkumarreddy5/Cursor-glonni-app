@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { catalogProducts, type CatalogCategory } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
+import { useAdMonetization } from "../state/AdMonetizationContext";
 import { formatInr } from "../utils/currency";
 
 function StarIcon() {
@@ -60,6 +61,7 @@ export function CategoryPage() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [cashbackOnly, setCashbackOnly] = useState(false);
+  const { getCatalogSponsoredFlag } = useAdMonetization();
   const categoryFilters: Array<CatalogCategory | "All"> = [
     "All",
     "Mobiles",
@@ -79,14 +81,23 @@ export function CategoryPage() {
       ? catalogProducts
       : catalogProducts.filter((product) => product.category === selectedCategory);
 
+  const categoryScopedProductsWithVisibility = useMemo(
+    () =>
+      categoryScopedProducts.map((product) => ({
+        ...product,
+        sponsored: getCatalogSponsoredFlag(product.id, product.sponsored),
+      })),
+    [categoryScopedProducts, getCatalogSponsoredFlag],
+  );
+
   const brandFilters = Array.from(
     new Map(
-      categoryScopedProducts.map((product) => [product.brand, product.brandLogoUrl]),
+      categoryScopedProductsWithVisibility.map((product) => [product.brand, product.brandLogoUrl]),
     ).entries(),
   );
 
   const filteredAndSortedProducts = useMemo(() => {
-    const filtered = categoryScopedProducts.filter((product) => {
+    const filtered = categoryScopedProductsWithVisibility.filter((product) => {
       const matchesBrand =
         selectedBrands.length === 0 || selectedBrands.includes(product.brand);
       const matchesPrice = isWithinAnySelectedPriceRange(
@@ -97,27 +108,30 @@ export function CategoryPage() {
       return matchesBrand && matchesPrice && matchesCashback;
     });
 
-    const products = [...filtered];
-    if (selectedSort === "price-low-high") {
-      return products.sort((first, second) => first.priceInr - second.priceInr);
-    }
-
-    if (selectedSort === "price-high-low") {
-      return products.sort((first, second) => second.priceInr - first.priceInr);
-    }
-
-    return products.sort((first, second) => {
-      if (second.rating !== first.rating) {
-        return second.rating - first.rating;
+    const sponsoredProducts = filtered.filter((product) => product.sponsored);
+    const organicProducts = filtered.filter((product) => !product.sponsored);
+    const sortProducts = (
+      productsToSort: typeof filtered,
+    ) => {
+      const nextProducts = [...productsToSort];
+      if (selectedSort === "price-low-high") {
+        return nextProducts.sort((first, second) => first.priceInr - second.priceInr);
       }
-      if (first.sponsored !== second.sponsored) {
-        return first.sponsored ? -1 : 1;
+      if (selectedSort === "price-high-low") {
+        return nextProducts.sort((first, second) => second.priceInr - first.priceInr);
       }
-      return first.priceInr - second.priceInr;
-    });
+      return nextProducts.sort((first, second) => {
+        if (second.rating !== first.rating) {
+          return second.rating - first.rating;
+        }
+        return first.priceInr - second.priceInr;
+      });
+    };
+
+    return [...sortProducts(sponsoredProducts), ...sortProducts(organicProducts)];
   }, [
     cashbackOnly,
-    categoryScopedProducts,
+    categoryScopedProductsWithVisibility,
     selectedBrands,
     selectedPriceRanges,
     selectedSort,

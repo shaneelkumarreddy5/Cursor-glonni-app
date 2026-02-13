@@ -71,11 +71,6 @@ const VENDOR_AD_TYPES: VendorAdType[] = [
   "Sponsored Category",
 ];
 
-const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
-  "Sponsored Product": 120,
-  "Sponsored Category": 240,
-};
-
 const SUPPORT_TICKET_CATEGORIES: VendorSupportTicketCategory[] = [
   "Orders",
   "Payments",
@@ -207,6 +202,19 @@ function getWalletStatusClass(status: VendorWalletEntryStatus) {
     return "vendor-wallet-status-badge vendor-wallet-status-available";
   }
   return "vendor-wallet-status-badge vendor-wallet-status-adjusted";
+}
+
+function getVendorAdStatusClass(status: VendorAdStatus) {
+  if (status === "Active") {
+    return "vendor-ad-status-badge vendor-ad-status-active";
+  }
+  if (status === "Paused") {
+    return "vendor-ad-status-badge vendor-ad-status-paused";
+  }
+  if (status === "Pending") {
+    return "vendor-ad-status-badge vendor-ad-status-pending";
+  }
+  return "vendor-ad-status-badge vendor-ad-status-expired";
 }
 
 function getNextVendorOrderStatus(
@@ -762,9 +770,15 @@ export function VendorAnalyticsPage() {
   const sortedAds = useMemo(
     () =>
       [...vendorAds].sort(
-        (first, second) =>
-          new Date(second.startedAtIso).getTime() -
-          new Date(first.startedAtIso).getTime(),
+        (first, second) => {
+          const firstTimestamp = first.startedAtIso
+            ? new Date(first.startedAtIso).getTime()
+            : 0;
+          const secondTimestamp = second.startedAtIso
+            ? new Date(second.startedAtIso).getTime()
+            : 0;
+          return secondTimestamp - firstTimestamp;
+        },
       ),
     [vendorAds],
   );
@@ -1923,6 +1937,7 @@ export function VendorAdsPage() {
     canPublishProducts,
     vendorProducts,
     vendorAds,
+    adPricingSlabs,
     createVendorAd,
     getVendorAdStatus,
     getVendorAdAmountSpent,
@@ -1932,35 +1947,42 @@ export function VendorAdsPage() {
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [selectedCategory, setSelectedCategory] =
     useState<VendorProductPayload["category"]>("Mobiles");
-  const [durationDaysInput, setDurationDaysInput] = useState("7");
-  const [budgetInput, setBudgetInput] = useState("1500");
+  const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const adEligibleProducts = useMemo(
     () => vendorProducts.filter((product) => product.status !== "Rejected"),
     [vendorProducts],
   );
-  const fixedPricePreviewInr =
-    (Number.isNaN(Number(durationDaysInput)) ? 0 : Number(durationDaysInput)) *
-    VENDOR_AD_DAILY_RATES_INR[adType];
+  const selectedPricingSlab =
+    adPricingSlabs.find((pricingSlab) => pricingSlab.adType === adType) ?? null;
+  const enteredDurationDays = Number(durationDaysInput);
+  const durationDays = Number.isNaN(enteredDurationDays) ? 0 : enteredDurationDays;
+  const selectedDailyPriceInr = selectedPricingSlab?.dailyPriceInr ?? 0;
+  const selectedMinimumDurationDays = selectedPricingSlab?.minimumDurationDays ?? 1;
+  const fixedPricePreviewInr = durationDays * selectedDailyPriceInr;
 
   const sortedAds = useMemo(
     () =>
       [...vendorAds].sort(
-        (first, second) =>
-          new Date(second.startedAtIso).getTime() -
-          new Date(first.startedAtIso).getTime(),
+        (first, second) => {
+          const firstTimestamp = first.startedAtIso
+            ? new Date(first.startedAtIso).getTime()
+            : 0;
+          const secondTimestamp = second.startedAtIso
+            ? new Date(second.startedAtIso).getTime()
+            : 0;
+          return secondTimestamp - firstTimestamp;
+        },
       ),
     [vendorAds],
   );
 
   function handleCreateAd(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const durationDays = Number(durationDaysInput);
-    const budgetInr = Number(budgetInput);
 
-    if (Number.isNaN(durationDays) || Number.isNaN(budgetInr)) {
-      setFeedbackMessage("Enter valid numeric values for duration and budget.");
+    if (Number.isNaN(durationDays)) {
+      setFeedbackMessage("Enter a valid numeric value for duration.");
       return;
     }
 
@@ -1969,7 +1991,7 @@ export function VendorAdsPage() {
       productId: adType === "Sponsored Product" ? selectedProductId || null : null,
       category: adType === "Sponsored Category" ? selectedCategory : null,
       durationDays,
-      budgetInr,
+      budgetInr: fixedPricePreviewInr,
     };
     const result = createVendorAd(payload);
     setFeedbackMessage(result.message);
@@ -1978,8 +2000,10 @@ export function VendorAdsPage() {
       setAdType("Sponsored Product");
       setSelectedProductId("");
       setSelectedCategory("Mobiles");
-      setDurationDaysInput("7");
-      setBudgetInput("1500");
+      const defaultDuration =
+        adPricingSlabs.find((pricingSlab) => pricingSlab.adType === "Sponsored Product")
+          ?.minimumDurationDays ?? 1;
+      setDurationDaysInput(String(defaultDuration));
     }
   }
 
@@ -1999,11 +2023,11 @@ export function VendorAdsPage() {
       <section className="vendor-ads-grid">
         <article className="vendor-placeholder-card">
           <header className="section-header">
-            <h2>Active Ads</h2>
+            <h2>Ad Requests & Campaign Status</h2>
           </header>
           <div className="stack-sm">
             {sortedAds.map((ad) => {
-              const adStatus: VendorAdStatus = getVendorAdStatus(ad);
+              const adStatus = getVendorAdStatus(ad);
               const spentInr = getVendorAdAmountSpent(ad);
               const remainingDays = getVendorAdRemainingDays(ad);
 
@@ -2011,15 +2035,7 @@ export function VendorAdsPage() {
                 <article key={ad.id} className="vendor-ad-row">
                   <div className="vendor-ad-heading">
                     <h3>{ad.id}</h3>
-                    <span
-                      className={
-                        adStatus === "Active"
-                          ? "vendor-ad-status-badge vendor-ad-status-active"
-                          : "vendor-ad-status-badge vendor-ad-status-expired"
-                      }
-                    >
-                      {adStatus}
-                    </span>
+                    <span className={getVendorAdStatusClass(adStatus)}>{adStatus}</span>
                   </div>
                   <p>
                     Type: {ad.type}
@@ -2028,11 +2044,21 @@ export function VendorAdsPage() {
                       : ` • Category: ${ad.category ?? "Unknown"}`}
                   </p>
                   <p>
-                    Budget: {formatInr(ad.budgetInr)} • Fixed pricing: {formatInr(ad.fixedPriceInr)}
+                    Start: {ad.startedAtIso ? formatTimestamp(ad.startedAtIso) : "Pending approval"}{" "}
+                    • End: {ad.endDateIso ? formatTimestamp(ad.endDateIso) : "Not scheduled"}
                   </p>
                   <p>
-                    Amount spent: {formatInr(spentInr)} • Remaining days: {remainingDays}
+                    Amount paid: {formatInr(ad.fixedPriceInr)} • Spent: {formatInr(spentInr)} •
+                    Remaining days: {remainingDays}
                   </p>
+                  {ad.latestAdminActionLabel ? (
+                    <p>
+                      Latest admin action: <strong>{ad.latestAdminActionLabel}</strong>
+                      {ad.latestAdminReason ? ` • ${ad.latestAdminReason}` : ""}
+                    </p>
+                  ) : (
+                    <p>Latest admin action: Awaiting approval.</p>
+                  )}
                 </article>
               );
             })}
@@ -2043,6 +2069,17 @@ export function VendorAdsPage() {
           <header className="section-header">
             <h2>Create New Ad</h2>
           </header>
+          <div className="vendor-ad-pricing-box">
+            <p>Pricing slabs are admin-controlled and read-only for vendors.</p>
+            <ul className="vendor-document-list">
+              {adPricingSlabs.map((pricingSlab) => (
+                <li key={pricingSlab.adType}>
+                  {pricingSlab.adType}: {formatInr(pricingSlab.dailyPriceInr)} / day • Minimum{" "}
+                  {pricingSlab.minimumDurationDays} days
+                </li>
+              ))}
+            </ul>
+          </div>
           {!canPublishProducts ? (
             <p>Ad creation is available only when vendor status is Approved.</p>
           ) : null}
@@ -2051,7 +2088,16 @@ export function VendorAdsPage() {
               Ad Type
               <select
                 value={adType}
-                onChange={(event) => setAdType(event.target.value as VendorAdType)}
+                onChange={(event) => {
+                  const nextType = event.target.value as VendorAdType;
+                  setAdType(nextType);
+                  const nextMinimumDuration =
+                    adPricingSlabs.find((pricingSlab) => pricingSlab.adType === nextType)
+                      ?.minimumDurationDays ?? 1;
+                  if (Number(durationDaysInput) < nextMinimumDuration) {
+                    setDurationDaysInput(String(nextMinimumDuration));
+                  }
+                }}
                 className="order-select"
               >
                 {VENDOR_AD_TYPES.map((type) => (
@@ -2102,28 +2148,19 @@ export function VendorAdsPage() {
                 Duration (days)
                 <input
                   type="number"
-                  min={1}
+                  min={selectedMinimumDurationDays}
                   value={durationDaysInput}
                   onChange={(event) => setDurationDaysInput(event.target.value)}
-                />
-              </label>
-
-              <label className="field">
-                Budget (₹)
-                <input
-                  type="number"
-                  min={1}
-                  value={budgetInput}
-                  onChange={(event) => setBudgetInput(event.target.value)}
                 />
               </label>
             </div>
 
             <div className="vendor-ad-pricing-box">
+              <p>Admin daily price: {formatInr(selectedDailyPriceInr)} per day</p>
+              <p>Minimum duration: {selectedMinimumDurationDays} days</p>
               <p>
-                Fixed pricing: {formatInr(VENDOR_AD_DAILY_RATES_INR[adType])} per day
+                Amount payable at confirmation: {formatInr(fixedPricePreviewInr)}
               </p>
-              <p>Total fixed cost before confirmation: {formatInr(fixedPricePreviewInr)}</p>
             </div>
 
             <button type="submit" className="btn btn-primary" disabled={!canPublishProducts}>
