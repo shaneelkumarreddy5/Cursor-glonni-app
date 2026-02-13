@@ -912,7 +912,7 @@ export function VendorProductsPage() {
   }
 
   function startProductEdit(product: VendorProduct) {
-    if (product.status === "Live") {
+    if (product.status === "Live" || !canPublishProducts) {
       return;
     }
 
@@ -928,6 +928,10 @@ export function VendorProductsPage() {
   }
 
   function openRejectPanel(productId: string) {
+    if (!canPublishProducts) {
+      setFeedbackMessage("Product actions are available only when vendor status is Approved.");
+      return;
+    }
     setRejectingProductId(productId);
     setFeedbackMessage(null);
   }
@@ -964,8 +968,8 @@ export function VendorProductsPage() {
           <header className="section-header">
             <h2>{formMode === "edit" ? "Edit Product" : "Add Product"}</h2>
           </header>
-          {!canPublishProducts && formMode === "add" ? (
-            <p>Add Product is available only when vendor status is Approved.</p>
+          {!canPublishProducts ? (
+            <p>Product actions are available only when vendor status is Approved.</p>
           ) : null}
           <form className="vendor-onboarding-form" onSubmit={handleProductSubmit}>
             <div className="vendor-onboarding-grid">
@@ -1141,7 +1145,7 @@ export function VendorProductsPage() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={formMode === "add" && !canPublishProducts}
+                disabled={!canPublishProducts}
               >
                 {formMode === "edit" ? "Save Changes" : "Submit for Review"}
               </button>
@@ -1215,8 +1219,14 @@ export function VendorProductsPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    disabled={product.status === "Live"}
-                    title={product.status === "Live" ? "Live products cannot be edited." : "Edit product"}
+                    disabled={product.status === "Live" || !canPublishProducts}
+                    title={
+                      !canPublishProducts
+                        ? "Product actions are available only when status is Approved."
+                        : product.status === "Live"
+                          ? "Live products cannot be edited."
+                          : "Edit product"
+                    }
                     onClick={() => startProductEdit(product)}
                   >
                     Edit
@@ -1224,7 +1234,7 @@ export function VendorProductsPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    disabled={product.status === "Live"}
+                    disabled={product.status === "Live" || !canPublishProducts}
                     onClick={() => handleApprove(product.id)}
                   >
                     Approve Product
@@ -1232,6 +1242,7 @@ export function VendorProductsPage() {
                   <button
                     type="button"
                     className="btn btn-secondary"
+                    disabled={!canPublishProducts}
                     onClick={() => openRejectPanel(product.id)}
                   >
                     Reject Product
@@ -1283,7 +1294,7 @@ export function VendorProductsPage() {
 }
 
 export function VendorOrdersPage() {
-  const { vendorOrders, updateVendorOrderStatus } = useVendor();
+  const { vendorOrders, updateVendorOrderStatus, canPublishProducts } = useVendor();
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
@@ -1322,6 +1333,9 @@ export function VendorOrdersPage() {
       ) : null}
 
       <section className="vendor-placeholder-card">
+        {!canPublishProducts ? (
+          <p>Order processing actions are available only when vendor status is Approved.</p>
+        ) : null}
         <div className="stack-sm">
           {sortedOrders.map((order) => {
             const isExpanded = expandedOrderId === order.id;
@@ -1364,10 +1378,12 @@ export function VendorOrdersPage() {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    disabled={!nextStatus || isStatusUpdateBlocked}
+                    disabled={!nextStatus || isStatusUpdateBlocked || !canPublishProducts}
                     onClick={() => handleSequentialUpdate(order)}
                     title={
-                      isStatusUpdateBlocked
+                      !canPublishProducts
+                        ? "Order actions are disabled until vendor status is Approved."
+                        : isStatusUpdateBlocked
                         ? "Status updates are disabled for cancelled/return-requested orders."
                         : nextStatus
                           ? `Move to ${nextStatus}`
@@ -1650,6 +1666,7 @@ export function VendorWalletPage() {
 
 export function VendorAdsPage() {
   const {
+    canPublishProducts,
     vendorProducts,
     vendorAds,
     createVendorAd,
@@ -1772,6 +1789,9 @@ export function VendorAdsPage() {
           <header className="section-header">
             <h2>Create New Ad</h2>
           </header>
+          {!canPublishProducts ? (
+            <p>Ad creation is available only when vendor status is Approved.</p>
+          ) : null}
           <form className="vendor-onboarding-form" onSubmit={handleCreateAd}>
             <label className="field">
               Ad Type
@@ -1852,7 +1872,7 @@ export function VendorAdsPage() {
               <p>Total fixed cost before confirmation: {formatInr(fixedPricePreviewInr)}</p>
             </div>
 
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={!canPublishProducts}>
               Confirm & Create Ad
             </button>
           </form>
@@ -2250,7 +2270,7 @@ export function VendorSupportPage() {
 export function VendorSettingsPage() {
   const {
     vendorStatus,
-    approveVendor,
+    vendorStatusReason,
     hasCompletedOnboarding,
     onboardingData,
     bankDetails,
@@ -2332,19 +2352,19 @@ export function VendorSettingsPage() {
         <p>
           Current vendor status: <strong>{vendorStatus}</strong>
         </p>
+        {vendorStatusReason ? (
+          <p>
+            Latest admin reason: <strong>{vendorStatusReason}</strong>
+          </p>
+        ) : null}
         <div className="inline-actions">
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={approveVendor}
-            disabled={vendorStatus === "Approved" || !hasCompletedOnboarding}
-            title={
-              !hasCompletedOnboarding
-                ? "Complete onboarding before approval."
-                : "Approve vendor profile"
-            }
+            className="btn btn-secondary"
+            disabled
+            title="Vendor lifecycle is controlled from Admin Panel."
           >
-            Approve Vendor
+            Approval Managed by Admin
           </button>
           <Link to={ROUTES.vendorOnboarding} className="btn btn-secondary">
             Open Onboarding Form

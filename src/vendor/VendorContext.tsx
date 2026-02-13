@@ -6,9 +6,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {
+  ACTIVE_VENDOR_ID,
+  type VendorLifecycleStatus,
+  useVendorLifecycle,
+} from "../state/VendorLifecycleContext";
 import { formatInr } from "../utils/currency";
 
-export type VendorStatus = "Under Scrutiny" | "Approved" | "Rejected";
+export type VendorStatus = VendorLifecycleStatus;
 export type VendorProductStatus = "Draft" | "Under Review" | "Live" | "Rejected";
 export type VendorProductExtraOfferType = "Freebie" | "Discount" | "Coupon";
 export type VendorOrderStatus = "New" | "Packed" | "Shipped" | "Delivered";
@@ -258,6 +263,7 @@ type VendorContextValue = {
   isLoggedIn: boolean;
   vendorName: string;
   vendorStatus: VendorStatus;
+  vendorStatusReason: string | null;
   canPublishProducts: boolean;
   onboardingData: VendorOnboardingData | null;
   hasCompletedOnboarding: boolean;
@@ -898,8 +904,8 @@ const SEEDED_WALLET_ADJUSTMENTS = createSeedWalletAdjustments(
 const VendorContext = createContext<VendorContextValue | null>(null);
 
 export function VendorProvider({ children }: { children: ReactNode }) {
+  const { getVendorById, syncVendorStatus } = useVendorLifecycle();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [vendorStatus, setVendorStatus] = useState<VendorStatus>("Under Scrutiny");
   const [onboardingData, setOnboardingData] = useState<VendorOnboardingData | null>(
     null,
   );
@@ -926,6 +932,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const [walletAdjustments, setWalletAdjustments] = useState<VendorWalletAdjustment[]>(
     SEEDED_WALLET_ADJUSTMENTS,
   );
+  const activeVendorProfile = getVendorById(ACTIVE_VENDOR_ID);
+  const vendorName = activeVendorProfile?.vendorName ?? MOCK_VENDOR_NAME;
+  const vendorStatus = activeVendorProfile?.status ?? "Under Scrutiny";
+  const vendorStatusReason = activeVendorProfile?.statusReason ?? null;
 
   useEffect(() => {
     const refreshWalletAdjustments = () => {
@@ -1014,6 +1024,24 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(false);
   }
 
+  function syncCurrentVendorStatus(status: VendorStatus, reason: string | null) {
+    syncVendorStatus(ACTIVE_VENDOR_ID, status, reason);
+  }
+
+  function setVendorStatus(status: VendorStatus) {
+    syncCurrentVendorStatus(status, null);
+  }
+
+  function getSellingRestrictionMessage(status: VendorStatus) {
+    if (status === "Suspended") {
+      return "Selling actions are blocked while your account is suspended by admin.";
+    }
+    if (status === "Rejected") {
+      return "Selling actions are disabled while your account is rejected.";
+    }
+    return "Vendor must be Approved before performing selling actions.";
+  }
+
   function submitOnboarding(payload: VendorOnboardingData): VendorOnboardingResult {
     if (
       !payload.businessName.trim() ||
@@ -1032,7 +1060,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     }
 
     setOnboardingData(payload);
-    setVendorStatus("Under Scrutiny");
+    syncCurrentVendorStatus(
+      "Under Scrutiny",
+      "Onboarding submitted and waiting for admin review.",
+    );
     setBankDetails({
       accountHolderName: payload.bankAccountHolderName.trim(),
       accountNumber: payload.bankAccountNumber.trim(),
@@ -1053,7 +1084,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     if (vendorStatus !== "Approved") {
       return {
         ok: false,
-        message: "Vendor must be Approved before adding products.",
+        message: getSellingRestrictionMessage(vendorStatus),
       };
     }
 
@@ -1086,6 +1117,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     productId: string,
     payload: VendorProductPayload,
   ): VendorProductMutationResult {
+    if (vendorStatus !== "Approved") {
+      return {
+        ok: false,
+        message: getSellingRestrictionMessage(vendorStatus),
+      };
+    }
+
     const targetProduct = vendorProducts.find((product) => product.id === productId);
     if (!targetProduct) {
       return { ok: false, message: "Product not found." };
@@ -1123,6 +1161,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }
 
   function approveVendorProduct(productId: string): VendorProductMutationResult {
+    if (vendorStatus !== "Approved") {
+      return {
+        ok: false,
+        message: getSellingRestrictionMessage(vendorStatus),
+      };
+    }
+
     const targetProduct = vendorProducts.find((product) => product.id === productId);
     if (!targetProduct) {
       return { ok: false, message: "Product not found." };
@@ -1148,6 +1193,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     productId: string,
     reason: string,
   ): VendorProductMutationResult {
+    if (vendorStatus !== "Approved") {
+      return {
+        ok: false,
+        message: getSellingRestrictionMessage(vendorStatus),
+      };
+    }
+
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
       return { ok: false, message: "Rejection reason is required." };
@@ -1178,6 +1230,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     orderId: string,
     nextStatus: VendorOrderStatus,
   ): VendorOrderMutationResult {
+    if (vendorStatus !== "Approved") {
+      return {
+        ok: false,
+        message: getSellingRestrictionMessage(vendorStatus),
+      };
+    }
+
     const targetOrder = vendorOrders.find((order) => order.id === orderId);
     if (!targetOrder) {
       return { ok: false, message: "Order not found." };
@@ -1220,6 +1279,13 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }
 
   function createVendorAd(payload: VendorAdPayload): VendorAdMutationResult {
+    if (vendorStatus !== "Approved") {
+      return {
+        ok: false,
+        message: getSellingRestrictionMessage(vendorStatus),
+      };
+    }
+
     if (payload.durationDays <= 0) {
       return { ok: false, message: "Duration must be at least 1 day." };
     }
@@ -1616,8 +1682,9 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const value = useMemo<VendorContextValue>(
     () => ({
       isLoggedIn,
-      vendorName: MOCK_VENDOR_NAME,
+      vendorName,
       vendorStatus,
+      vendorStatusReason,
       canPublishProducts: vendorStatus === "Approved",
       onboardingData,
       hasCompletedOnboarding: onboardingData !== null,
@@ -1676,7 +1743,9 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       vendorReturnCases,
       vendorRtoCases,
       vendorProducts,
+      vendorName,
       vendorStatus,
+      vendorStatusReason,
     ],
   );
 

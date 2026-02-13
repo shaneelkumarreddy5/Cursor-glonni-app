@@ -10,6 +10,7 @@ import {
   AdminReturnsRtoPage,
   AdminSettingsPage,
   AdminSupportPage,
+  AdminVendorDetailPage,
   AdminVendorsPage,
 } from "../admin/AdminPages";
 import { MainLayout } from "../layouts/MainLayout";
@@ -106,6 +107,10 @@ export function AppRouter() {
         <Route element={<AdminProtectedLayoutRoute />}>
           <Route path={ADMIN_ROUTE_SEGMENTS.dashboard} element={<AdminDashboardPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.vendors} element={<AdminVendorsPage />} />
+          <Route
+            path={`${ADMIN_ROUTE_SEGMENTS.vendors}/:vendorId`}
+            element={<AdminVendorDetailPage />}
+          />
           <Route path={ADMIN_ROUTE_SEGMENTS.products} element={<AdminProductsPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.orders} element={<AdminOrdersPage />} />
           <Route path={ADMIN_ROUTE_SEGMENTS.returnsRto} element={<AdminReturnsRtoPage />} />
