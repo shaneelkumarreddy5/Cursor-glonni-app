@@ -63,6 +63,9 @@ export function CheckoutPage() {
   const deliveryFee = deliveryMode === "express" ? 199 : 0;
   const finalPayable = cartSubtotalInr + deliveryFee;
   const isCartEmpty = cartItems.length === 0;
+  const selectedAddress =
+    addresses.find((address) => address.id === selectedAddressId) ?? addresses[0];
+  const isRemoteAreaAddress = selectedAddress.id === "addr-family";
   const codUnavailableReason = useMemo(() => {
     const reasons: string[] = [];
 
@@ -77,6 +80,19 @@ export function CheckoutPage() {
     return reasons.join(" ");
   }, [codOrderLimitInr, finalPayable, userCodEligibilityFlag]);
   const isCodAvailable = codUnavailableReason.length === 0;
+  const deliveryPromiseNote = useMemo(() => {
+    const notes: string[] = [];
+
+    if (selectedPaymentMethodId === "cod") {
+      notes.push("COD orders may need doorstep verification at delivery.");
+    }
+
+    if (isRemoteAreaAddress) {
+      notes.push("Remote-area delivery can take an additional 1-2 days (mock).");
+    }
+
+    return notes.join(" ");
+  }, [isRemoteAreaAddress, selectedPaymentMethodId]);
 
   useEffect(() => {
     if (selectedPaymentMethodId === "cod" && !isCodAvailable) {
@@ -168,6 +184,12 @@ export function CheckoutPage() {
                   <p>Delivery by Sunday, 15 Feb • {formatInr(199)}</p>
                 </div>
               </label>
+            </div>
+            <div className="checkout-delivery-promise">
+              <p>
+                <strong>Delivery promise:</strong> Delivered by 3-5 days
+              </p>
+              {deliveryPromiseNote ? <p>{deliveryPromiseNote}</p> : null}
             </div>
           </article>
 

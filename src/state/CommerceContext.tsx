@@ -61,6 +61,11 @@ export type CartItem = {
   quantity: number;
 };
 
+export type NotificationPreferences = {
+  orderUpdates: boolean;
+  offersCashbackAlerts: boolean;
+};
+
 export type OrderRecord = {
   id: string;
   placedAtIso: string;
@@ -108,6 +113,7 @@ type PlaceOrderOptions = {
 
 type CommerceContextValue = {
   cartItems: CartItem[];
+  savedForLaterItems: CartItem[];
   orders: OrderRecord[];
   addresses: typeof mockAddresses;
   paymentMethods: typeof paymentMethodOptions;
@@ -120,13 +126,21 @@ type CommerceContextValue = {
   pendingCashbackTotalInr: number;
   onHoldCashbackTotalInr: number;
   confirmedCashbackTotalInr: number;
+  notificationPreferences: NotificationPreferences;
   userCodEligibilityFlag: boolean;
   codOrderLimitInr: number;
   addToCart: (payload: AddToCartPayload) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   removeCartItem: (itemId: string) => void;
+  saveCartItemForLater: (itemId: string) => void;
+  moveSavedItemToCart: (itemId: string) => void;
+  removeSavedItem: (itemId: string) => void;
   setSelectedAddressId: (addressId: string) => void;
   setSelectedPaymentMethodId: (methodId: PaymentMethodId) => void;
+  setNotificationPreference: (
+    key: keyof NotificationPreferences,
+    value: boolean,
+  ) => void;
   placeOrder: (options: PlaceOrderOptions) => OrderRecord | null;
   markOrderShipped: (orderId: string) => OrderActionResult;
   markOrderDelivered: (orderId: string) => OrderActionResult;
@@ -227,6 +241,19 @@ function hasReturnWindowExpired(order: OrderRecord, now = new Date()): boolean {
   }
 
   return now.getTime() > deadlineMs;
+}
+
+function upsertLineItem(list: CartItem[], candidate: CartItem): CartItem[] {
+  const existing = list.find((item) => item.id === candidate.id);
+  if (!existing) {
+    return [...list, candidate];
+  }
+
+  return list.map((item) =>
+    item.id === candidate.id
+      ? { ...item, quantity: item.quantity + candidate.quantity }
+      : item,
+  );
 }
 
 function applyOrderPolicyTransitions(order: OrderRecord, now = new Date()): OrderRecord {
@@ -449,11 +476,17 @@ function createSeedOrders(): OrderRecord[] {
 
 export function CommerceProvider({ children }: { children: ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [savedForLaterItems, setSavedForLaterItems] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<OrderRecord[]>(createSeedOrders);
   const [selectedAddressId, setSelectedAddressId] = useState(mockAddresses[0].id);
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
     useState<PaymentMethodId>("upi");
   const [lastPlacedOrderId, setLastPlacedOrderId] = useState<string | null>(null);
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>({
+      orderUpdates: true,
+      offersCashbackAlerts: true,
+    });
 
   useEffect(() => {
     const refreshOrders = () => {
@@ -581,6 +614,46 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
 
   function removeCartItem(itemId: string) {
     setCartItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
+  }
+
+  function saveCartItemForLater(itemId: string) {
+    setCartItems((currentItems) => {
+      const targetItem = currentItems.find((item) => item.id === itemId);
+      if (!targetItem) {
+        return currentItems;
+      }
+
+      setSavedForLaterItems((savedItems) => upsertLineItem(savedItems, targetItem));
+      return currentItems.filter((item) => item.id !== itemId);
+    });
+  }
+
+  function moveSavedItemToCart(itemId: string) {
+    setSavedForLaterItems((currentSavedItems) => {
+      const targetItem = currentSavedItems.find((item) => item.id === itemId);
+      if (!targetItem) {
+        return currentSavedItems;
+      }
+
+      setCartItems((currentItems) => upsertLineItem(currentItems, targetItem));
+      return currentSavedItems.filter((item) => item.id !== itemId);
+    });
+  }
+
+  function removeSavedItem(itemId: string) {
+    setSavedForLaterItems((currentSavedItems) =>
+      currentSavedItems.filter((item) => item.id !== itemId),
+    );
+  }
+
+  function setNotificationPreference(
+    key: keyof NotificationPreferences,
+    value: boolean,
+  ) {
+    setNotificationPreferences((currentPrefs) => ({
+      ...currentPrefs,
+      [key]: value,
+    }));
   }
 
   function placeOrder({ deliveryFeeInr }: PlaceOrderOptions): OrderRecord | null {
@@ -837,6 +910,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CommerceContextValue>(
     () => ({
       cartItems,
+      savedForLaterItems,
       orders,
       addresses: mockAddresses,
       paymentMethods: paymentMethodOptions,
@@ -849,13 +923,18 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       pendingCashbackTotalInr,
       onHoldCashbackTotalInr,
       confirmedCashbackTotalInr,
+      notificationPreferences,
       userCodEligibilityFlag: USER_COD_ELIGIBILITY_FLAG,
       codOrderLimitInr: COD_ORDER_LIMIT_INR,
       addToCart,
       updateCartItemQuantity,
       removeCartItem,
+      saveCartItemForLater,
+      moveSavedItemToCart,
+      removeSavedItem,
       setSelectedAddressId,
       setSelectedPaymentMethodId,
+      setNotificationPreference,
       placeOrder,
       markOrderShipped,
       markOrderDelivered,
@@ -866,6 +945,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     }),
     [
       cartItems,
+      savedForLaterItems,
       orders,
       selectedAddressId,
       selectedPaymentMethodId,
@@ -876,6 +956,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       pendingCashbackTotalInr,
       onHoldCashbackTotalInr,
       confirmedCashbackTotalInr,
+      notificationPreferences,
     ],
   );
 

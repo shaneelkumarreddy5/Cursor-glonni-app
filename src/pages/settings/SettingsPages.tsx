@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { PageIntro } from "../../components/ui/PageIntro";
+import { ROUTES } from "../../routes/paths";
 import { type OrderRecord, useCommerce } from "../../state/CommerceContext";
 import { formatInr } from "../../utils/currency";
 
@@ -29,6 +31,7 @@ const faqItems = [
 ];
 
 type ActionMode = "cancel" | "return" | "no-return";
+type WalletHistoryFilter = "Pending" | "Confirmed" | "Cancelled";
 
 function formatOrderDate(orderDateIso: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -309,7 +312,7 @@ export function OrdersSettingsPage() {
       <PageIntro
         badge="Settings"
         title="Orders"
-        description="Track orders and manage cancellation, return, and cashback policy actions."
+        description="Track orders and manage cancellation, return, cashback, and support requests."
       />
 
       {feedbackMessage ? (
@@ -330,6 +333,7 @@ export function OrdersSettingsPage() {
             const canNoReturn = returnWindow.isOpen;
             const returnDisabledTooltip = getReturnDisabledTooltip(order);
             const cancelDisabledTooltip = getCancelDisabledTooltip(order);
+            const supportLink = `${ROUTES.settingsSupport}?orderId=${encodeURIComponent(order.id)}`;
 
             return (
               <div key={order.id} className="stack-sm">
@@ -439,6 +443,9 @@ export function OrdersSettingsPage() {
                       >
                         No Return
                       </button>
+                      <Link to={supportLink} className="btn btn-secondary">
+                        Need Help?
+                      </Link>
                     </div>
                   </div>
                 </article>
@@ -618,6 +625,7 @@ export function WalletSettingsPage() {
     onHoldCashbackTotalInr,
     confirmedCashbackTotalInr,
   } = useCommerce();
+  const [historyFilter, setHistoryFilter] = useState<WalletHistoryFilter>("Pending");
 
   const cashbackEntries = [...orders].sort(
     (first, second) =>
@@ -635,6 +643,19 @@ export function WalletSettingsPage() {
   const onHoldOrders = cashbackEntries.filter(
     (order) => order.cashbackStatus === "On Hold",
   );
+
+  const filteredHistoryEntries = useMemo(() => {
+    if (historyFilter === "Pending") {
+      return cashbackEntries.filter(
+        (order) =>
+          order.cashbackStatus === "Pending" || order.cashbackStatus === "On Hold",
+      );
+    }
+    if (historyFilter === "Confirmed") {
+      return cashbackEntries.filter((order) => order.cashbackStatus === "Confirmed");
+    }
+    return cashbackEntries.filter((order) => order.cashbackStatus === "Cancelled");
+  }, [cashbackEntries, historyFilter]);
 
   return (
     <div className="stack settings-page">
@@ -661,6 +682,57 @@ export function WalletSettingsPage() {
           <h3>Confirmed cashback</h3>
           <p>{formatInr(confirmedCashbackTotalInr)}</p>
         </article>
+      </section>
+
+      <section className="card settings-list cashback-list-section">
+        <header className="section-header">
+          <h2>Cashback history</h2>
+        </header>
+        <div className="wallet-history-filter-row" role="list" aria-label="Cashback history filter">
+          {(["Pending", "Confirmed", "Cancelled"] as WalletHistoryFilter[]).map((filterOption) => (
+            <button
+              key={filterOption}
+              type="button"
+              className={
+                historyFilter === filterOption
+                  ? "plp-filter-chip is-selected"
+                  : "plp-filter-chip"
+              }
+              role="listitem"
+              onClick={() => setHistoryFilter(filterOption)}
+            >
+              {filterOption}
+            </button>
+          ))}
+        </div>
+        {filteredHistoryEntries.length > 0 ? (
+          filteredHistoryEntries.map((order) => (
+            <article key={`${historyFilter}-${order.id}`} className="settings-list-row">
+              <div>
+                <h3>{order.id}</h3>
+                <p>
+                  Status: <span className={getCashbackStatusClass(order)}>{order.cashbackStatus}</span>
+                </p>
+                <p>Updated: {formatOrderDate(order.placedAtIso)}</p>
+                <p>{getCashbackStatusHelpText(order)}</p>
+              </div>
+              <strong
+                className={
+                  order.cashbackStatus === "Confirmed"
+                    ? "settings-credit"
+                    : order.cashbackStatus === "Cancelled"
+                      ? "settings-debit"
+                      : undefined
+                }
+              >
+                {order.cashbackStatus === "Confirmed" ? "+" : ""}
+                {formatInr(order.cashbackPendingInr)}
+              </strong>
+            </article>
+          ))
+        ) : (
+          <p className="wallet-empty-note">No cashback entries for the selected filter.</p>
+        )}
       </section>
 
       <section className="card settings-list cashback-list-section">
@@ -757,6 +829,11 @@ export function WalletSettingsPage() {
 }
 
 export function SupportSettingsPage() {
+  const [searchParams] = useSearchParams();
+  const { getOrderById } = useCommerce();
+  const requestedOrderId = searchParams.get("orderId");
+  const orderContext = requestedOrderId ? getOrderById(requestedOrderId) : undefined;
+
   return (
     <div className="stack settings-page">
       <PageIntro
@@ -764,6 +841,45 @@ export function SupportSettingsPage() {
         title="Support"
         description="Get help with orders, cashback, and account actions."
       />
+
+      {requestedOrderId ? (
+        <section className="card">
+          <header className="section-header">
+            <h2>Support context</h2>
+          </header>
+          {orderContext ? (
+            <div className="stack-sm">
+              <p>
+                We have linked your query to <strong>{orderContext.id}</strong>.
+              </p>
+              <p>
+                Status:{" "}
+                <span className={getStatusClass(orderContext.fulfillmentStatus)}>
+                  {orderContext.fulfillmentStatus}
+                </span>
+              </p>
+              <p>
+                Payment: {orderContext.paymentMethodTitle} •{" "}
+                {orderContext.paymentPending ? "Pending" : "Completed"}
+              </p>
+              <p>
+                Cashback:{" "}
+                <span className={getCashbackStatusClass(orderContext)}>
+                  {orderContext.cashbackStatus}
+                </span>
+              </p>
+              <p>{getCashbackStatusHelpText(orderContext)}</p>
+              <div className="inline-actions">
+                <Link to={ROUTES.settingsOrders} className="btn btn-secondary">
+                  Back to Orders
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p>We could not find that order ID in your account history.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className="card">
         <header className="section-header">
@@ -856,6 +972,8 @@ export function AddressesSettingsPage() {
 }
 
 export function NotificationsSettingsPage() {
+  const { notificationPreferences, setNotificationPreference } = useCommerce();
+
   return (
     <div className="stack settings-page">
       <PageIntro
@@ -864,26 +982,43 @@ export function NotificationsSettingsPage() {
         description="Control order and offer communication settings."
       />
       <section className="card settings-list">
-        <article className="settings-list-row">
+        <article className="settings-list-row settings-toggle-row">
           <div>
             <h3>Order updates</h3>
-            <p>SMS and push notifications for each order status change.</p>
+            <p>Get SMS and in-app updates for order status changes.</p>
           </div>
-          <strong>Enabled</strong>
+          <label className="settings-toggle">
+            <input
+              type="checkbox"
+              checked={notificationPreferences.orderUpdates}
+              onChange={(event) =>
+                setNotificationPreference("orderUpdates", event.target.checked)
+              }
+            />
+            <span>{notificationPreferences.orderUpdates ? "Enabled" : "Disabled"}</span>
+          </label>
         </article>
-        <article className="settings-list-row">
+
+        <article className="settings-list-row settings-toggle-row">
           <div>
-            <h3>Cashback updates</h3>
-            <p>Alerts when cashback stays pending or gets updated.</p>
+            <h3>Offers & cashback alerts</h3>
+            <p>Receive alerts for new deals and cashback status updates.</p>
           </div>
-          <strong>Enabled</strong>
-        </article>
-        <article className="settings-list-row">
-          <div>
-            <h3>Promotional offers</h3>
-            <p>Weekly top deals and bank offer notifications.</p>
-          </div>
-          <strong>Weekly</strong>
+          <label className="settings-toggle">
+            <input
+              type="checkbox"
+              checked={notificationPreferences.offersCashbackAlerts}
+              onChange={(event) =>
+                setNotificationPreference(
+                  "offersCashbackAlerts",
+                  event.target.checked,
+                )
+              }
+            />
+            <span>
+              {notificationPreferences.offersCashbackAlerts ? "Enabled" : "Disabled"}
+            </span>
+          </label>
         </article>
       </section>
     </div>

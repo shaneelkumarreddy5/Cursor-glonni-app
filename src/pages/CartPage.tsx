@@ -8,11 +8,15 @@ export function CartPage() {
   const navigate = useNavigate();
   const {
     cartItems,
+    savedForLaterItems,
     cartItemsCount,
     cartSubtotalInr,
     cartCashbackTotalInr,
     updateCartItemQuantity,
     removeCartItem,
+    saveCartItemForLater,
+    moveSavedItemToCart,
+    removeSavedItem,
   } = useCommerce();
   const mrpTotal = cartItems.reduce(
     (sum, item) => sum + item.unitMrpInr * item.quantity,
@@ -22,6 +26,7 @@ export function CartPage() {
   const deliveryFee = cartItems.length > 0 && cartSubtotalInr < 15000 ? 99 : 0;
   const payableAmount = cartSubtotalInr + deliveryFee;
   const isCartEmpty = cartItems.length === 0;
+  const isSavedSectionEmpty = savedForLaterItems.length === 0;
 
   return (
     <div className="stack cart-page">
@@ -102,6 +107,13 @@ export function CartPage() {
                       <button
                         type="button"
                         className="btn btn-secondary"
+                        onClick={() => saveCartItemForLater(item.id)}
+                      >
+                        Save for later
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
                         onClick={() => removeCartItem(item.id)}
                       >
                         Remove
@@ -116,6 +128,55 @@ export function CartPage() {
               ))}
             </div>
           )}
+
+          <section className="stack-sm cart-saved-section">
+            <header className="section-header">
+              <h2>Saved for later ({savedForLaterItems.length})</h2>
+            </header>
+            {isSavedSectionEmpty ? (
+              <p className="wallet-empty-note">
+                Saved products will appear here for quick checkout later.
+              </p>
+            ) : (
+              savedForLaterItems.map((item) => (
+                <article key={item.id} className="cart-item cart-item-saved">
+                  <img
+                    src={item.productImageUrl}
+                    alt={item.productName}
+                    className="cart-item-image"
+                  />
+                  <div className="cart-item-copy">
+                    <h3>{item.productName}</h3>
+                    <p>{item.keySpecs.slice(0, 2).join(" • ")}</p>
+                    <p>Seller: {item.vendorName}</p>
+                    <p className="cart-item-cashback">
+                      Cashback: {formatInr(item.unitCashbackInr * item.quantity)}
+                    </p>
+                    <div className="inline-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => moveSavedItemToCart(item.id)}
+                      >
+                        Move to cart
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => removeSavedItem(item.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <div className="cart-item-price">
+                    <strong>{formatInr(item.unitPriceInr * item.quantity)}</strong>
+                    <span>{formatInr(item.unitMrpInr * item.quantity)}</span>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
         </article>
 
         <article className="card cart-summary">

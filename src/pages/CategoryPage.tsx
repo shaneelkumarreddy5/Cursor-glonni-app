@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { catalogProducts, type CatalogCategory } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
@@ -19,8 +20,46 @@ function WishlistIcon() {
   );
 }
 
+type SortOption = "price-low-high" | "price-high-low" | "popularity";
+
+type PriceFilter = {
+  id: string;
+  label: string;
+  min: number;
+  max: number | null;
+};
+
+const PRICE_FILTERS: PriceFilter[] = [
+  { id: "under-10000", label: "Under ₹10,000", min: 0, max: 10000 },
+  { id: "10000-30000", label: "₹10,000 - ₹30,000", min: 10000, max: 30000 },
+  { id: "30000-60000", label: "₹30,000 - ₹60,000", min: 30000, max: 60000 },
+  { id: "above-60000", label: "Above ₹60,000", min: 60000, max: null },
+];
+
+function isWithinAnySelectedPriceRange(priceInr: number, selectedPriceRangeIds: string[]) {
+  if (selectedPriceRangeIds.length === 0) {
+    return true;
+  }
+
+  return selectedPriceRangeIds.some((selectedId) => {
+    const matchingRange = PRICE_FILTERS.find((range) => range.id === selectedId);
+    if (!matchingRange) {
+      return false;
+    }
+
+    const isAtLeastMin = priceInr >= matchingRange.min;
+    const isWithinMax =
+      matchingRange.max === null ? true : priceInr <= matchingRange.max;
+    return isAtLeastMin && isWithinMax;
+  });
+}
+
 export function CategoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedSort, setSelectedSort] = useState<SortOption>("popularity");
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
+  const [cashbackOnly, setCashbackOnly] = useState(false);
   const categoryFilters: Array<CatalogCategory | "All"> = [
     "All",
     "Mobiles",
@@ -40,23 +79,54 @@ export function CategoryPage() {
       ? catalogProducts
       : catalogProducts.filter((product) => product.category === selectedCategory);
 
-  const sponsoredProducts = categoryScopedProducts
-    .filter((product) => product.sponsored)
-    .slice(0, 4);
-  const organicProducts = categoryScopedProducts
-    .filter((product) => !product.sponsored)
-    .sort((first, second) => first.priceInr - second.priceInr);
-
   const brandFilters = Array.from(
     new Map(
       categoryScopedProducts.map((product) => [product.brand, product.brandLogoUrl]),
     ).entries(),
   );
-  const priceFilters = ["Under ₹10,000", "₹10,000 - ₹30,000", "₹30,000 - ₹60,000", "Above ₹60,000"];
-  const deliveryFilters = ["Same day", "Next day", "2-4 days"];
-  const ratingFilters = ["4.5 and above", "4.0 and above", "3.5 and above"];
 
-  const productsToRender = [...sponsoredProducts, ...organicProducts];
+  const filteredAndSortedProducts = useMemo(() => {
+    const filtered = categoryScopedProducts.filter((product) => {
+      const matchesBrand =
+        selectedBrands.length === 0 || selectedBrands.includes(product.brand);
+      const matchesPrice = isWithinAnySelectedPriceRange(
+        product.priceInr,
+        selectedPriceRanges,
+      );
+      const matchesCashback = cashbackOnly ? product.cashbackInr > 0 : true;
+      return matchesBrand && matchesPrice && matchesCashback;
+    });
+
+    const products = [...filtered];
+    if (selectedSort === "price-low-high") {
+      return products.sort((first, second) => first.priceInr - second.priceInr);
+    }
+
+    if (selectedSort === "price-high-low") {
+      return products.sort((first, second) => second.priceInr - first.priceInr);
+    }
+
+    return products.sort((first, second) => {
+      if (second.rating !== first.rating) {
+        return second.rating - first.rating;
+      }
+      if (first.sponsored !== second.sponsored) {
+        return first.sponsored ? -1 : 1;
+      }
+      return first.priceInr - second.priceInr;
+    });
+  }, [
+    cashbackOnly,
+    categoryScopedProducts,
+    selectedBrands,
+    selectedPriceRanges,
+    selectedSort,
+  ]);
+
+  const sponsoredVisibleCount = filteredAndSortedProducts.filter(
+    (product) => product.sponsored,
+  ).length;
+  const organicVisibleCount = filteredAndSortedProducts.length - sponsoredVisibleCount;
 
   function updateCategorySelection(nextCategory: CatalogCategory | "All") {
     const nextParams = new URLSearchParams(searchParams);
@@ -68,14 +138,37 @@ export function CategoryPage() {
     setSearchParams(nextParams);
   }
 
+  function toggleBrand(brandName: string) {
+    setSelectedBrands((currentBrands) =>
+      currentBrands.includes(brandName)
+        ? currentBrands.filter((brand) => brand !== brandName)
+        : [...currentBrands, brandName],
+    );
+  }
+
+  function togglePriceRange(priceRangeId: string) {
+    setSelectedPriceRanges((currentRanges) =>
+      currentRanges.includes(priceRangeId)
+        ? currentRanges.filter((range) => range !== priceRangeId)
+        : [...currentRanges, priceRangeId],
+    );
+  }
+
+  function clearAllFilters() {
+    setSelectedSort("popularity");
+    setSelectedBrands([]);
+    setSelectedPriceRanges([]);
+    setCashbackOnly(false);
+  }
+
   return (
     <div className="plp-page stack">
       <section className="card plp-intro">
         <span className="badge plp-badge">Category listing</span>
         <h1>Discover curated products with clear pricing and offer visibility</h1>
         <p>
-          Filter by category, brand, rating, and delivery preferences. Sponsored placements are
-          clearly labeled for transparent browsing.
+          Filter by category, brand, price, cashback, and sorting preference for transparent
+          browsing.
         </p>
         <div className="plp-toolbar">
           <div className="plp-filter-row" role="list" aria-label="Category filters">
@@ -95,11 +188,31 @@ export function CategoryPage() {
               </button>
             ))}
           </div>
-          <span className="plp-sort-pill">Sort by: Best price first</span>
+          <label className="plp-sort-control">
+            Sort by
+            <select
+              value={selectedSort}
+              onChange={(event) => setSelectedSort(event.target.value as SortOption)}
+            >
+              <option value="price-low-high">Price: Low to High</option>
+              <option value="price-high-low">Price: High to Low</option>
+              <option value="popularity">Popularity</option>
+            </select>
+          </label>
         </div>
         <div className="plp-brand-filter-row" role="list" aria-label="Brand filters">
           {brandFilters.map(([brandName, logoUrl]) => (
-            <button key={brandName} type="button" className="plp-brand-filter-chip" role="listitem">
+            <button
+              key={brandName}
+              type="button"
+              className={
+                selectedBrands.includes(brandName)
+                  ? "plp-brand-filter-chip is-selected"
+                  : "plp-brand-filter-chip"
+              }
+              role="listitem"
+              onClick={() => toggleBrand(brandName)}
+            >
               <img src={logoUrl} alt={`${brandName} logo`} />
               <span>{brandName}</span>
             </button>
@@ -110,36 +223,46 @@ export function CategoryPage() {
       <section className="plp-layout">
         <aside className="card plp-filter-panel">
           <section className="plp-filter-group">
+            <h3>Brand</h3>
+            {brandFilters.map(([brandName]) => (
+              <label key={brandName} className="plp-filter-option">
+                <span>{brandName}</span>
+                <input
+                  type="checkbox"
+                  checked={selectedBrands.includes(brandName)}
+                  onChange={() => toggleBrand(brandName)}
+                />
+              </label>
+            ))}
+          </section>
+
+          <section className="plp-filter-group">
             <h3>Price range</h3>
-            {priceFilters.map((item) => (
-              <label key={item} className="plp-filter-option">
-                <span>{item}</span>
-                <input type="checkbox" />
+            {PRICE_FILTERS.map((priceRange) => (
+              <label key={priceRange.id} className="plp-filter-option">
+                <span>{priceRange.label}</span>
+                <input
+                  type="checkbox"
+                  checked={selectedPriceRanges.includes(priceRange.id)}
+                  onChange={() => togglePriceRange(priceRange.id)}
+                />
               </label>
             ))}
           </section>
 
           <section className="plp-filter-group">
-            <h3>Delivery speed</h3>
-            {deliveryFilters.map((item) => (
-              <label key={item} className="plp-filter-option">
-                <span>{item}</span>
-                <input type="checkbox" />
-              </label>
-            ))}
+            <h3>Cashback</h3>
+            <label className="plp-filter-option">
+              <span>Cashback available only</span>
+              <input
+                type="checkbox"
+                checked={cashbackOnly}
+                onChange={(event) => setCashbackOnly(event.target.checked)}
+              />
+            </label>
           </section>
 
-          <section className="plp-filter-group">
-            <h3>Customer rating</h3>
-            {ratingFilters.map((item) => (
-              <label key={item} className="plp-filter-option">
-                <span>{item}</span>
-                <input type="checkbox" />
-              </label>
-            ))}
-          </section>
-
-          <button type="button" className="btn btn-secondary btn-block">
+          <button type="button" className="btn btn-secondary btn-block" onClick={clearAllFilters}>
             Clear all filters
           </button>
         </aside>
@@ -147,14 +270,15 @@ export function CategoryPage() {
         <div className="stack-sm">
           <section className="card plp-summary">
             <p>
-              Showing {productsToRender.length} products: {sponsoredProducts.length} sponsored +{" "}
-              {organicProducts.length} organic.
+              Showing {filteredAndSortedProducts.length} products: {sponsoredVisibleCount} sponsored
+              {" + "}
+              {organicVisibleCount} organic.
             </p>
           </section>
 
-          {productsToRender.length > 0 ? (
+          {filteredAndSortedProducts.length > 0 ? (
             <section className="plp-grid" aria-label="Product listing grid">
-              {productsToRender.map((product, index) => {
+              {filteredAndSortedProducts.map((product, index) => {
                 const productRoute = ROUTES.productDetail(product.id);
 
                 return (
@@ -209,9 +333,7 @@ export function CategoryPage() {
                           {product.rating.toFixed(1)}
                         </span>
                         <span className="plp-rank-label">
-                          {index < sponsoredProducts.length
-                            ? `Sponsored slot ${index + 1}`
-                            : `Organic rank ${index - sponsoredProducts.length + 1}`}
+                          {selectedSort === "popularity" ? `Popularity rank ${index + 1}` : "Sorted result"}
                         </span>
                       </div>
 
@@ -227,7 +349,7 @@ export function CategoryPage() {
             </section>
           ) : (
             <section className="card">
-              <p>No products found for the selected category.</p>
+              <p>No products found for the selected filters. Try clearing one or more filters.</p>
             </section>
           )}
         </div>
