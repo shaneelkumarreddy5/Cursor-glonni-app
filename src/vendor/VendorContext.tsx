@@ -168,18 +168,34 @@ export type VendorNotificationPreferences = {
 
 export type VendorSupportTicketCategory =
   | "Orders"
-  | "Settlements"
-  | "Returns & RTO"
-  | "Ads & Visibility"
-  | "Compliance";
-export type VendorSupportTicketStatus = "Open" | "In Progress" | "Resolved";
+  | "Payments"
+  | "Returns"
+  | "Ads"
+  | "Account";
+export type VendorSupportTicketStatus =
+  | "Open"
+  | "In Review"
+  | "Resolved"
+  | "Closed";
+
+export type VendorSupportMessageSender = "Vendor" | "Admin";
+
+export type VendorSupportMessage = {
+  id: string;
+  sender: VendorSupportMessageSender;
+  message: string;
+  createdAtIso: string;
+  isReadByVendor: boolean;
+};
 
 export type VendorSupportTicket = {
   id: string;
   category: VendorSupportTicketCategory;
   subject: string;
-  message: string;
+  description: string;
+  orderId: string | null;
   status: VendorSupportTicketStatus;
+  thread: VendorSupportMessage[];
   createdAtIso: string;
   updatedAtIso: string;
 };
@@ -187,7 +203,8 @@ export type VendorSupportTicket = {
 export type VendorSupportTicketPayload = {
   category: VendorSupportTicketCategory;
   subject: string;
-  message: string;
+  description: string;
+  orderId: string | null;
 };
 
 export type VendorWalletEntryStatus = "Pending" | "Available" | "Adjusted";
@@ -291,6 +308,16 @@ type VendorContextValue = {
   createSupportTicket: (
     payload: VendorSupportTicketPayload,
   ) => VendorSupportTicketMutationResult;
+  addVendorSupportMessage: (
+    ticketId: string,
+    message: string,
+  ) => VendorSupportTicketMutationResult;
+  addMockAdminSupportReply: (ticketId: string) => VendorSupportTicketMutationResult;
+  updateSupportTicketStatus: (
+    ticketId: string,
+    status: VendorSupportTicketStatus,
+  ) => VendorSupportTicketMutationResult;
+  markSupportTicketRepliesRead: (ticketId: string) => void;
   getVendorAdStatus: (ad: VendorAd) => VendorAdStatus;
   getVendorAdAmountSpent: (ad: VendorAd) => number;
   getVendorAdRemainingDays: (ad: VendorAd) => number;
@@ -341,6 +368,10 @@ function createVendorAdId() {
 
 function createVendorSupportTicketId() {
   return `VTK-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function createVendorSupportMessageId() {
+  return `VMSG-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
 function getVendorAdStatus(ad: VendorAd, now = new Date()): VendorAdStatus {
@@ -647,21 +678,80 @@ function createSeedVendorSupportTickets(): VendorSupportTicket[] {
       id: "VTK-730114",
       category: "Orders",
       subject: "Delay noticed for packed order",
-      message:
+      description:
         "Courier pickup is delayed for one packed order. Please confirm if SLA is impacted.",
-      status: "Open",
+      orderId: "VORD-500227",
+      status: "In Review",
+      thread: [
+        {
+          id: "VMSG-900101",
+          sender: "Vendor",
+          message:
+            "Courier pickup is delayed for one packed order. Please confirm if SLA is impacted.",
+          createdAtIso: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
+          isReadByVendor: true,
+        },
+        {
+          id: "VMSG-900102",
+          sender: "Admin",
+          message:
+            "We have escalated this with the courier partner. We will share the next update in 24 hours.",
+          createdAtIso: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+          isReadByVendor: false,
+        },
+      ],
       createdAtIso: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
-      updatedAtIso: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
+      updatedAtIso: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: "VTK-730251",
-      category: "Settlements",
-      subject: "Need clarification on adjustment entry",
-      message:
+      category: "Payments",
+      subject: "Need clarification on settlement adjustment",
+      description:
         "One adjustment line item appears against an RTO case. Sharing here for reconciliation.",
-      status: "In Progress",
+      orderId: "VORD-500101",
+      status: "Open",
+      thread: [
+        {
+          id: "VMSG-900211",
+          sender: "Vendor",
+          message:
+            "One adjustment line item appears against an RTO case. Sharing here for reconciliation.",
+          createdAtIso: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
+          isReadByVendor: true,
+        },
+      ],
       createdAtIso: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
-      updatedAtIso: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
+      updatedAtIso: new Date(now - 30 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VTK-730399",
+      category: "Account",
+      subject: "Need help with business profile correction",
+      description:
+        "Please confirm the workflow to update legal business spelling on account records.",
+      orderId: null,
+      status: "Resolved",
+      thread: [
+        {
+          id: "VMSG-900301",
+          sender: "Vendor",
+          message:
+            "Please confirm the workflow to update legal business spelling on account records.",
+          createdAtIso: new Date(now - 72 * 60 * 60 * 1000).toISOString(),
+          isReadByVendor: true,
+        },
+        {
+          id: "VMSG-900302",
+          sender: "Admin",
+          message:
+            "Submit the corrected business proof in onboarding documents and we will validate it within two working days.",
+          createdAtIso: new Date(now - 70 * 60 * 60 * 1000).toISOString(),
+          isReadByVendor: true,
+        },
+      ],
+      createdAtIso: new Date(now - 72 * 60 * 60 * 1000).toISOString(),
+      updatedAtIso: new Date(now - 70 * 60 * 60 * 1000).toISOString(),
     },
   ];
 }
@@ -1231,7 +1321,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     if (!payload.subject.trim()) {
       return { ok: false, message: "Ticket subject is required." };
     }
-    if (!payload.message.trim()) {
+    if (!payload.description.trim()) {
       return { ok: false, message: "Ticket description is required." };
     }
 
@@ -1240,14 +1330,155 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       id: createVendorSupportTicketId(),
       category: payload.category,
       subject: payload.subject.trim(),
-      message: payload.message.trim(),
+      description: payload.description.trim(),
+      orderId: payload.orderId?.trim() ? payload.orderId.trim() : null,
       status: "Open",
+      thread: [
+        {
+          id: createVendorSupportMessageId(),
+          sender: "Vendor",
+          message: payload.description.trim(),
+          createdAtIso: nowIso,
+          isReadByVendor: true,
+        },
+      ],
       createdAtIso: nowIso,
       updatedAtIso: nowIso,
     };
     setSupportTickets((currentTickets) => [nextTicket, ...currentTickets]);
 
     return { ok: true, message: "Support ticket created successfully." };
+  }
+
+  function addVendorSupportMessage(
+    ticketId: string,
+    message: string,
+  ): VendorSupportTicketMutationResult {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
+      return { ok: false, message: "Enter a message before sending." };
+    }
+
+    const ticketExists = supportTickets.some((ticket) => ticket.id === ticketId);
+    if (!ticketExists) {
+      return { ok: false, message: "Support ticket not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    setSupportTickets((currentTickets) =>
+      currentTickets.map((ticket) => {
+        if (ticket.id !== ticketId) {
+          return ticket;
+        }
+
+        return {
+          ...ticket,
+          status: ticket.status === "Closed" ? "In Review" : ticket.status,
+          thread: [
+            ...ticket.thread,
+            {
+              id: createVendorSupportMessageId(),
+              sender: "Vendor",
+              message: trimmedMessage,
+              createdAtIso: nowIso,
+              isReadByVendor: true,
+            },
+          ],
+          updatedAtIso: nowIso,
+        };
+      }),
+    );
+
+    return { ok: true, message: "Message added to the support thread." };
+  }
+
+  function addMockAdminSupportReply(ticketId: string): VendorSupportTicketMutationResult {
+    const ticketExists = supportTickets.some((ticket) => ticket.id === ticketId);
+    if (!ticketExists) {
+      return { ok: false, message: "Support ticket not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    setSupportTickets((currentTickets) =>
+      currentTickets.map((ticket) => {
+        if (ticket.id !== ticketId) {
+          return ticket;
+        }
+
+        return {
+          ...ticket,
+          status: ticket.status === "Open" ? "In Review" : ticket.status,
+          thread: [
+            ...ticket.thread,
+            {
+              id: createVendorSupportMessageId(),
+              sender: "Admin",
+              message:
+                "Admin reply (mock): We have received your query and are verifying the details.",
+              createdAtIso: nowIso,
+              isReadByVendor: false,
+            },
+          ],
+          updatedAtIso: nowIso,
+        };
+      }),
+    );
+
+    return { ok: true, message: "Mock admin reply added." };
+  }
+
+  function updateSupportTicketStatus(
+    ticketId: string,
+    status: VendorSupportTicketStatus,
+  ): VendorSupportTicketMutationResult {
+    const ticketExists = supportTickets.some((ticket) => ticket.id === ticketId);
+    if (!ticketExists) {
+      return { ok: false, message: "Support ticket not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    setSupportTickets((currentTickets) =>
+      currentTickets.map((ticket) => {
+        if (ticket.id !== ticketId) {
+          return ticket;
+        }
+
+        return {
+          ...ticket,
+          status,
+          updatedAtIso: nowIso,
+        };
+      }),
+    );
+
+    return { ok: true, message: `Ticket status moved to ${status} (mock admin action).` };
+  }
+
+  function markSupportTicketRepliesRead(ticketId: string) {
+    setSupportTickets((currentTickets) =>
+      currentTickets.map((ticket) => {
+        if (ticket.id !== ticketId) {
+          return ticket;
+        }
+
+        const hasUnreadAdminReply = ticket.thread.some(
+          (threadMessage) =>
+            threadMessage.sender === "Admin" && !threadMessage.isReadByVendor,
+        );
+        if (!hasUnreadAdminReply) {
+          return ticket;
+        }
+
+        return {
+          ...ticket,
+          thread: ticket.thread.map((threadMessage) =>
+            threadMessage.sender === "Admin"
+              ? { ...threadMessage, isReadByVendor: true }
+              : threadMessage,
+          ),
+        };
+      }),
+    );
   }
 
   function getVendorProductVisibilityPriority(
@@ -1417,6 +1648,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       setVendorNotificationPreference,
       setComplianceAccepted: updateComplianceAccepted,
       createSupportTicket,
+      addVendorSupportMessage,
+      addMockAdminSupportReply,
+      updateSupportTicketStatus,
+      markSupportTicketRepliesRead,
       getVendorAdStatus,
       getVendorAdAmountSpent,
       getVendorAdRemainingDays,

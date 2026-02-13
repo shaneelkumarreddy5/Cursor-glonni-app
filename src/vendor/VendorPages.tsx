@@ -27,6 +27,7 @@ import {
   type VendorProductPayload,
   type VendorProductSpecification,
   type VendorProductStatus,
+  type VendorSupportTicket,
   type VendorSupportTicketCategory,
   type VendorSupportTicketPayload,
   type VendorSupportTicketStatus,
@@ -69,10 +70,10 @@ const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
 
 const SUPPORT_TICKET_CATEGORIES: VendorSupportTicketCategory[] = [
   "Orders",
-  "Settlements",
-  "Returns & RTO",
-  "Ads & Visibility",
-  "Compliance",
+  "Payments",
+  "Returns",
+  "Ads",
+  "Account",
 ];
 
 function VendorSectionHeader({
@@ -251,10 +252,20 @@ function getSupportTicketStatusClass(status: VendorSupportTicketStatus) {
   if (status === "Open") {
     return "vendor-support-ticket-status vendor-support-ticket-open";
   }
-  if (status === "In Progress") {
+  if (status === "In Review") {
     return "vendor-support-ticket-status vendor-support-ticket-progress";
   }
-  return "vendor-support-ticket-status vendor-support-ticket-resolved";
+  if (status === "Resolved") {
+    return "vendor-support-ticket-status vendor-support-ticket-resolved";
+  }
+  return "vendor-support-ticket-status vendor-support-ticket-closed";
+}
+
+function getUnreadRepliesCount(ticket: VendorSupportTicket) {
+  return ticket.thread.filter(
+    (threadMessage) =>
+      threadMessage.sender === "Admin" && !threadMessage.isReadByVendor,
+  ).length;
 }
 
 function formatTimestamp(isoDate: string) {
@@ -1852,10 +1863,22 @@ export function VendorAdsPage() {
 }
 
 export function VendorSupportPage() {
-  const { supportTickets, createSupportTicket } = useVendor();
+  const {
+    supportTickets,
+    createSupportTicket,
+    addVendorSupportMessage,
+    addMockAdminSupportReply,
+    updateSupportTicketStatus,
+    markSupportTicketRepliesRead,
+  } = useVendor();
   const [category, setCategory] = useState<VendorSupportTicketCategory>("Orders");
   const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
+  const [description, setDescription] = useState("");
+  const [orderIdInput, setOrderIdInput] = useState("");
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [vendorReplyInput, setVendorReplyInput] = useState("");
+  const [adminSelectedStatus, setAdminSelectedStatus] =
+    useState<VendorSupportTicketStatus>("Open");
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   const categoryCounts = useMemo(
@@ -1877,27 +1900,88 @@ export function VendorSupportPage() {
     [supportTickets],
   );
 
+  const selectedTicket = useMemo(
+    () =>
+      selectedTicketId
+        ? sortedTickets.find((ticket) => ticket.id === selectedTicketId) ?? null
+        : null,
+    [selectedTicketId, sortedTickets],
+  );
+
+  const totalUnreadReplies = useMemo(
+    () =>
+      supportTickets.reduce(
+        (unreadTotal, ticket) => unreadTotal + getUnreadRepliesCount(ticket),
+        0,
+      ),
+    [supportTickets],
+  );
+
+  function handleSelectTicket(ticketId: string) {
+    const selected = supportTickets.find((ticket) => ticket.id === ticketId) ?? null;
+    setSelectedTicketId(ticketId);
+    setVendorReplyInput("");
+    setAdminSelectedStatus(selected?.status ?? "Open");
+    markSupportTicketRepliesRead(ticketId);
+  }
+
   function handleCreateTicket(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const payload: VendorSupportTicketPayload = {
       category,
       subject,
-      message,
+      description,
+      orderId: orderIdInput || null,
     };
     const result = createSupportTicket(payload);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setCategory("Orders");
       setSubject("");
-      setMessage("");
+      setDescription("");
+      setOrderIdInput("");
     }
+  }
+
+  function handleSendVendorReply(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedTicket) {
+      setFeedbackMessage("Select a ticket to send a reply.");
+      return;
+    }
+
+    const result = addVendorSupportMessage(selectedTicket.id, vendorReplyInput);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setVendorReplyInput("");
+    }
+  }
+
+  function handleAddMockAdminReply() {
+    if (!selectedTicket) {
+      setFeedbackMessage("Select a ticket to add mock admin reply.");
+      return;
+    }
+
+    const result = addMockAdminSupportReply(selectedTicket.id);
+    setFeedbackMessage(result.message);
+  }
+
+  function handleMockAdminStatusUpdate() {
+    if (!selectedTicket) {
+      setFeedbackMessage("Select a ticket to update status.");
+      return;
+    }
+
+    const result = updateSupportTicketStatus(selectedTicket.id, adminSelectedStatus);
+    setFeedbackMessage(result.message);
   }
 
   return (
     <div className="stack vendor-page">
       <VendorSectionHeader
         title="Support"
-        description="Raise support tickets by category and track existing ticket status."
+        description="Create support tickets, track status, and communicate in a mock message thread."
       />
 
       {feedbackMessage ? (
@@ -1910,12 +1994,17 @@ export function VendorSupportPage() {
         <header className="section-header">
           <h2>Ticket Categories</h2>
         </header>
-        <div className="vendor-ticket-category-row">
-          {categoryCounts.map((ticketCategory) => (
-            <span key={ticketCategory.category} className="vendor-ticket-category-chip">
-              {ticketCategory.category}: {ticketCategory.count}
-            </span>
-          ))}
+        <div className="vendor-support-inbox-row">
+          <div className="vendor-ticket-category-row">
+            {categoryCounts.map((ticketCategory) => (
+              <span key={ticketCategory.category} className="vendor-ticket-category-chip">
+                {ticketCategory.category}: {ticketCategory.count}
+              </span>
+            ))}
+          </div>
+          <span className="vendor-support-unread-badge">
+            Unread replies: {totalUnreadReplies}
+          </span>
         </div>
       </section>
 
@@ -1925,27 +2014,62 @@ export function VendorSupportPage() {
             <h2>Ticket List</h2>
           </header>
           <div className="stack-sm">
-            {sortedTickets.map((ticket) => (
-              <article key={ticket.id} className="vendor-support-ticket-row">
-                <div className="vendor-support-ticket-heading">
-                  <h3>{ticket.id}</h3>
-                  <span className={getSupportTicketStatusClass(ticket.status)}>
-                    {ticket.status}
-                  </span>
-                </div>
-                <p>
-                  {ticket.category} • {ticket.subject}
-                </p>
-                <p>{ticket.message}</p>
-                <p>Updated: {formatTimestamp(ticket.updatedAtIso)}</p>
-              </article>
-            ))}
+            {sortedTickets.length > 0 ? (
+              sortedTickets.map((ticket) => {
+                const unreadRepliesCount = getUnreadRepliesCount(ticket);
+                const isSelected = selectedTicketId === ticket.id;
+
+                return (
+                  <article
+                    key={ticket.id}
+                    className={
+                      isSelected
+                        ? "vendor-support-ticket-row is-selected"
+                        : "vendor-support-ticket-row"
+                    }
+                  >
+                    <div className="vendor-support-ticket-heading">
+                      <h3>{ticket.id}</h3>
+                      <span className={getSupportTicketStatusClass(ticket.status)}>
+                        {ticket.status}
+                      </span>
+                    </div>
+                    <p>{ticket.subject}</p>
+                    <div className="vendor-support-ticket-meta">
+                      <span>Category: {ticket.category}</span>
+                      <span>
+                        Last updated: {formatTimestamp(ticket.updatedAtIso)}
+                      </span>
+                      <span>
+                        Order ID: {ticket.orderId ? ticket.orderId : "Not linked"}
+                      </span>
+                    </div>
+                    <div className="vendor-support-ticket-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleSelectTicket(ticket.id)}
+                      >
+                        {isSelected ? "Viewing Details" : "View Details"}
+                      </button>
+                      {unreadRepliesCount > 0 ? (
+                        <span className="vendor-support-unread-badge">
+                          {unreadRepliesCount} unread
+                        </span>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <p>No support tickets created yet.</p>
+            )}
           </div>
         </article>
 
         <article className="vendor-placeholder-card">
           <header className="section-header">
-            <h2>New Ticket (Mock)</h2>
+            <h2>New Ticket</h2>
           </header>
           <form className="vendor-onboarding-form" onSubmit={handleCreateTicket}>
             <label className="field">
@@ -1971,7 +2095,7 @@ export function VendorSupportPage() {
                 type="text"
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
-                placeholder="Brief ticket title"
+                placeholder="Short summary of issue"
               />
             </label>
 
@@ -1980,9 +2104,19 @@ export function VendorSupportPage() {
               <textarea
                 className="order-textarea"
                 rows={4}
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
                 placeholder="Describe the issue in detail"
+              />
+            </label>
+
+            <label className="field">
+              Order ID (optional)
+              <input
+                type="text"
+                value={orderIdInput}
+                onChange={(event) => setOrderIdInput(event.target.value)}
+                placeholder="Example: VORD-500227"
               />
             </label>
 
@@ -1991,6 +2125,123 @@ export function VendorSupportPage() {
             </button>
           </form>
         </article>
+      </section>
+
+      <section className="vendor-placeholder-card vendor-support-detail-card">
+        <header className="section-header">
+          <h2>Ticket Detail</h2>
+        </header>
+        {selectedTicket ? (
+          <>
+            <div className="vendor-support-ticket-meta">
+              <span>
+                Ticket ID: <strong>{selectedTicket.id}</strong>
+              </span>
+              <span>
+                Category: <strong>{selectedTicket.category}</strong>
+              </span>
+              <span>
+                Status:{" "}
+                <span className={getSupportTicketStatusClass(selectedTicket.status)}>
+                  {selectedTicket.status}
+                </span>
+              </span>
+              <span>
+                Last updated: <strong>{formatTimestamp(selectedTicket.updatedAtIso)}</strong>
+              </span>
+            </div>
+
+            <p>
+              Subject: <strong>{selectedTicket.subject}</strong>
+            </p>
+            <p>
+              Linked Order:{" "}
+              <strong>{selectedTicket.orderId ? selectedTicket.orderId : "Not linked"}</strong>
+            </p>
+
+            <div className="vendor-support-admin-actions">
+              <label className="field">
+                Mock admin status action
+                <select
+                  className="order-select"
+                  value={adminSelectedStatus}
+                  onChange={(event) =>
+                    setAdminSelectedStatus(event.target.value as VendorSupportTicketStatus)
+                  }
+                >
+                  {(["Open", "In Review", "Resolved", "Closed"] as VendorSupportTicketStatus[]).map(
+                    (status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleMockAdminStatusUpdate}
+                >
+                  Update Status (Mock Admin)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAddMockAdminReply}
+                >
+                  Add Admin Reply Placeholder
+                </button>
+              </div>
+            </div>
+
+            <div className="vendor-support-thread" aria-label={`Ticket thread for ${selectedTicket.id}`}>
+              {selectedTicket.thread.map((threadMessage) => (
+                <article
+                  key={threadMessage.id}
+                  className={
+                    threadMessage.sender === "Vendor"
+                      ? "vendor-support-thread-message from-vendor"
+                      : "vendor-support-thread-message from-admin"
+                  }
+                >
+                  <p className="vendor-support-thread-meta">
+                    {threadMessage.sender} • {formatTimestamp(threadMessage.createdAtIso)}
+                  </p>
+                  <p>{threadMessage.message}</p>
+                </article>
+              ))}
+
+              {!selectedTicket.thread.some(
+                (threadMessage) => threadMessage.sender === "Admin",
+              ) ? (
+                <article className="vendor-support-thread-message from-admin">
+                  <p className="vendor-support-thread-meta">Admin • Placeholder</p>
+                  <p>Admin reply will appear here after support team review (mock).</p>
+                </article>
+              ) : null}
+            </div>
+
+            <form className="vendor-support-reply-form" onSubmit={handleSendVendorReply}>
+              <label className="field">
+                Vendor message
+                <textarea
+                  className="order-textarea"
+                  rows={3}
+                  value={vendorReplyInput}
+                  onChange={(event) => setVendorReplyInput(event.target.value)}
+                  placeholder="Write a response or follow-up for this ticket"
+                />
+              </label>
+              <button type="submit" className="btn btn-primary">
+                Send Message
+              </button>
+            </form>
+          </>
+        ) : (
+          <p>Select a ticket from the list to open detailed thread view.</p>
+        )}
       </section>
     </div>
   );
