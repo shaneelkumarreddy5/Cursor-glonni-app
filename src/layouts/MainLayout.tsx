@@ -40,6 +40,9 @@ export function MainLayout() {
             <NavLink to={ROUTES.vendor} className="topbar-action-link">
               Vendor
             </NavLink>
+            <NavLink to={ROUTES.admin} className="topbar-action-link">
+              Admin
+            </NavLink>
             <NavLink to={ROUTES.settingsOrders} className="topbar-action-link">
               Orders
             </NavLink>

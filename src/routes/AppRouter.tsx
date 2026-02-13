@@ -1,4 +1,17 @@
 import { Route, Routes } from "react-router-dom";
+import {
+  AdminAdsPage,
+  AdminDashboardPage,
+  AdminLoginPage,
+  AdminOrdersPage,
+  AdminProductsPage,
+  AdminProtectedLayoutRoute,
+  AdminProviderRoute,
+  AdminReturnsRtoPage,
+  AdminSettingsPage,
+  AdminSupportPage,
+  AdminVendorsPage,
+} from "../admin/AdminPages";
 import { MainLayout } from "../layouts/MainLayout";
 import { SettingsLayout } from "../layouts/SettingsLayout";
 import { CartPage } from "../pages/CartPage";
@@ -35,6 +48,7 @@ import {
   VendorWalletPage,
 } from "../vendor/VendorPages";
 import {
+  ADMIN_ROUTE_SEGMENTS,
   ROUTES,
   ROUTE_SEGMENTS,
   SETTINGS_ROUTE_SEGMENTS,
@@ -83,6 +97,21 @@ export function AppRouter() {
             path={SETTINGS_ROUTE_SEGMENTS.notifications}
             element={<NotificationsSettingsPage />}
           />
+        </Route>
+      </Route>
+
+      <Route path={ROUTE_SEGMENTS.admin} element={<AdminProviderRoute />}>
+        <Route index element={<AdminLoginPage />} />
+
+        <Route element={<AdminProtectedLayoutRoute />}>
+          <Route path={ADMIN_ROUTE_SEGMENTS.dashboard} element={<AdminDashboardPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.vendors} element={<AdminVendorsPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.products} element={<AdminProductsPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.orders} element={<AdminOrdersPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.returnsRto} element={<AdminReturnsRtoPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.ads} element={<AdminAdsPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.support} element={<AdminSupportPage />} />
+          <Route path={ADMIN_ROUTE_SEGMENTS.settings} element={<AdminSettingsPage />} />
         </Route>
       </Route>
 
