@@ -1011,13 +1011,14 @@ export function AdminOrderDetailPage() {
         ? 1
         : 0;
   const orderAuditLog = getOrderAuditLog(order.id);
+  const targetOrderId = order.id;
   const vendorAdjustmentLabel =
     order.financialImpact.vendorWalletAdjustmentInr > 0
       ? `+${formatInr(order.financialImpact.vendorWalletAdjustmentInr)}`
       : formatInr(order.financialImpact.vendorWalletAdjustmentInr);
 
   function handleAssignFault() {
-    const result = assignDisputeFault(order.id, selectedFault, disputeReason);
+    const result = assignDisputeFault(targetOrderId, selectedFault, disputeReason);
     setFeedbackMessage(result.message);
     if (result.ok) {
       setDisputeReason("");

@@ -174,8 +174,6 @@ function createDefaultFinancialImpact(updatedAtIso: string): AdminFinancialImpac
 
 const nowMs = Date.now();
 const orderedAtIso = new Date(nowMs - 96 * 60 * 60 * 1000).toISOString();
-const packedAtIso = new Date(nowMs - 84 * 60 * 60 * 1000).toISOString();
-const shippedAtIso = new Date(nowMs - 72 * 60 * 60 * 1000).toISOString();
 const deliveredAtIso = new Date(nowMs - 48 * 60 * 60 * 1000).toISOString();
 
 const SEEDED_ORDERS: AdminOrderRecord[] = [
