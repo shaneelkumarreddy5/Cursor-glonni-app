@@ -6,6 +6,7 @@ export const ROUTE_SEGMENTS = {
   orderSuccess: "order-success",
   settings: "settings",
   vendor: "vendor",
+  admin: "admin",
 } as const;
 
 export const SETTINGS_ROUTE_SEGMENTS = {
@@ -19,6 +20,7 @@ export const SETTINGS_ROUTE_SEGMENTS = {
 
 const settingsRoot = `/${ROUTE_SEGMENTS.settings}` as const;
 const vendorRoot = `/${ROUTE_SEGMENTS.vendor}` as const;
+const adminRoot = `/${ROUTE_SEGMENTS.admin}` as const;
 
 export const VENDOR_ROUTE_SEGMENTS = {
   login: "login",
@@ -30,6 +32,17 @@ export const VENDOR_ROUTE_SEGMENTS = {
   orders: "orders",
   returnsRto: "returns-rto",
   wallet: "wallet",
+  ads: "ads",
+  support: "support",
+  settings: "settings",
+} as const;
+
+export const ADMIN_ROUTE_SEGMENTS = {
+  dashboard: "dashboard",
+  vendors: "vendors",
+  products: "products",
+  orders: "orders",
+  returnsRto: "returns-rto",
   ads: "ads",
   support: "support",
   settings: "settings",
@@ -64,6 +77,15 @@ export const ROUTES = {
   vendorAds: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.ads}`,
   vendorSupport: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.support}`,
   vendorSettings: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.settings}`,
+  admin: adminRoot,
+  adminDashboard: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.dashboard}`,
+  adminVendors: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.vendors}`,
+  adminProducts: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.products}`,
+  adminOrders: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.orders}`,
+  adminReturnsRto: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.returnsRto}`,
+  adminAds: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.ads}`,
+  adminSupport: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.support}`,
+  adminSettings: `${adminRoot}/${ADMIN_ROUTE_SEGMENTS.settings}`,
 } as const;
 
 export type NavItem = {
@@ -100,4 +122,15 @@ export const VENDOR_NAV_ITEMS: NavItem[] = [
   { label: "Ads", to: ROUTES.vendorAds },
   { label: "Support", to: ROUTES.vendorSupport },
   { label: "Settings", to: ROUTES.vendorSettings },
+];
+
+export const ADMIN_NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", to: ROUTES.adminDashboard },
+  { label: "Vendors", to: ROUTES.adminVendors },
+  { label: "Products", to: ROUTES.adminProducts },
+  { label: "Orders", to: ROUTES.adminOrders },
+  { label: "Returns / RTO", to: ROUTES.adminReturnsRto },
+  { label: "Ads", to: ROUTES.adminAds },
+  { label: "Support", to: ROUTES.adminSupport },
+  { label: "Settings", to: ROUTES.adminSettings },
 ];
