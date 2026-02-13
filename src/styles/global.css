@@ -2732,6 +2732,13 @@ body {
   color: #1d4ed8;
 }
 
+.vendor-nav-link.is-disabled {
+  border-color: #e5e7eb;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .vendor-main {
   padding: 0.9rem;
   display: grid;
@@ -2744,6 +2751,11 @@ body {
   border-radius: 12px;
   background: #fffbeb;
   padding: 0.62rem 0.72rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .vendor-restriction-banner p {
@@ -2807,6 +2819,32 @@ body {
 .vendor-placeholder-card p {
   color: var(--text-muted);
   font-size: 0.86rem;
+}
+
+.vendor-onboarding-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.vendor-onboarding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.62rem;
+}
+
+.vendor-document-list {
+  margin: 0;
+  color: #475569;
+  font-size: 0.83rem;
+}
+
+.vendor-onboarding-preview {
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: #f8fafc;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.62rem;
 }
 
 @media (min-width: 980px) {

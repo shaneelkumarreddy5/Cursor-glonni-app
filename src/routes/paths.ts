@@ -22,6 +22,7 @@ const vendorRoot = `/${ROUTE_SEGMENTS.vendor}` as const;
 
 export const VENDOR_ROUTE_SEGMENTS = {
   login: "login",
+  onboarding: "onboarding",
   dashboard: "dashboard",
   products: "products",
   orders: "orders",
@@ -49,6 +50,7 @@ export const ROUTES = {
   settingsNotifications: `${settingsRoot}/${SETTINGS_ROUTE_SEGMENTS.notifications}`,
   vendor: vendorRoot,
   vendorLogin: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.login}`,
+  vendorOnboarding: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.onboarding}`,
   vendorDashboard: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.dashboard}`,
   vendorProducts: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.products}`,
   vendorOrders: `${vendorRoot}/${VENDOR_ROUTE_SEGMENTS.orders}`,

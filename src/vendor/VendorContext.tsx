@@ -20,13 +20,37 @@ type VendorLoginResult = {
   message: string;
 };
 
+type VendorOnboardingResult = {
+  ok: boolean;
+  message: string;
+};
+
+export type VendorOnboardingData = {
+  businessName: string;
+  ownerName: string;
+  phone: string;
+  gstNumber: string;
+  bankAccountHolderName: string;
+  bankAccountNumber: string;
+  bankIfscCode: string;
+  bankName: string;
+  businessAddress: string;
+  documents: string[];
+};
+
 type VendorContextValue = {
   isLoggedIn: boolean;
   vendorName: string;
   vendorStatus: VendorStatus;
   canPublishProducts: boolean;
+  onboardingData: VendorOnboardingData | null;
+  hasCompletedOnboarding: boolean;
   summaryMetrics: VendorSummaryMetrics;
   loginVendor: (email: string, password: string) => VendorLoginResult;
+  submitOnboarding: (
+    payload: VendorOnboardingData,
+  ) => VendorOnboardingResult;
+  approveVendor: () => void;
   logoutVendor: () => void;
   setVendorStatus: (status: VendorStatus) => void;
 };
@@ -44,6 +68,9 @@ const VendorContext = createContext<VendorContextValue | null>(null);
 export function VendorProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [vendorStatus, setVendorStatus] = useState<VendorStatus>("Under Scrutiny");
+  const [onboardingData, setOnboardingData] = useState<VendorOnboardingData | null>(
+    null,
+  );
 
   function loginVendor(email: string, password: string): VendorLoginResult {
     if (!email.trim() || !password.trim()) {
@@ -58,18 +85,53 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     setIsLoggedIn(false);
   }
 
+  function submitOnboarding(payload: VendorOnboardingData): VendorOnboardingResult {
+    if (
+      !payload.businessName.trim() ||
+      !payload.ownerName.trim() ||
+      !payload.phone.trim() ||
+      !payload.bankAccountHolderName.trim() ||
+      !payload.bankAccountNumber.trim() ||
+      !payload.bankIfscCode.trim() ||
+      !payload.bankName.trim() ||
+      !payload.businessAddress.trim()
+    ) {
+      return {
+        ok: false,
+        message: "Please complete all mandatory onboarding fields.",
+      };
+    }
+
+    setOnboardingData(payload);
+    setVendorStatus("Under Scrutiny");
+
+    return {
+      ok: true,
+      message:
+        "Onboarding submitted. Your profile is now under scrutiny for approval.",
+    };
+  }
+
+  function approveVendor() {
+    setVendorStatus("Approved");
+  }
+
   const value = useMemo<VendorContextValue>(
     () => ({
       isLoggedIn,
       vendorName: MOCK_VENDOR_NAME,
       vendorStatus,
       canPublishProducts: vendorStatus === "Approved",
+      onboardingData,
+      hasCompletedOnboarding: onboardingData !== null,
       summaryMetrics: MOCK_VENDOR_SUMMARY_METRICS,
       loginVendor,
+      submitOnboarding,
+      approveVendor,
       logoutVendor,
       setVendorStatus,
     }),
-    [isLoggedIn, vendorStatus],
+    [isLoggedIn, onboardingData, vendorStatus],
   );
 
   return (

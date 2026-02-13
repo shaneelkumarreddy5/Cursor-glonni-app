@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { VENDOR_NAV_ITEMS } from "../routes/paths";
+import { ROUTES, VENDOR_NAV_ITEMS } from "../routes/paths";
 import { useVendor } from "./VendorContext";
 
 function vendorNavClassName(isActive: boolean) {
@@ -25,7 +25,12 @@ function getRestrictionMessage(status: ReturnType<typeof useVendor>["vendorStatu
 }
 
 export function VendorLayout() {
-  const { vendorName, vendorStatus, canPublishProducts } = useVendor();
+  const {
+    vendorName,
+    vendorStatus,
+    canPublishProducts,
+    hasCompletedOnboarding,
+  } = useVendor();
 
   return (
     <div className="vendor-shell">
@@ -40,15 +45,32 @@ export function VendorLayout() {
       <section className="vendor-body">
         <aside className="vendor-sidebar">
           <nav aria-label="Vendor sections" className="vendor-nav">
-            {VENDOR_NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => vendorNavClassName(isActive)}
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {VENDOR_NAV_ITEMS.map((item) => {
+              const isProductsRoute = item.to === ROUTES.vendorProducts;
+              const disableProductsLink = isProductsRoute && !canPublishProducts;
+
+              if (disableProductsLink) {
+                return (
+                  <span
+                    key={item.to}
+                    className="vendor-nav-link is-disabled"
+                    title="Products page will be enabled after approval."
+                  >
+                    {item.label}
+                  </span>
+                );
+              }
+
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => vendorNavClassName(isActive)}
+                >
+                  {item.label}
+                </NavLink>
+              );
+            })}
           </nav>
         </aside>
 
@@ -56,6 +78,11 @@ export function VendorLayout() {
           {!canPublishProducts ? (
             <section className="vendor-restriction-banner">
               <p>{getRestrictionMessage(vendorStatus)}</p>
+              {!hasCompletedOnboarding ? (
+                <NavLink to={ROUTES.vendorOnboarding} className="btn btn-secondary">
+                  Complete Onboarding
+                </NavLink>
+              ) : null}
             </section>
           ) : null}
           <Outlet />

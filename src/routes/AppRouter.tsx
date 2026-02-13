@@ -22,6 +22,7 @@ import {
   VendorDashboardPage,
   VendorLandingRedirect,
   VendorLoginPage,
+  VendorOnboardingPage,
   VendorOrdersPage,
   VendorProductsPage,
   VendorProtectedLayoutRoute,
@@ -87,6 +88,7 @@ export function AppRouter() {
         <Route path={VENDOR_ROUTE_SEGMENTS.login} element={<VendorLoginPage />} />
 
         <Route element={<VendorProtectedLayoutRoute />}>
+          <Route path={VENDOR_ROUTE_SEGMENTS.onboarding} element={<VendorOnboardingPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.dashboard} element={<VendorDashboardPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.products} element={<VendorProductsPage />} />
           <Route path={VENDOR_ROUTE_SEGMENTS.orders} element={<VendorOrdersPage />} />
