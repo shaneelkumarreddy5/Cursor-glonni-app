@@ -182,6 +182,19 @@ function getMarkDeliveredTooltip(order: OrderRecord) {
   return "Only shipped status can move to delivered.";
 }
 
+function getDeliveryTimelineProgress(order: OrderRecord) {
+  if (order.fulfillmentStatus === "Shipped") {
+    return 1;
+  }
+  if (
+    order.fulfillmentStatus === "Delivered" ||
+    order.fulfillmentStatus === "Return Requested"
+  ) {
+    return 2;
+  }
+  return 0;
+}
+
 export function SettingsOverviewPage() {
   const { orders, pendingCashbackTotalInr, cartItemsCount } = useCommerce();
   const activeOrders = orders.filter((order) =>
@@ -348,6 +361,29 @@ export function OrdersSettingsPage() {
                         {order.paymentMethodId === "cod" ? "COD" : "Online"}
                       </span>
                     </div>
+                    <div className="order-timeline" aria-label={`Delivery timeline for ${order.id}`}>
+                      {["Ordered", "Shipped", "Delivered"].map((timelineStep, index) => {
+                        const progressIndex = getDeliveryTimelineProgress(order);
+                        const stepClass =
+                          index < progressIndex
+                            ? "order-timeline-step is-complete"
+                            : index === progressIndex
+                              ? "order-timeline-step is-current"
+                              : "order-timeline-step";
+
+                        return (
+                          <div key={timelineStep} className={stepClass}>
+                            <span className="order-timeline-dot" aria-hidden="true" />
+                            <span>{timelineStep}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {order.fulfillmentStatus === "Cancelled" ? (
+                      <p className="order-timeline-note">
+                        Delivery timeline stopped because this order was cancelled.
+                      </p>
+                    ) : null}
                     <p>Date: {formatOrderDate(order.placedAtIso)}</p>
                     <p>Items: {itemCount}</p>
                     <p>

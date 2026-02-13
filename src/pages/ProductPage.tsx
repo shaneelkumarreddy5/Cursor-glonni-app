@@ -236,6 +236,11 @@ export function ProductPage() {
     setAddToCartMessage("Added to cart");
   }
 
+  function handleBuyNow() {
+    addCurrentConfigurationToCart();
+    navigate(ROUTES.checkout);
+  }
+
   return (
     <div className="stack pdp-page">
       <PageIntro
@@ -358,10 +363,7 @@ export function ProductPage() {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => {
-                addCurrentConfigurationToCart();
-                navigate(ROUTES.checkout);
-              }}
+              onClick={handleBuyNow}
             >
               Buy now
             </button>
@@ -538,6 +540,19 @@ export function ProductPage() {
             </p>
           </div>
         </article>
+      </section>
+
+      <section className="pdp-mobile-action-bar" aria-label="Quick purchase actions">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={addCurrentConfigurationToCart}
+        >
+          Add to Cart
+        </button>
+        <button type="button" className="btn btn-primary" onClick={handleBuyNow}>
+          Buy Now
+        </button>
       </section>
     </div>
   );

@@ -6,6 +6,10 @@ function navClassName(isActive: boolean) {
   return isActive ? "nav-link active" : "nav-link";
 }
 
+function mobileNavClassName(isActive: boolean) {
+  return isActive ? "mobile-nav-link active" : "mobile-nav-link";
+}
+
 export function MainLayout() {
   const { cartItemsCount } = useCommerce();
 
@@ -63,6 +67,33 @@ export function MainLayout() {
       <main className="page-content">
         <Outlet />
       </main>
+
+      <nav aria-label="Mobile bottom navigation" className="mobile-bottom-nav">
+        <NavLink to={ROUTES.home} className={({ isActive }) => mobileNavClassName(isActive)}>
+          Home
+        </NavLink>
+        <NavLink to={ROUTES.category} className={({ isActive }) => mobileNavClassName(isActive)}>
+          Search
+        </NavLink>
+        <NavLink
+          to={ROUTES.settingsOrders}
+          className={({ isActive }) => mobileNavClassName(isActive)}
+        >
+          Orders
+        </NavLink>
+        <NavLink
+          to={ROUTES.settingsWallet}
+          className={({ isActive }) => mobileNavClassName(isActive)}
+        >
+          Wallet
+        </NavLink>
+        <NavLink
+          to={ROUTES.settingsProfile}
+          className={({ isActive }) => mobileNavClassName(isActive)}
+        >
+          Profile
+        </NavLink>
+      </nav>
 
       <footer className="footer">
         <div className="footer-inner">
