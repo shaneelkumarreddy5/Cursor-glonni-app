@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { type ReactNode } from "react";
 import {
   bankOffers,
@@ -9,7 +9,9 @@ import {
   type CatalogProduct,
   type HomeCategoryTile,
 } from "../data/mockCatalog";
+import { getVendorOptionsForProduct } from "../data/mockCommerce";
 import { ROUTES } from "../routes/paths";
+import { useCommerce } from "../state/CommerceContext";
 import { formatInr } from "../utils/currency";
 
 type HeroSlide = {
@@ -119,7 +121,17 @@ function HomeSection({
   );
 }
 
-function HomeProductCard({ product, sponsored }: { product: CatalogProduct; sponsored: boolean }) {
+function HomeProductCard({
+  product,
+  sponsored,
+  onAddToCart,
+  onBuyNow,
+}: {
+  product: CatalogProduct;
+  sponsored: boolean;
+  onAddToCart: (product: CatalogProduct) => void;
+  onBuyNow: (product: CatalogProduct) => void;
+}) {
   const productRoute = ROUTES.productDetail(product.id);
 
   return (
@@ -156,9 +168,12 @@ function HomeProductCard({ product, sponsored }: { product: CatalogProduct; spon
         </div>
         <span className="home-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
         <div className="inline-actions">
-          <Link to={productRoute} className="btn btn-secondary">
-            View details
-          </Link>
+          <button type="button" className="btn btn-secondary" onClick={() => onAddToCart(product)}>
+            Add to Cart
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => onBuyNow(product)}>
+            Buy Now
+          </button>
         </div>
       </div>
     </article>
@@ -166,6 +181,8 @@ function HomeProductCard({ product, sponsored }: { product: CatalogProduct; spon
 }
 
 export function HomePage() {
+  const navigate = useNavigate();
+  const { addToCart } = useCommerce();
   const sponsoredProducts = catalogProducts.filter((product) => product.sponsored).slice(0, 4);
   const organicProducts = catalogProducts.filter((product) => !product.sponsored);
   const storefrontFeed = [...sponsoredProducts, ...organicProducts.slice(0, 6)];
@@ -173,6 +190,27 @@ export function HomePage() {
     .slice()
     .sort((first, second) => second.rating - first.rating)
     .slice(0, 4);
+
+  function addDefaultConfigurationToCart(product: CatalogProduct) {
+    const vendorOptions = getVendorOptionsForProduct(product);
+    const defaultVendor = vendorOptions[0];
+    if (!defaultVendor) {
+      return;
+    }
+
+    addToCart({
+      product,
+      vendor: defaultVendor,
+      selectedExtraOffer: null,
+      unitPriceInr: defaultVendor.priceInr,
+      unitCashbackInr: defaultVendor.cashbackInr,
+    });
+  }
+
+  function handleBuyNow(product: CatalogProduct) {
+    addDefaultConfigurationToCart(product);
+    navigate(ROUTES.checkout);
+  }
 
   return (
     <div className="home-landing stack">
@@ -236,7 +274,13 @@ export function HomePage() {
       >
         <div className="home-product-grid">
           {storefrontFeed.map((product, index) => (
-            <HomeProductCard key={product.id} product={product} sponsored={index < 4} />
+            <HomeProductCard
+              key={product.id}
+              product={product}
+              sponsored={index < 4}
+              onAddToCart={addDefaultConfigurationToCart}
+              onBuyNow={handleBuyNow}
+            />
           ))}
         </div>
       </HomeSection>
@@ -276,7 +320,13 @@ export function HomePage() {
       <HomeSection title="Recommended for you" subtitle="Personalized picks based on current trends.">
         <div className="home-product-grid">
           {recommendedProducts.map((product) => (
-            <HomeProductCard key={product.id} product={product} sponsored={false} />
+            <HomeProductCard
+              key={product.id}
+              product={product}
+              sponsored={false}
+              onAddToCart={addDefaultConfigurationToCart}
+              onBuyNow={handleBuyNow}
+            />
           ))}
         </div>
       </HomeSection>
