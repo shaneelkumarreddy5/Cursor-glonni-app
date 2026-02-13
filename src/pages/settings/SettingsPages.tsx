@@ -1,69 +1,6 @@
 import { PageIntro } from "../../components/ui/PageIntro";
+import { useCommerce } from "../../state/CommerceContext";
 import { formatInr } from "../../utils/currency";
-
-type MockOrder = {
-  id: string;
-  date: string;
-  status: string;
-  totalInr: number;
-  cashbackInr: number;
-};
-
-type WalletEntry = {
-  id: string;
-  title: string;
-  date: string;
-  amountInr: number;
-  kind: "credit" | "debit";
-};
-
-const recentOrders: MockOrder[] = [
-  {
-    id: "GLN2602129481",
-    date: "12 Feb 2026",
-    status: "Packed",
-    totalInr: 33396,
-    cashbackInr: 1660,
-  },
-  {
-    id: "GLN2602106403",
-    date: "10 Feb 2026",
-    status: "Delivered",
-    totalInr: 45999,
-    cashbackInr: 1800,
-  },
-  {
-    id: "GLN2602072217",
-    date: "7 Feb 2026",
-    status: "Delivered",
-    totalInr: 2999,
-    cashbackInr: 180,
-  },
-];
-
-const walletEntries: WalletEntry[] = [
-  {
-    id: "w-1",
-    title: "Cashback credited for order GLN2602106403",
-    date: "11 Feb 2026",
-    amountInr: 1800,
-    kind: "credit",
-  },
-  {
-    id: "w-2",
-    title: "Reward wallet adjustment",
-    date: "9 Feb 2026",
-    amountInr: 300,
-    kind: "credit",
-  },
-  {
-    id: "w-3",
-    title: "Wallet used in order GLN2602051472",
-    date: "5 Feb 2026",
-    amountInr: 500,
-    kind: "debit",
-  },
-];
 
 const faqItems = [
   "How is cashback calculated on Glonni?",
@@ -71,31 +8,44 @@ const faqItems = [
   "How do I request a return or replacement?",
 ];
 
+function formatOrderDate(orderDateIso: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(orderDateIso));
+}
+
 export function SettingsOverviewPage() {
+  const { orders, pendingCashbackTotalInr, cartItemsCount } = useCommerce();
+  const activeOrders = orders.filter((order) => order.status !== "Delivered").length;
+
   return (
     <div className="stack settings-page">
       <PageIntro
         badge="Settings"
         title="Settings Overview"
-        description="Manage your orders, wallet, support tickets, and profile preferences from one place."
+        description="Manage your orders, wallet, support, and profile from one place."
       />
 
       <section className="card settings-kpi-grid">
         <article>
           <h3>Orders in progress</h3>
-          <p>2 active orders</p>
-        </article>
-        <article>
-          <h3>Wallet balance</h3>
-          <p>{formatInr(3420)}</p>
+          <p>{activeOrders} active orders</p>
         </article>
         <article>
           <h3>Pending cashback</h3>
-          <p>{formatInr(1660)}</p>
+          <p>{formatInr(pendingCashbackTotalInr)}</p>
         </article>
         <article>
-          <h3>Support tickets</h3>
-          <p>1 open ticket</p>
+          <h3>Total orders</h3>
+          <p>{orders.length} orders</p>
+        </article>
+        <article>
+          <h3>Cart items</h3>
+          <p>{cartItemsCount} items</p>
         </article>
       </section>
     </div>
@@ -103,69 +53,105 @@ export function SettingsOverviewPage() {
 }
 
 export function OrdersSettingsPage() {
+  const { orders } = useCommerce();
+
   return (
     <div className="stack settings-page">
       <PageIntro
         badge="Settings"
         title="Orders"
-        description="Track all your purchases and cashback status updates."
+        description="All placed orders from the mock checkout flow appear here."
       />
 
       <section className="card settings-list">
-        {recentOrders.map((order) => (
-          <article key={order.id} className="settings-list-row">
+        {orders.length > 0 ? (
+          orders.map((order) => {
+            const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+
+            return (
+              <article key={order.id} className="settings-list-row">
+                <div>
+                  <h3>{order.id}</h3>
+                  <p>
+                    Date: {formatOrderDate(order.placedAtIso)} • Status: {order.status}
+                  </p>
+                  <p>
+                    Items: {itemCount} • Payment: {order.paymentMethodTitle}
+                  </p>
+                  <p>
+                    Cashback: {formatInr(order.cashbackPendingInr)} ({order.cashbackStatus})
+                  </p>
+                </div>
+                <strong>{formatInr(order.payableAmountInr)}</strong>
+              </article>
+            );
+          })
+        ) : (
+          <article className="settings-list-row">
             <div>
-              <h3>{order.id}</h3>
-              <p>
-                Date: {order.date} • Status: {order.status}
-              </p>
-              <p>Cashback: {formatInr(order.cashbackInr)} (post delivery credit)</p>
+              <h3>No orders yet</h3>
+              <p>Place an order from checkout to see it listed here.</p>
             </div>
-            <strong>{formatInr(order.totalInr)}</strong>
+            <strong>-</strong>
           </article>
-        ))}
+        )}
       </section>
     </div>
   );
 }
 
 export function WalletSettingsPage() {
+  const { orders, pendingCashbackTotalInr } = useCommerce();
+  const pendingCashbackOrders = orders.filter(
+    (order) => order.cashbackStatus === "Pending",
+  );
+
   return (
     <div className="stack settings-page">
       <PageIntro
         badge="Settings"
         title="Wallet"
-        description="View available balance, cashback earnings, and wallet activity."
+        description="Cashback is tracked as pending and linked to corresponding orders."
       />
 
       <section className="card settings-kpi-grid">
         <article>
           <h3>Available balance</h3>
-          <p>{formatInr(3420)}</p>
+          <p>{formatInr(0)}</p>
         </article>
         <article>
           <h3>Pending cashback</h3>
-          <p>{formatInr(1660)}</p>
+          <p>{formatInr(pendingCashbackTotalInr)}</p>
         </article>
         <article>
-          <h3>Total earned this month</h3>
-          <p>{formatInr(2280)}</p>
+          <h3>Pending entries</h3>
+          <p>{pendingCashbackOrders.length}</p>
         </article>
       </section>
 
       <section className="card settings-list">
-        {walletEntries.map((entry) => (
-          <article key={entry.id} className="settings-list-row">
+        {pendingCashbackOrders.length > 0 ? (
+          pendingCashbackOrders.map((order) => (
+            <article key={order.id} className="settings-list-row">
+              <div>
+                <h3>Cashback for {order.id}</h3>
+                <p>Placed on: {formatOrderDate(order.placedAtIso)}</p>
+                <p>Status: {order.cashbackStatus}</p>
+              </div>
+              <strong className="settings-credit">
+                +{formatInr(order.cashbackPendingInr)}
+              </strong>
+            </article>
+          ))
+        ) : (
+          <article className="settings-list-row">
             <div>
-              <h3>{entry.title}</h3>
-              <p>{entry.date}</p>
+              <h3>No pending cashback</h3>
+              <p>Pending cashback entries will appear after placing new orders.</p>
             </div>
-            <strong className={entry.kind === "credit" ? "settings-credit" : "settings-debit"}>
-              {entry.kind === "credit" ? "+" : "-"}
-              {formatInr(entry.amountInr)}
-            </strong>
+            <strong>{formatInr(0)}</strong>
           </article>
-        ))}
+        )}
       </section>
     </div>
   );
@@ -197,7 +183,7 @@ export function SupportSettingsPage() {
         <article className="settings-list-row">
           <div>
             <h3>Ticket #SP-4821</h3>
-            <p>Issue: Cashback not reflected for delivered order</p>
+            <p>Issue: Cashback pending for delivered order.</p>
           </div>
           <strong>In progress</strong>
         </article>
@@ -241,28 +227,30 @@ export function ProfileSettingsPage() {
 }
 
 export function AddressesSettingsPage() {
+  const { addresses, selectedAddressId } = useCommerce();
+
   return (
     <div className="stack settings-page">
       <PageIntro
         badge="Settings"
         title="Addresses"
-        description="Manage saved delivery addresses."
+        description="Manage your saved delivery addresses."
       />
       <section className="card settings-list">
-        <article className="settings-list-row">
-          <div>
-            <h3>Home</h3>
-            <p>Flat 903, Palm Residency, HSR Layout, Bengaluru, Karnataka 560102</p>
-          </div>
-          <strong>Default</strong>
-        </article>
-        <article className="settings-list-row">
-          <div>
-            <h3>Office</h3>
-            <p>Bagmane Tech Park, CV Raman Nagar, Bengaluru, Karnataka 560093</p>
-          </div>
-          <strong>Saved</strong>
-        </article>
+        {addresses.map((address) => (
+          <article key={address.id} className="settings-list-row">
+            <div>
+              <h3>{address.label}</h3>
+              <p>
+                {address.fullName} · {address.phoneNumber}
+              </p>
+              <p>
+                {address.line1}, {address.line2}, {address.cityStatePincode}
+              </p>
+            </div>
+            <strong>{selectedAddressId === address.id ? "Selected" : "Saved"}</strong>
+          </article>
+        ))}
       </section>
     </div>
   );
@@ -280,14 +268,14 @@ export function NotificationsSettingsPage() {
         <article className="settings-list-row">
           <div>
             <h3>Order updates</h3>
-            <p>SMS and push notifications for every order status change.</p>
+            <p>SMS and push notifications for each order status change.</p>
           </div>
           <strong>Enabled</strong>
         </article>
         <article className="settings-list-row">
           <div>
             <h3>Cashback updates</h3>
-            <p>Alerts when cashback is approved and credited.</p>
+            <p>Alerts when cashback stays pending or gets updated.</p>
           </div>
           <strong>Enabled</strong>
         </article>

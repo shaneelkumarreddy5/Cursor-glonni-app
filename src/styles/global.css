@@ -592,6 +592,7 @@ input {
   padding: 0.72rem;
   display: grid;
   gap: 0.45rem;
+  cursor: pointer;
 }
 
 .home-category-card h3 {
@@ -851,6 +852,12 @@ input {
   padding: 0.3rem 0.62rem;
 }
 
+.plp-filter-chip.is-selected {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .plp-filter-chip:hover,
 .plp-brand-filter-chip:hover {
   border-color: #bfdbfe;
@@ -939,6 +946,10 @@ input {
 .plp-image-wrap {
   position: relative;
   border-bottom: 1px solid var(--border);
+}
+
+.plp-image-wrap a {
+  display: block;
 }
 
 .plp-product-image {

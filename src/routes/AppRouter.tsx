@@ -26,9 +26,14 @@ export function AppRouter() {
         <Route index element={<HomePage />} />
         <Route path={ROUTE_SEGMENTS.category} element={<CategoryPage />} />
         <Route path={ROUTE_SEGMENTS.product} element={<ProductPage />} />
+        <Route path={`${ROUTE_SEGMENTS.product}/:productId`} element={<ProductPage />} />
         <Route path={ROUTE_SEGMENTS.cart} element={<CartPage />} />
         <Route path={ROUTE_SEGMENTS.checkout} element={<CheckoutPage />} />
         <Route path={ROUTE_SEGMENTS.orderSuccess} element={<OrderSuccessPage />} />
+        <Route
+          path={`${ROUTE_SEGMENTS.orderSuccess}/:orderId`}
+          element={<OrderSuccessPage />}
+        />
 
         <Route path={ROUTE_SEGMENTS.settings} element={<SettingsLayout />}>
           <Route index element={<SettingsOverviewPage />} />

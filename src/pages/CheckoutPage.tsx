@@ -1,14 +1,10 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { PageIntro } from "../components/ui/PageIntro";
-import { bankOffers, catalogProducts } from "../data/mockCatalog";
+import { bankOffers } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
+import { useCommerce } from "../state/CommerceContext";
 import { formatInr } from "../utils/currency";
-
-const checkoutItems = [
-  { product: catalogProducts[0], quantity: 1 },
-  { product: catalogProducts[4], quantity: 2 },
-  { product: catalogProducts[8], quantity: 1 },
-];
 
 function PaymentIcon({ method }: { method: "upi" | "card" | "netbanking" | "cod" }) {
   if (method === "upi") {
@@ -48,21 +44,30 @@ function PaymentIcon({ method }: { method: "upi" | "card" | "netbanking" | "cod"
 }
 
 export function CheckoutPage() {
-  const itemTotal = checkoutItems.reduce(
-    (sum, item) => sum + item.product.priceInr * item.quantity,
-    0,
-  );
-  const mrpTotal = checkoutItems.reduce(
-    (sum, item) => sum + item.product.mrpInr * item.quantity,
-    0,
-  );
-  const discountTotal = mrpTotal - itemTotal;
-  const cashbackTotal = checkoutItems.reduce(
-    (sum, item) => sum + item.product.cashbackInr * item.quantity,
-    0,
-  );
-  const deliveryFee = 0;
-  const finalPayable = itemTotal + deliveryFee;
+  const navigate = useNavigate();
+  const {
+    cartItems,
+    cartSubtotalInr,
+    cartCashbackTotalInr,
+    addresses,
+    selectedAddressId,
+    setSelectedAddressId,
+    paymentMethods,
+    selectedPaymentMethodId,
+    setSelectedPaymentMethodId,
+    placeOrder,
+  } = useCommerce();
+  const [deliveryMode, setDeliveryMode] = useState<"standard" | "express">("standard");
+  const deliveryFee = deliveryMode === "express" ? 199 : 0;
+  const finalPayable = cartSubtotalInr + deliveryFee;
+  const isCartEmpty = cartItems.length === 0;
+
+  function handlePlaceOrder() {
+    const createdOrder = placeOrder({ deliveryFeeInr: deliveryFee });
+    if (createdOrder) {
+      navigate(ROUTES.orderSuccessDetail(createdOrder.id));
+    }
+  }
 
   return (
     <div className="stack checkout-page">
@@ -85,14 +90,30 @@ export function CheckoutPage() {
             <header className="section-header">
               <h2>Delivery Address</h2>
             </header>
-            <div className="checkout-option">
-              <strong>Rohit Sharma</strong>
-              <p>
-                Flat 903, Palm Residency, HSR Layout, Bengaluru, Karnataka 560102
-                <br />
-                Phone: +91 98765 43210
-              </p>
-              <span className="muted-tag">Default address</span>
+            <div className="checkout-option-list">
+              {addresses.map((address) => (
+                <label key={address.id} className="checkout-option">
+                  <input
+                    type="radio"
+                    name="address"
+                    checked={selectedAddressId === address.id}
+                    onChange={() => setSelectedAddressId(address.id)}
+                  />
+                  <div>
+                    <strong>{address.label}</strong>
+                    <p>
+                      {address.fullName}
+                      <br />
+                      {address.line1}, {address.line2}, {address.cityStatePincode}
+                      <br />
+                      Phone: {address.phoneNumber}
+                    </p>
+                  </div>
+                  {selectedAddressId === address.id ? (
+                    <span className="muted-tag">Selected</span>
+                  ) : null}
+                </label>
+              ))}
             </div>
           </article>
 
@@ -102,14 +123,24 @@ export function CheckoutPage() {
             </header>
             <div className="checkout-option-list">
               <label className="checkout-option">
-                <input type="radio" name="delivery" defaultChecked />
+                <input
+                  type="radio"
+                  name="delivery"
+                  checked={deliveryMode === "standard"}
+                  onChange={() => setDeliveryMode("standard")}
+                />
                 <div>
                   <strong>Standard Delivery</strong>
                   <p>Delivery by Monday, 16 Feb • Free</p>
                 </div>
               </label>
               <label className="checkout-option">
-                <input type="radio" name="delivery" />
+                <input
+                  type="radio"
+                  name="delivery"
+                  checked={deliveryMode === "express"}
+                  onChange={() => setDeliveryMode("express")}
+                />
                 <div>
                   <strong>Express Delivery</strong>
                   <p>Delivery by Sunday, 15 Feb • {formatInr(199)}</p>
@@ -123,46 +154,23 @@ export function CheckoutPage() {
               <h2>Payment method</h2>
             </header>
             <div className="checkout-option-list">
-              <label className="checkout-option">
-                <input type="radio" name="payment" defaultChecked />
-                <div>
-                  <span className="checkout-payment-label">
-                    <PaymentIcon method="upi" />
-                    UPI
-                  </span>
-                  <p>Pay instantly via UPI apps</p>
-                </div>
-              </label>
-              <label className="checkout-option">
-                <input type="radio" name="payment" />
-                <div>
-                  <span className="checkout-payment-label">
-                    <PaymentIcon method="card" />
-                    Credit / Debit Card
-                  </span>
-                  <p>Saved cards and EMI options</p>
-                </div>
-              </label>
-              <label className="checkout-option">
-                <input type="radio" name="payment" />
-                <div>
-                  <span className="checkout-payment-label">
-                    <PaymentIcon method="netbanking" />
-                    Net Banking
-                  </span>
-                  <p>Supported by major Indian banks</p>
-                </div>
-              </label>
-              <label className="checkout-option">
-                <input type="radio" name="payment" />
-                <div>
-                  <span className="checkout-payment-label">
-                    <PaymentIcon method="cod" />
-                    Cash on Delivery
-                  </span>
-                  <p>Available on selected pincodes</p>
-                </div>
-              </label>
+              {paymentMethods.map((method) => (
+                <label key={method.id} className="checkout-option">
+                  <input
+                    type="radio"
+                    name="payment"
+                    checked={selectedPaymentMethodId === method.id}
+                    onChange={() => setSelectedPaymentMethodId(method.id)}
+                  />
+                  <div>
+                    <span className="checkout-payment-label">
+                      <PaymentIcon method={method.id} />
+                      {method.title}
+                    </span>
+                    <p>{method.description}</p>
+                  </div>
+                </label>
+              ))}
             </div>
 
             <div className="checkout-bank-logo-row" aria-label="Supported bank cards">
@@ -201,29 +209,29 @@ export function CheckoutPage() {
             <h2>Order total</h2>
           </header>
 
-          <div className="checkout-line-items">
-            {checkoutItems.map(({ product, quantity }) => (
-              <div key={product.id} className="checkout-line-item">
-                <span>
-                  {product.name} x{quantity}
-                </span>
-                <strong>{formatInr(product.priceInr * quantity)}</strong>
-              </div>
-            ))}
-          </div>
+          {isCartEmpty ? (
+            <p>Your cart is empty. Add products before checkout.</p>
+          ) : (
+            <div className="checkout-line-items">
+              {cartItems.map((item) => (
+                <div key={item.id} className="checkout-line-item">
+                  <span>
+                    {item.productName} x{item.quantity}
+                  </span>
+                  <strong>{formatInr(item.unitPriceInr * item.quantity)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="checkout-totals">
             <div>
               <span>Item total</span>
-              <strong>{formatInr(mrpTotal)}</strong>
-            </div>
-            <div>
-              <span>Discount</span>
-              <strong>-{formatInr(discountTotal)}</strong>
+              <strong>{formatInr(cartSubtotalInr)}</strong>
             </div>
             <div>
               <span>Cashback (post delivery)</span>
-              <strong>{formatInr(cashbackTotal)}</strong>
+              <strong>{formatInr(cartCashbackTotalInr)}</strong>
             </div>
             <div>
               <span>Delivery</span>
@@ -236,9 +244,14 @@ export function CheckoutPage() {
             <strong>{formatInr(finalPayable)}</strong>
           </div>
 
-          <Link to={ROUTES.orderSuccess} className="btn btn-primary btn-block">
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={isCartEmpty}
+            onClick={handlePlaceOrder}
+          >
             Place Order
-          </Link>
+          </button>
         </article>
       </section>
     </div>

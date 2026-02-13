@@ -1,11 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { PRIMARY_NAV_ITEMS, ROUTES } from "../routes/paths";
+import { useCommerce } from "../state/CommerceContext";
 
 function navClassName(isActive: boolean) {
   return isActive ? "nav-link active" : "nav-link";
 }
 
 export function MainLayout() {
+  const { cartItemsCount } = useCommerce();
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -34,7 +37,7 @@ export function MainLayout() {
               Orders
             </NavLink>
             <NavLink to={ROUTES.cart} className="topbar-action-link">
-              Cart
+              Cart{cartItemsCount > 0 ? ` (${cartItemsCount})` : ""}
             </NavLink>
             <NavLink to={ROUTES.settings} className="topbar-action-link">
               Account

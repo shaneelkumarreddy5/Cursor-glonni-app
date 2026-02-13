@@ -1,28 +1,27 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PageIntro } from "../components/ui/PageIntro";
-import { catalogProducts } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
+import { useCommerce } from "../state/CommerceContext";
 import { formatInr } from "../utils/currency";
 
-const cartItems = [
-  { product: catalogProducts[0], quantity: 1, seller: "Nova Retail Hub" },
-  { product: catalogProducts[4], quantity: 2, seller: "Stride Sports Store" },
-  { product: catalogProducts[8], quantity: 1, seller: "Bolt Accessories" },
-];
-
 export function CartPage() {
-  const itemTotal = cartItems.reduce(
-    (sum, item) => sum + item.product.priceInr * item.quantity,
+  const navigate = useNavigate();
+  const {
+    cartItems,
+    cartItemsCount,
+    cartSubtotalInr,
+    cartCashbackTotalInr,
+    updateCartItemQuantity,
+    removeCartItem,
+  } = useCommerce();
+  const mrpTotal = cartItems.reduce(
+    (sum, item) => sum + item.unitMrpInr * item.quantity,
     0,
   );
-  const mrpTotal = cartItems.reduce((sum, item) => sum + item.product.mrpInr * item.quantity, 0);
-  const discountTotal = mrpTotal - itemTotal;
-  const deliveryFee = itemTotal > 15000 ? 0 : 99;
-  const cashbackTotal = cartItems.reduce(
-    (sum, item) => sum + item.product.cashbackInr * item.quantity,
-    0,
-  );
-  const payableAmount = itemTotal + deliveryFee;
+  const discountTotal = Math.max(0, mrpTotal - cartSubtotalInr);
+  const deliveryFee = cartItems.length > 0 && cartSubtotalInr < 15000 ? 99 : 0;
+  const payableAmount = cartSubtotalInr + deliveryFee;
+  const isCartEmpty = cartItems.length === 0;
 
   return (
     <div className="stack cart-page">
@@ -35,9 +34,14 @@ export function CartPage() {
             <Link to={ROUTES.category} className="btn btn-secondary">
               Continue shopping
             </Link>
-            <Link to={ROUTES.checkout} className="btn btn-primary">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={isCartEmpty}
+              onClick={() => navigate(ROUTES.checkout)}
+            >
               Checkout now
-            </Link>
+            </button>
           </div>
         }
       />
@@ -45,28 +49,73 @@ export function CartPage() {
       <section className="two-column">
         <article className="card">
           <header className="section-header">
-            <h2>Line items ({cartItems.length})</h2>
+            <h2>Line items ({cartItemsCount})</h2>
           </header>
-          <div className="stack-sm">
-            {cartItems.map(({ product, quantity, seller }) => (
-              <article key={product.id} className="cart-item">
-                <img src={product.imageUrl} alt={product.name} className="cart-item-image" />
-                <div className="cart-item-copy">
-                  <h3>{product.name}</h3>
-                  <p>{product.keySpecs.slice(0, 2).join(" • ")}</p>
-                  <p>Seller: {seller}</p>
-                  <p>Qty: {quantity}</p>
-                  <p className="cart-item-cashback">
-                    Cashback: {formatInr(product.cashbackInr * quantity)}
-                  </p>
-                </div>
-                <div className="cart-item-price">
-                  <strong>{formatInr(product.priceInr * quantity)}</strong>
-                  <span>{formatInr(product.mrpInr * quantity)}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+          {isCartEmpty ? (
+            <div className="stack-sm">
+              <p>Your cart is empty. Add products from category or product pages.</p>
+              <Link to={ROUTES.category} className="btn btn-primary">
+                Browse products
+              </Link>
+            </div>
+          ) : (
+            <div className="stack-sm">
+              {cartItems.map((item) => (
+                <article key={item.id} className="cart-item">
+                  <img
+                    src={item.productImageUrl}
+                    alt={item.productName}
+                    className="cart-item-image"
+                  />
+                  <div className="cart-item-copy">
+                    <h3>{item.productName}</h3>
+                    <p>{item.keySpecs.slice(0, 2).join(" • ")}</p>
+                    <p>Seller: {item.vendorName}</p>
+                    {item.selectedExtraOfferTitle ? (
+                      <p>Offer: {item.selectedExtraOfferTitle}</p>
+                    ) : null}
+                    <p className="cart-item-cashback">
+                      Cashback: {formatInr(item.unitCashbackInr * item.quantity)}
+                    </p>
+                    <div className="inline-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() =>
+                          updateCartItemQuantity(item.id, item.quantity - 1)
+                        }
+                        aria-label={`Reduce quantity for ${item.productName}`}
+                      >
+                        -
+                      </button>
+                      <span className="muted-tag">Qty {item.quantity}</span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() =>
+                          updateCartItemQuantity(item.id, item.quantity + 1)
+                        }
+                        aria-label={`Increase quantity for ${item.productName}`}
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => removeCartItem(item.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <div className="cart-item-price">
+                    <strong>{formatInr(item.unitPriceInr * item.quantity)}</strong>
+                    <span>{formatInr(item.unitMrpInr * item.quantity)}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </article>
 
         <article className="card cart-summary">
@@ -76,13 +125,15 @@ export function CartPage() {
 
           <div className="chip-row">
             <span className="chip">You save {formatInr(discountTotal)}</span>
-            <span className="chip">Estimated cashback {formatInr(cashbackTotal)}</span>
+            <span className="chip">
+              Estimated cashback {formatInr(cartCashbackTotalInr)}
+            </span>
           </div>
 
           <div className="cart-summary-list">
             <div>
               <span>Item total</span>
-              <strong>{formatInr(itemTotal)}</strong>
+              <strong>{formatInr(cartSubtotalInr)}</strong>
             </div>
             <div>
               <span>Discount</span>
@@ -94,7 +145,7 @@ export function CartPage() {
             </div>
             <div>
               <span>Cashback (after delivery)</span>
-              <strong>{formatInr(cashbackTotal)}</strong>
+              <strong>{formatInr(cartCashbackTotalInr)}</strong>
             </div>
           </div>
 
@@ -103,9 +154,14 @@ export function CartPage() {
             <strong>{formatInr(payableAmount)}</strong>
           </div>
 
-          <Link to={ROUTES.checkout} className="btn btn-primary btn-block">
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={isCartEmpty}
+            onClick={() => navigate(ROUTES.checkout)}
+          >
             Continue to Checkout
-          </Link>
+          </button>
         </article>
       </section>
     </div>

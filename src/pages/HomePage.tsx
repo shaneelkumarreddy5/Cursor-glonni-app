@@ -5,7 +5,9 @@ import {
   catalogProducts,
   homeCategoryTiles,
   topBrandHighlights,
+  type CatalogCategory,
   type CatalogProduct,
+  type HomeCategoryTile,
 } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
 import { formatInr } from "../utils/currency";
@@ -33,6 +35,19 @@ const heroSlides: HeroSlide[] = [
     imageUrl: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=1200&q=80",
   },
 ];
+
+const CATEGORY_ROUTE_MAP: Record<HomeCategoryTile["name"], CatalogCategory> = {
+  Electronics: "Mobiles",
+  Fashion: "Footwear",
+  Beauty: "Accessories",
+  Home: "Laptops",
+  Grocery: "Accessories",
+};
+
+function getCategoryRoute(categoryName: HomeCategoryTile["name"]) {
+  const mappedCategory = CATEGORY_ROUTE_MAP[categoryName];
+  return `${ROUTES.category}?category=${encodeURIComponent(mappedCategory)}`;
+}
 
 function CategoryIcon({
   icon,
@@ -105,35 +120,46 @@ function HomeSection({
 }
 
 function HomeProductCard({ product, sponsored }: { product: CatalogProduct; sponsored: boolean }) {
+  const productRoute = ROUTES.productDetail(product.id);
+
   return (
     <article className="home-product-card">
-      <div className="home-media-wrap">
-        {sponsored ? <span className="home-pill home-pill-sponsored">Sponsored</span> : null}
-        <img
-          src={product.brandLogoUrl}
-          alt={`${product.brand} logo`}
-          className="home-product-brand-logo"
-          loading="lazy"
-        />
-        <img
-          src={product.imageUrl}
-          alt={`${product.name} ${product.category} product image`}
-          className="home-media"
-          loading="lazy"
-        />
-      </div>
+      <Link to={productRoute} aria-label={`View details for ${product.name}`}>
+        <div className="home-media-wrap">
+          {sponsored ? <span className="home-pill home-pill-sponsored">Sponsored</span> : null}
+          <img
+            src={product.brandLogoUrl}
+            alt={`${product.brand} logo`}
+            className="home-product-brand-logo"
+            loading="lazy"
+          />
+          <img
+            src={product.imageUrl}
+            alt={`${product.name} ${product.category} product image`}
+            className="home-media"
+            loading="lazy"
+          />
+        </div>
+      </Link>
       <div className="home-product-copy">
         <div className="home-badge-row">
           <span className="home-pill">{product.category}</span>
           <span className="home-pill">Rating {product.rating.toFixed(1)}</span>
         </div>
-        <h3>{product.name}</h3>
+        <h3>
+          <Link to={productRoute}>{product.name}</Link>
+        </h3>
         <p className="home-spec-line">{product.keySpecs.slice(0, 2).join(" • ")}</p>
         <div className="home-price-row">
           <strong>{formatInr(product.priceInr)}</strong>
           <span>{formatInr(product.mrpInr)}</span>
         </div>
         <span className="home-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
+        <div className="inline-actions">
+          <Link to={productRoute} className="btn btn-secondary">
+            View details
+          </Link>
+        </div>
       </div>
     </article>
   );
@@ -188,13 +214,18 @@ export function HomePage() {
       <HomeSection title="Shop by category" subtitle="Jump into focused shopping lanes in one click.">
         <div className="home-category-grid" role="list" aria-label="Category cards">
           {homeCategoryTiles.map((category) => (
-            <article key={category.name} className="home-category-card" role="listitem">
+            <Link
+              key={category.name}
+              to={getCategoryRoute(category.name)}
+              className="home-category-card"
+              role="listitem"
+            >
               <span className="home-category-icon-wrap" aria-hidden="true">
                 <CategoryIcon icon={category.icon} />
               </span>
               <h3>{category.name}</h3>
               <p>{category.itemCount}</p>
-            </article>
+            </Link>
           ))}
         </div>
       </HomeSection>
