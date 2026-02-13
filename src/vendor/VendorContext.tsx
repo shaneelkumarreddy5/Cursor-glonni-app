@@ -124,6 +124,30 @@ export type VendorRtoCase = {
   updatedAtIso: string;
 };
 
+export type VendorAdType = "Sponsored Product" | "Sponsored Category";
+export type VendorAdStatus = "Active" | "Expired";
+
+export type VendorAd = {
+  id: string;
+  type: VendorAdType;
+  productId: string | null;
+  productName: string | null;
+  category: VendorProductPayload["category"] | null;
+  durationDays: number;
+  budgetInr: number;
+  fixedPriceInr: number;
+  perDayRateInr: number;
+  startedAtIso: string;
+};
+
+export type VendorAdPayload = {
+  type: VendorAdType;
+  productId: string | null;
+  category: VendorProductPayload["category"] | null;
+  durationDays: number;
+  budgetInr: number;
+};
+
 export type VendorWalletEntryStatus = "Pending" | "Available" | "Adjusted";
 
 export type VendorWalletEntry = {
@@ -156,6 +180,11 @@ type VendorWalletSummary = {
   adjustmentsInr: number;
 };
 
+type VendorAdMutationResult = {
+  ok: boolean;
+  message: string;
+};
+
 type VendorContextValue = {
   isLoggedIn: boolean;
   vendorName: string;
@@ -168,6 +197,7 @@ type VendorContextValue = {
   vendorOrders: VendorOrder[];
   vendorReturnCases: VendorReturnCase[];
   vendorRtoCases: VendorRtoCase[];
+  vendorAds: VendorAd[];
   walletEntries: VendorWalletEntry[];
   walletSummary: VendorWalletSummary;
   lastSettledAmountInr: number;
@@ -192,6 +222,14 @@ type VendorContextValue = {
     orderId: string,
     nextStatus: VendorOrderStatus,
   ) => VendorOrderMutationResult;
+  createVendorAd: (payload: VendorAdPayload) => VendorAdMutationResult;
+  getVendorAdStatus: (ad: VendorAd) => VendorAdStatus;
+  getVendorAdAmountSpent: (ad: VendorAd) => number;
+  getVendorAdRemainingDays: (ad: VendorAd) => number;
+  getVendorProductVisibilityPriority: (
+    productId: string,
+    category: VendorProductPayload["category"],
+  ) => number;
   approveVendor: () => void;
   logoutVendor: () => void;
   setVendorStatus: (status: VendorStatus) => void;
@@ -203,6 +241,10 @@ const MOCK_LAST_SETTLED_AMOUNT_INR = 38640;
 const MOCK_NEXT_SETTLEMENT_DATE_ISO = new Date(
   Date.now() + 2 * 24 * 60 * 60 * 1000,
 ).toISOString();
+const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
+  "Sponsored Product": 120,
+  "Sponsored Category": 240,
+};
 
 const CATEGORY_PRICE_BENCHMARKS: Record<
   VendorProductPayload["category"],
@@ -223,6 +265,31 @@ const ORDER_STATUS_SEQUENCE: VendorOrderStatus[] = [
 
 function createVendorProductId() {
   return `VPRD-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function createVendorAdId() {
+  return `VAD-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function getVendorAdStatus(ad: VendorAd, now = new Date()): VendorAdStatus {
+  const adEndDateMs =
+    new Date(ad.startedAtIso).getTime() + ad.durationDays * 24 * 60 * 60 * 1000;
+  return now.getTime() < adEndDateMs ? "Active" : "Expired";
+}
+
+function getVendorAdRemainingDays(ad: VendorAd, now = new Date()) {
+  const adEndDateMs =
+    new Date(ad.startedAtIso).getTime() + ad.durationDays * 24 * 60 * 60 * 1000;
+  const remainingMs = adEndDateMs - now.getTime();
+  return Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+}
+
+function getVendorAdAmountSpent(ad: VendorAd, now = new Date()) {
+  const startedMs = new Date(ad.startedAtIso).getTime();
+  const elapsedMs = Math.max(0, now.getTime() - startedMs);
+  const elapsedDays = Math.ceil(elapsedMs / (24 * 60 * 60 * 1000));
+  const billableDays = Math.min(ad.durationDays, elapsedDays);
+  return Math.min(ad.fixedPriceInr, billableDays * ad.perDayRateInr);
 }
 
 function normalizeSpecifications(specifications: VendorProductSpecification[]) {
@@ -438,6 +505,50 @@ function createSeedVendorRtoCases(): VendorRtoCase[] {
   ];
 }
 
+function createSeedVendorAds(products: VendorProduct[]): VendorAd[] {
+  const now = Date.now();
+  const liveProduct = products.find((product) => product.status === "Live") ?? null;
+  const reviewProduct =
+    products.find((product) => product.status === "Under Review") ?? null;
+
+  const activeProductStartedAtIso = new Date(
+    now - 2 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const expiredCategoryStartedAtIso = new Date(
+    now - 12 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const activeProductPerDay = VENDOR_AD_DAILY_RATES_INR["Sponsored Product"];
+  const expiredCategoryPerDay = VENDOR_AD_DAILY_RATES_INR["Sponsored Category"];
+
+  return [
+    {
+      id: "VAD-110220",
+      type: "Sponsored Product",
+      productId: liveProduct?.id ?? reviewProduct?.id ?? null,
+      productName: liveProduct?.productName ?? reviewProduct?.productName ?? null,
+      category: liveProduct?.category ?? reviewProduct?.category ?? null,
+      durationDays: 7,
+      budgetInr: 1200,
+      fixedPriceInr: activeProductPerDay * 7,
+      perDayRateInr: activeProductPerDay,
+      startedAtIso: activeProductStartedAtIso,
+    },
+    {
+      id: "VAD-110347",
+      type: "Sponsored Category",
+      productId: null,
+      productName: null,
+      category: "Mobiles",
+      durationDays: 5,
+      budgetInr: 1800,
+      fixedPriceInr: expiredCategoryPerDay * 5,
+      perDayRateInr: expiredCategoryPerDay,
+      startedAtIso: expiredCategoryStartedAtIso,
+    },
+  ];
+}
+
 function createSeedWalletAdjustments(
   orders: VendorOrder[],
   returnCases: VendorReturnCase[],
@@ -562,9 +673,11 @@ function getPayloadValidationError(payload: VendorProductPayload) {
   return getBenchmarkValidationError(payload);
 }
 
+const SEEDED_VENDOR_PRODUCTS = createSeedVendorProducts();
 const SEEDED_VENDOR_ORDERS = createSeedVendorOrders();
 const SEEDED_VENDOR_RETURN_CASES = createSeedVendorReturnCases(SEEDED_VENDOR_ORDERS);
 const SEEDED_VENDOR_RTO_CASES = createSeedVendorRtoCases();
+const SEEDED_VENDOR_ADS = createSeedVendorAds(SEEDED_VENDOR_PRODUCTS);
 const SEEDED_WALLET_ADJUSTMENTS = createSeedWalletAdjustments(
   SEEDED_VENDOR_ORDERS,
   SEEDED_VENDOR_RETURN_CASES,
@@ -580,7 +693,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [vendorProducts, setVendorProducts] =
-    useState<VendorProduct[]>(createSeedVendorProducts);
+    useState<VendorProduct[]>(SEEDED_VENDOR_PRODUCTS);
+  const [vendorAds, setVendorAds] = useState<VendorAd[]>(SEEDED_VENDOR_ADS);
   const [vendorOrders, setVendorOrders] =
     useState<VendorOrder[]>(SEEDED_VENDOR_ORDERS);
   const [vendorReturnCases, setVendorReturnCases] =
@@ -875,6 +989,88 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     return { ok: true, message: `Order moved to ${nextStatus}.` };
   }
 
+  function createVendorAd(payload: VendorAdPayload): VendorAdMutationResult {
+    if (payload.durationDays <= 0) {
+      return { ok: false, message: "Duration must be at least 1 day." };
+    }
+
+    if (payload.budgetInr <= 0) {
+      return { ok: false, message: "Budget must be greater than ₹0." };
+    }
+
+    if (payload.type === "Sponsored Product" && !payload.productId) {
+      return { ok: false, message: "Select a product for Sponsored Product ad." };
+    }
+
+    if (payload.type === "Sponsored Category" && !payload.category) {
+      return { ok: false, message: "Select a category for Sponsored Category ad." };
+    }
+
+    const perDayRateInr = VENDOR_AD_DAILY_RATES_INR[payload.type];
+    const fixedPriceInr = perDayRateInr * payload.durationDays;
+
+    if (payload.budgetInr < fixedPriceInr) {
+      return {
+        ok: false,
+        message: `Budget is lower than fixed pricing (${formatInr(fixedPriceInr)}).`,
+      };
+    }
+
+    const selectedProduct =
+      payload.productId !== null
+        ? vendorProducts.find((product) => product.id === payload.productId) ?? null
+        : null;
+
+    const nowIso = new Date().toISOString();
+    const nextAd: VendorAd = {
+      id: createVendorAdId(),
+      type: payload.type,
+      productId: payload.type === "Sponsored Product" ? payload.productId : null,
+      productName:
+        payload.type === "Sponsored Product" ? selectedProduct?.productName ?? null : null,
+      category:
+        payload.type === "Sponsored Product"
+          ? selectedProduct?.category ?? payload.category
+          : payload.category,
+      durationDays: payload.durationDays,
+      budgetInr: payload.budgetInr,
+      fixedPriceInr,
+      perDayRateInr,
+      startedAtIso: nowIso,
+    };
+
+    setVendorAds((currentAds) => [nextAd, ...currentAds]);
+    return { ok: true, message: "Ad created successfully." };
+  }
+
+  function getVendorProductVisibilityPriority(
+    productId: string,
+    category: VendorProductPayload["category"],
+  ) {
+    const now = new Date();
+    const hasActiveProductAd = vendorAds.some(
+      (ad) =>
+        ad.type === "Sponsored Product" &&
+        ad.productId === productId &&
+        getVendorAdStatus(ad, now) === "Active",
+    );
+    if (hasActiveProductAd) {
+      return 2;
+    }
+
+    const hasActiveCategoryAd = vendorAds.some(
+      (ad) =>
+        ad.type === "Sponsored Category" &&
+        ad.category === category &&
+        getVendorAdStatus(ad, now) === "Active",
+    );
+    if (hasActiveCategoryAd) {
+      return 1;
+    }
+
+    return 0;
+  }
+
   function approveVendor() {
     setVendorStatus("Approved");
   }
@@ -992,6 +1188,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       vendorOrders,
       vendorReturnCases,
       vendorRtoCases,
+      vendorAds,
       walletEntries,
       walletSummary,
       lastSettledAmountInr: MOCK_LAST_SETTLED_AMOUNT_INR,
@@ -1003,6 +1200,11 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       approveVendorProduct,
       rejectVendorProduct,
       updateVendorOrderStatus,
+      createVendorAd,
+      getVendorAdStatus,
+      getVendorAdAmountSpent,
+      getVendorAdRemainingDays,
+      getVendorProductVisibilityPriority,
       approveVendor,
       logoutVendor,
       setVendorStatus,
@@ -1013,6 +1215,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       summaryMetrics,
       walletEntries,
       walletSummary,
+      vendorAds,
       vendorOrders,
       vendorReturnCases,
       vendorRtoCases,

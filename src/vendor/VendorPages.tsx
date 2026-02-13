@@ -10,6 +10,9 @@ import { formatInr } from "../utils/currency";
 import { VendorLayout } from "./VendorLayout";
 import {
   VendorProvider,
+  type VendorAdPayload,
+  type VendorAdType,
+  type VendorAdStatus,
   type VendorOnboardingData,
   type VendorOrder,
   type VendorOrderStatus,
@@ -48,6 +51,16 @@ const EXTRA_OFFER_TYPES: VendorProductExtraOfferType[] = [
   "Discount",
   "Coupon",
 ];
+
+const VENDOR_AD_TYPES: VendorAdType[] = [
+  "Sponsored Product",
+  "Sponsored Category",
+];
+
+const VENDOR_AD_DAILY_RATES_INR: Record<VendorAdType, number> = {
+  "Sponsored Product": 120,
+  "Sponsored Category": 240,
+};
 
 function VendorSectionHeader({
   title,
@@ -568,6 +581,7 @@ export function VendorProductsPage() {
     updateVendorProduct,
     approveVendorProduct,
     rejectVendorProduct,
+    getVendorProductVisibilityPriority,
   } = useVendor();
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -584,10 +598,12 @@ export function VendorProductsPage() {
     () =>
       [...vendorProducts].sort(
         (first, second) =>
+          getVendorProductVisibilityPriority(second.id, second.category) -
+            getVendorProductVisibilityPriority(first.id, first.category) ||
           new Date(second.updatedAtIso).getTime() -
-          new Date(first.updatedAtIso).getTime(),
+            new Date(first.updatedAtIso).getTime(),
       ),
-    [vendorProducts],
+    [getVendorProductVisibilityPriority, vendorProducts],
   );
 
   const statusCounts = useMemo(() => {
@@ -986,6 +1002,9 @@ export function VendorProductsPage() {
                 <div className="vendor-product-copy">
                   <div className="vendor-product-heading">
                     <h3>{product.productName}</h3>
+                    {getVendorProductVisibilityPriority(product.id, product.category) > 0 ? (
+                      <span className="vendor-sponsored-tag">Sponsored</span>
+                    ) : null}
                     <span className={getProductStatusClass(product.status)}>
                       {product.status}
                     </span>
@@ -1473,11 +1492,216 @@ export function VendorWalletPage() {
 }
 
 export function VendorAdsPage() {
+  const {
+    vendorProducts,
+    vendorAds,
+    createVendorAd,
+    getVendorAdStatus,
+    getVendorAdAmountSpent,
+    getVendorAdRemainingDays,
+  } = useVendor();
+  const [adType, setAdType] = useState<VendorAdType>("Sponsored Product");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] =
+    useState<VendorProductPayload["category"]>("Mobiles");
+  const [durationDaysInput, setDurationDaysInput] = useState("7");
+  const [budgetInput, setBudgetInput] = useState("1500");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const adEligibleProducts = useMemo(
+    () => vendorProducts.filter((product) => product.status !== "Rejected"),
+    [vendorProducts],
+  );
+  const fixedPricePreviewInr =
+    (Number.isNaN(Number(durationDaysInput)) ? 0 : Number(durationDaysInput)) *
+    VENDOR_AD_DAILY_RATES_INR[adType];
+
+  const sortedAds = useMemo(
+    () =>
+      [...vendorAds].sort(
+        (first, second) =>
+          new Date(second.startedAtIso).getTime() -
+          new Date(first.startedAtIso).getTime(),
+      ),
+    [vendorAds],
+  );
+
+  function handleCreateAd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const durationDays = Number(durationDaysInput);
+    const budgetInr = Number(budgetInput);
+
+    if (Number.isNaN(durationDays) || Number.isNaN(budgetInr)) {
+      setFeedbackMessage("Enter valid numeric values for duration and budget.");
+      return;
+    }
+
+    const payload: VendorAdPayload = {
+      type: adType,
+      productId: adType === "Sponsored Product" ? selectedProductId || null : null,
+      category: adType === "Sponsored Category" ? selectedCategory : null,
+      durationDays,
+      budgetInr,
+    };
+    const result = createVendorAd(payload);
+    setFeedbackMessage(result.message);
+
+    if (result.ok) {
+      setAdType("Sponsored Product");
+      setSelectedProductId("");
+      setSelectedCategory("Mobiles");
+      setDurationDaysInput("7");
+      setBudgetInput("1500");
+    }
+  }
+
   return (
-    <VendorPlaceholderPage
-      title="Ads"
-      description="Create and monitor ads across product placements."
-    />
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Ads & Sponsored Products"
+        description="Ads impact product/category visibility only. Pricing and cashback logic remain unchanged."
+      />
+
+      {feedbackMessage ? (
+        <section className="vendor-placeholder-card">
+          <p className="vendor-auth-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="vendor-ads-grid">
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>Active Ads</h2>
+          </header>
+          <div className="stack-sm">
+            {sortedAds.map((ad) => {
+              const adStatus: VendorAdStatus = getVendorAdStatus(ad);
+              const spentInr = getVendorAdAmountSpent(ad);
+              const remainingDays = getVendorAdRemainingDays(ad);
+
+              return (
+                <article key={ad.id} className="vendor-ad-row">
+                  <div className="vendor-ad-heading">
+                    <h3>{ad.id}</h3>
+                    <span
+                      className={
+                        adStatus === "Active"
+                          ? "vendor-ad-status-badge vendor-ad-status-active"
+                          : "vendor-ad-status-badge vendor-ad-status-expired"
+                      }
+                    >
+                      {adStatus}
+                    </span>
+                  </div>
+                  <p>
+                    Type: {ad.type}
+                    {ad.type === "Sponsored Product"
+                      ? ` • Product: ${ad.productName ?? "Unknown"}`
+                      : ` • Category: ${ad.category ?? "Unknown"}`}
+                  </p>
+                  <p>
+                    Budget: {formatInr(ad.budgetInr)} • Fixed pricing: {formatInr(ad.fixedPriceInr)}
+                  </p>
+                  <p>
+                    Amount spent: {formatInr(spentInr)} • Remaining days: {remainingDays}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="vendor-placeholder-card">
+          <header className="section-header">
+            <h2>Create New Ad</h2>
+          </header>
+          <form className="vendor-onboarding-form" onSubmit={handleCreateAd}>
+            <label className="field">
+              Ad Type
+              <select
+                value={adType}
+                onChange={(event) => setAdType(event.target.value as VendorAdType)}
+                className="order-select"
+              >
+                {VENDOR_AD_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {adType === "Sponsored Product" ? (
+              <label className="field">
+                Select Product
+                <select
+                  value={selectedProductId}
+                  onChange={(event) => setSelectedProductId(event.target.value)}
+                  className="order-select"
+                >
+                  <option value="">Select product</option>
+                  {adEligibleProducts.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.productName} ({product.category})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="field">
+                Select Category
+                <select
+                  value={selectedCategory}
+                  onChange={(event) =>
+                    setSelectedCategory(event.target.value as VendorProductPayload["category"])
+                  }
+                  className="order-select"
+                >
+                  {PRODUCT_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <div className="vendor-onboarding-grid">
+              <label className="field">
+                Duration (days)
+                <input
+                  type="number"
+                  min={1}
+                  value={durationDaysInput}
+                  onChange={(event) => setDurationDaysInput(event.target.value)}
+                />
+              </label>
+
+              <label className="field">
+                Budget (₹)
+                <input
+                  type="number"
+                  min={1}
+                  value={budgetInput}
+                  onChange={(event) => setBudgetInput(event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="vendor-ad-pricing-box">
+              <p>
+                Fixed pricing: {formatInr(VENDOR_AD_DAILY_RATES_INR[adType])} per day
+              </p>
+              <p>Total fixed cost before confirmation: {formatInr(fixedPricePreviewInr)}</p>
+            </div>
+
+            <button type="submit" className="btn btn-primary">
+              Confirm & Create Ad
+            </button>
+          </form>
+        </article>
+      </section>
+    </div>
   );
 }
 
