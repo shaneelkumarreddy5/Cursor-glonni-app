@@ -53,15 +53,23 @@ export function OrderSuccessPage() {
       />
 
       <section className="card order-success-card">
-        <div className="order-success-status">Payment received</div>
+        <div className="order-success-status">
+          {placedOrder.paymentPending ? "COD payment pending" : "Payment received"}
+        </div>
         <h2>Order ID: {placedOrder.id}</h2>
         <p>Placed on: {formatOrderDate(placedOrder.placedAtIso)}</p>
         <p>Payment method: {placedOrder.paymentMethodTitle}</p>
+        <p>
+          Payment status:{" "}
+          {placedOrder.paymentPending ? "Pending collection" : "Completed"}
+        </p>
         <p>Items: {itemCount}</p>
         <p>Final payable: {formatInr(placedOrder.payableAmountInr)}</p>
         <p className="order-success-cashback">
-          {formatInr(placedOrder.cashbackPendingInr)} cashback is pending and linked to
-          this order.
+          {formatInr(placedOrder.cashbackPendingInr)} cashback is linked to this order.
+          {placedOrder.paymentMethodId === "cod"
+            ? " Cashback is pending until delivery completion."
+            : " Cashback will be credited after return window."}
         </p>
 
         <div className="chip-row">

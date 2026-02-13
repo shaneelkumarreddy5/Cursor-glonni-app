@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -16,6 +17,8 @@ import {
 import { catalogProducts, type CatalogProduct } from "../data/mockCatalog";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const COD_ORDER_LIMIT_INR = 5000;
+const USER_COD_ELIGIBILITY_FLAG = true;
 
 export type OrderFulfillmentStatus =
   | "Ordered"
@@ -72,6 +75,8 @@ export type OrderRecord = {
   addressSnapshot: MockAddress;
   paymentMethodId: PaymentMethodId;
   paymentMethodTitle: string;
+  paymentPending: boolean;
+  paymentCompletedAtIso: string | null;
   returnWindowDays: number;
   deliveredAtIso: string | null;
   returnWindowClosed: boolean;
@@ -115,12 +120,16 @@ type CommerceContextValue = {
   pendingCashbackTotalInr: number;
   onHoldCashbackTotalInr: number;
   confirmedCashbackTotalInr: number;
+  userCodEligibilityFlag: boolean;
+  codOrderLimitInr: number;
   addToCart: (payload: AddToCartPayload) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   removeCartItem: (itemId: string) => void;
   setSelectedAddressId: (addressId: string) => void;
   setSelectedPaymentMethodId: (methodId: PaymentMethodId) => void;
   placeOrder: (options: PlaceOrderOptions) => OrderRecord | null;
+  markOrderShipped: (orderId: string) => OrderActionResult;
+  markOrderDelivered: (orderId: string) => OrderActionResult;
   cancelOrder: (
     orderId: string,
     reason: string,
@@ -177,6 +186,15 @@ function resolveRefundMethod(
   return paymentMethodId === "cod" ? "Glonni Wallet" : "Original payment method";
 }
 
+function getReturnDeadlineMs(order: OrderRecord): number | null {
+  if (!order.deliveredAtIso) {
+    return null;
+  }
+
+  const deliveredAtMs = new Date(order.deliveredAtIso).getTime();
+  return deliveredAtMs + order.returnWindowDays * DAY_IN_MS;
+}
+
 function isReturnWindowOpen(order: OrderRecord, now = new Date()): boolean {
   if (
     order.fulfillmentStatus !== "Delivered" ||
@@ -186,9 +204,68 @@ function isReturnWindowOpen(order: OrderRecord, now = new Date()): boolean {
     return false;
   }
 
-  const deliveredAtMs = new Date(order.deliveredAtIso).getTime();
-  const returnDeadlineMs = deliveredAtMs + order.returnWindowDays * DAY_IN_MS;
-  return now.getTime() <= returnDeadlineMs;
+  const deadlineMs = getReturnDeadlineMs(order);
+  if (!deadlineMs) {
+    return false;
+  }
+
+  return now.getTime() <= deadlineMs;
+}
+
+function hasReturnWindowExpired(order: OrderRecord, now = new Date()): boolean {
+  if (
+    order.fulfillmentStatus !== "Delivered" ||
+    order.returnWindowClosed ||
+    !order.deliveredAtIso
+  ) {
+    return false;
+  }
+
+  const deadlineMs = getReturnDeadlineMs(order);
+  if (!deadlineMs) {
+    return false;
+  }
+
+  return now.getTime() > deadlineMs;
+}
+
+function applyOrderPolicyTransitions(order: OrderRecord, now = new Date()): OrderRecord {
+  let nextOrder = order;
+
+  if (
+    nextOrder.fulfillmentStatus === "Delivered" &&
+    nextOrder.paymentMethodId === "cod" &&
+    nextOrder.paymentPending
+  ) {
+    nextOrder = {
+      ...nextOrder,
+      paymentPending: false,
+      paymentCompletedAtIso: now.toISOString(),
+    };
+  }
+
+  const shouldAutoClose = hasReturnWindowExpired(nextOrder, now);
+  if (shouldAutoClose) {
+    nextOrder = {
+      ...nextOrder,
+      returnWindowClosed: true,
+      cashbackStatus:
+        nextOrder.cashbackStatus === "Pending"
+          ? "Confirmed"
+          : nextOrder.cashbackStatus,
+    };
+  } else if (
+    nextOrder.fulfillmentStatus === "Delivered" &&
+    nextOrder.returnWindowClosed &&
+    nextOrder.cashbackStatus === "Pending"
+  ) {
+    nextOrder = {
+      ...nextOrder,
+      cashbackStatus: "Confirmed",
+    };
+  }
+
+  return nextOrder;
 }
 
 function createSeedOrders(): OrderRecord[] {
@@ -285,6 +362,8 @@ function createSeedOrders(): OrderRecord[] {
       addressSnapshot: mockAddresses[0],
       paymentMethodId: "upi",
       paymentMethodTitle: "UPI",
+      paymentPending: false,
+      paymentCompletedAtIso: orderedAtIso,
       returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
       deliveredAtIso: null,
       returnWindowClosed: false,
@@ -315,6 +394,8 @@ function createSeedOrders(): OrderRecord[] {
       addressSnapshot: mockAddresses[1],
       paymentMethodId: "card",
       paymentMethodTitle: "Credit / Debit Card",
+      paymentPending: false,
+      paymentCompletedAtIso: shippedAtIso,
       returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
       deliveredAtIso: null,
       returnWindowClosed: false,
@@ -345,6 +426,8 @@ function createSeedOrders(): OrderRecord[] {
       addressSnapshot: mockAddresses[1],
       paymentMethodId: "cod",
       paymentMethodTitle: "Cash on Delivery",
+      paymentPending: false,
+      paymentCompletedAtIso: deliveredAtIso,
       returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
       deliveredAtIso,
       returnWindowClosed: false,
@@ -371,6 +454,26 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] =
     useState<PaymentMethodId>("upi");
   const [lastPlacedOrderId, setLastPlacedOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const refreshOrders = () => {
+      setOrders((currentOrders) => {
+        let hasChanges = false;
+        const nextOrders = currentOrders.map((order) => {
+          const updated = applyOrderPolicyTransitions(order);
+          if (updated !== order) {
+            hasChanges = true;
+          }
+          return updated;
+        });
+        return hasChanges ? nextOrders : currentOrders;
+      });
+    };
+
+    refreshOrders();
+    const intervalHandle = window.setInterval(refreshOrders, 30_000);
+    return () => window.clearInterval(intervalHandle);
+  }, []);
 
   const cartItemsCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -517,6 +620,9 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       addressSnapshot: selectedAddress,
       paymentMethodId: selectedPaymentMethod.id,
       paymentMethodTitle: selectedPaymentMethod.title,
+      paymentPending: selectedPaymentMethod.id === "cod",
+      paymentCompletedAtIso:
+        selectedPaymentMethod.id === "cod" ? null : now.toISOString(),
       returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
       deliveredAtIso: null,
       returnWindowClosed: false,
@@ -538,6 +644,70 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     setLastPlacedOrderId(order.id);
     setCartItems([]);
     return order;
+  }
+
+  function markOrderShipped(orderId: string): OrderActionResult {
+    const targetOrder = orders.find((order) => order.id === orderId);
+
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (targetOrder.fulfillmentStatus !== "Ordered") {
+      return {
+        ok: false,
+        message: "Only ordered items can be marked as shipped.",
+      };
+    }
+
+    const updatedOrder: OrderRecord = {
+      ...targetOrder,
+      fulfillmentStatus: "Shipped",
+    };
+
+    setOrders((existingOrders) =>
+      existingOrders.map((order) => (order.id === orderId ? updatedOrder : order)),
+    );
+
+    return { ok: true, message: "Order moved to shipped status." };
+  }
+
+  function markOrderDelivered(orderId: string): OrderActionResult {
+    const targetOrder = orders.find((order) => order.id === orderId);
+
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (targetOrder.fulfillmentStatus !== "Shipped") {
+      return {
+        ok: false,
+        message: "Only shipped items can be marked as delivered.",
+      };
+    }
+
+    const now = new Date();
+    const updatedOrder = applyOrderPolicyTransitions(
+      {
+        ...targetOrder,
+        fulfillmentStatus: "Delivered",
+        deliveredAtIso: now.toISOString(),
+        returnWindowClosed: false,
+      },
+      now,
+    );
+
+    setOrders((existingOrders) =>
+      existingOrders.map((order) => (order.id === orderId ? updatedOrder : order)),
+    );
+
+    return {
+      ok: true,
+      message:
+        updatedOrder.paymentMethodId === "cod"
+          ? "Order delivered. COD payment marked as completed."
+          : "Order delivered successfully.",
+    };
   }
 
   function cancelOrder(
@@ -601,13 +771,11 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     }
 
     const nowIso = new Date().toISOString();
-    const updatedCashbackStatus: OrderCashbackStatus =
-      targetOrder.cashbackStatus === "Cancelled" ? "Cancelled" : "On Hold";
-
     const updatedOrder: OrderRecord = {
       ...targetOrder,
       fulfillmentStatus: "Return Requested",
-      cashbackStatus: updatedCashbackStatus,
+      cashbackStatus:
+        targetOrder.cashbackStatus === "Cancelled" ? "Cancelled" : "On Hold",
       returnWindowClosed: true,
       refundStatus: "Refund Initiated",
       refundMethod: resolveRefundMethod(targetOrder.paymentMethodId),
@@ -681,12 +849,16 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       pendingCashbackTotalInr,
       onHoldCashbackTotalInr,
       confirmedCashbackTotalInr,
+      userCodEligibilityFlag: USER_COD_ELIGIBILITY_FLAG,
+      codOrderLimitInr: COD_ORDER_LIMIT_INR,
       addToCart,
       updateCartItemQuantity,
       removeCartItem,
       setSelectedAddressId,
       setSelectedPaymentMethodId,
       placeOrder,
+      markOrderShipped,
+      markOrderDelivered,
       cancelOrder,
       requestReturn,
       confirmNoReturn,

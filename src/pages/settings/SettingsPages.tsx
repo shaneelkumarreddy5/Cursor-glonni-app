@@ -56,6 +56,44 @@ function getStatusClass(orderStatus: OrderRecord["fulfillmentStatus"]) {
   return "order-status-badge order-status-return-requested";
 }
 
+function getPaymentBadgeClass(order: OrderRecord) {
+  return order.paymentMethodId === "cod"
+    ? "payment-method-badge payment-method-cod"
+    : "payment-method-badge payment-method-online";
+}
+
+function getCashbackStatusClass(order: OrderRecord) {
+  if (order.cashbackStatus === "Pending") {
+    return "cashback-status-badge cashback-status-pending";
+  }
+  if (order.cashbackStatus === "On Hold") {
+    return "cashback-status-badge cashback-status-on-hold";
+  }
+  if (order.cashbackStatus === "Confirmed") {
+    return "cashback-status-badge cashback-status-confirmed";
+  }
+  return "cashback-status-badge cashback-status-cancelled";
+}
+
+function getCashbackStatusHelpText(order: OrderRecord) {
+  if (order.cashbackStatus === "Pending") {
+    if (order.fulfillmentStatus !== "Delivered") {
+      return "Cashback is pending until delivery completion.";
+    }
+    return "Cashback will be credited after return window.";
+  }
+
+  if (order.cashbackStatus === "On Hold") {
+    return "Cashback is on hold until return request resolution.";
+  }
+
+  if (order.cashbackStatus === "Confirmed") {
+    return "Cashback will be credited after return window.";
+  }
+
+  return "Cashback is cancelled for this order.";
+}
+
 function getReturnWindowState(order: OrderRecord) {
   if (!order.deliveredAtIso) {
     return {
@@ -127,6 +165,20 @@ function getReturnDisabledTooltip(order: OrderRecord) {
   return "";
 }
 
+function getMarkShippedTooltip(order: OrderRecord) {
+  if (order.fulfillmentStatus === "Ordered") {
+    return "";
+  }
+  return "Only ordered status can move to shipped.";
+}
+
+function getMarkDeliveredTooltip(order: OrderRecord) {
+  if (order.fulfillmentStatus === "Shipped") {
+    return "";
+  }
+  return "Only shipped status can move to delivered.";
+}
+
 export function SettingsOverviewPage() {
   const { orders, pendingCashbackTotalInr, cartItemsCount } = useCommerce();
   const activeOrders = orders.filter((order) =>
@@ -164,7 +216,14 @@ export function SettingsOverviewPage() {
 }
 
 export function OrdersSettingsPage() {
-  const { orders, cancelOrder, requestReturn, confirmNoReturn } = useCommerce();
+  const {
+    orders,
+    cancelOrder,
+    requestReturn,
+    confirmNoReturn,
+    markOrderShipped,
+    markOrderDelivered,
+  } = useCommerce();
   const [activeAction, setActiveAction] = useState<{
     orderId: string;
     mode: ActionMode;
@@ -227,6 +286,14 @@ export function OrdersSettingsPage() {
     }
   }
 
+  function runOrderLifecycleAction(order: OrderRecord, action: "ship" | "deliver") {
+    const result =
+      action === "ship"
+        ? markOrderShipped(order.id)
+        : markOrderDelivered(order.id);
+    setFeedbackMessage(result.message);
+  }
+
   const sortedOrders = useMemo(
     () =>
       [...orders].sort(
@@ -256,6 +323,8 @@ export function OrdersSettingsPage() {
           sortedOrders.map((order) => {
             const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
             const canCancel = order.fulfillmentStatus === "Ordered";
+            const canMarkShipped = order.fulfillmentStatus === "Ordered";
+            const canMarkDelivered = order.fulfillmentStatus === "Shipped";
             const returnWindow = getReturnWindowState(order);
             const canReturnOrReplace = returnWindow.isOpen;
             const canNoReturn = returnWindow.isOpen;
@@ -271,15 +340,23 @@ export function OrdersSettingsPage() {
                       <span className={getStatusClass(order.fulfillmentStatus)}>
                         {order.fulfillmentStatus}
                       </span>
+                      <span className={getPaymentBadgeClass(order)}>
+                        {order.paymentMethodId === "cod" ? "COD" : "Online"}
+                      </span>
                     </div>
                     <p>Date: {formatOrderDate(order.placedAtIso)}</p>
+                    <p>Items: {itemCount}</p>
                     <p>
-                      Items: {itemCount} • Payment: {order.paymentMethodTitle}
+                      Payment: {order.paymentMethodTitle} •{" "}
+                      {order.paymentPending ? "Pending collection" : "Completed"}
                     </p>
                     <p>
-                      Cashback: {formatInr(order.cashbackPendingInr)} (
-                      {order.cashbackStatus})
+                      Cashback: {formatInr(order.cashbackPendingInr)}{" "}
+                      <span className={getCashbackStatusClass(order)}>
+                        {order.cashbackStatus}
+                      </span>
                     </p>
+                    <p>{getCashbackStatusHelpText(order)}</p>
                     {order.fulfillmentStatus === "Delivered" &&
                     returnWindow.deadlineLabel ? (
                       <p>
@@ -309,6 +386,24 @@ export function OrdersSettingsPage() {
                   <div className="order-price-col">
                     <strong>{formatInr(order.payableAmountInr)}</strong>
                     <div className="order-action-row">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={!canMarkShipped}
+                        title={!canMarkShipped ? getMarkShippedTooltip(order) : "Mark as shipped"}
+                        onClick={() => runOrderLifecycleAction(order, "ship")}
+                      >
+                        Mark Shipped
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={!canMarkDelivered}
+                        title={!canMarkDelivered ? getMarkDeliveredTooltip(order) : "Mark as delivered"}
+                        onClick={() => runOrderLifecycleAction(order, "deliver")}
+                      >
+                        Mark Delivered
+                      </button>
                       <button
                         type="button"
                         className="btn btn-secondary"
@@ -528,6 +623,18 @@ export function WalletSettingsPage() {
     (first, second) =>
       new Date(second.placedAtIso).getTime() - new Date(first.placedAtIso).getTime(),
   );
+  const pendingCodOrders = cashbackEntries.filter(
+    (order) => order.cashbackStatus === "Pending" && order.paymentMethodId === "cod",
+  );
+  const pendingNonCodOrders = cashbackEntries.filter(
+    (order) => order.cashbackStatus === "Pending" && order.paymentMethodId !== "cod",
+  );
+  const confirmedOrders = cashbackEntries.filter(
+    (order) => order.cashbackStatus === "Confirmed",
+  );
+  const onHoldOrders = cashbackEntries.filter(
+    (order) => order.cashbackStatus === "On Hold",
+  );
 
   return (
     <div className="stack settings-page">
@@ -551,41 +658,99 @@ export function WalletSettingsPage() {
           <p>{formatInr(onHoldCashbackTotalInr)}</p>
         </article>
         <article>
-          <h3>Confirmed (scheduled)</h3>
+          <h3>Confirmed cashback</h3>
           <p>{formatInr(confirmedCashbackTotalInr)}</p>
         </article>
       </section>
 
-      <section className="card settings-list">
-        {cashbackEntries.map((order) => (
-          <article key={order.id} className="settings-list-row">
-            <div>
-              <h3>Cashback for {order.id}</h3>
-              <p>Order status: {order.fulfillmentStatus}</p>
-              <p>
-                Cashback status: {order.cashbackStatus}
-                {order.cashbackStatus === "Cancelled"
-                  ? " (not eligible)"
-                  : order.cashbackStatus === "Confirmed"
-                    ? " (will be credited)"
-                    : ""}
-              </p>
-              <p>Updated on: {formatOrderDate(order.placedAtIso)}</p>
-            </div>
-            <strong
-              className={
-                order.cashbackStatus === "Confirmed"
-                  ? "settings-credit"
-                  : order.cashbackStatus === "Cancelled"
-                    ? "settings-debit"
-                    : ""
-              }
-            >
-              {order.cashbackStatus === "Cancelled" ? "-" : "+"}
-              {formatInr(order.cashbackPendingInr)}
-            </strong>
-          </article>
-        ))}
+      <section className="card settings-list cashback-list-section">
+        <header className="section-header">
+          <h2>Pending cashback - COD orders</h2>
+        </header>
+        {pendingCodOrders.length > 0 ? (
+          pendingCodOrders.map((order) => (
+            <article key={order.id} className="settings-list-row">
+              <div>
+                <h3>{order.id}</h3>
+                <p>
+                  <span className={getPaymentBadgeClass(order)}>COD</span> •{" "}
+                  {order.fulfillmentStatus}
+                </p>
+                <p>Cashback is pending until delivery completion.</p>
+              </div>
+              <strong>{formatInr(order.cashbackPendingInr)}</strong>
+            </article>
+          ))
+        ) : (
+          <p className="wallet-empty-note">No COD cashback pending right now.</p>
+        )}
+      </section>
+
+      <section className="card settings-list cashback-list-section">
+        <header className="section-header">
+          <h2>Pending cashback - Online orders</h2>
+        </header>
+        {pendingNonCodOrders.length > 0 ? (
+          pendingNonCodOrders.map((order) => (
+            <article key={order.id} className="settings-list-row">
+              <div>
+                <h3>{order.id}</h3>
+                <p>
+                  <span className={getPaymentBadgeClass(order)}>Online</span> •{" "}
+                  {order.fulfillmentStatus}
+                </p>
+                <p>{getCashbackStatusHelpText(order)}</p>
+              </div>
+              <strong>{formatInr(order.cashbackPendingInr)}</strong>
+            </article>
+          ))
+        ) : (
+          <p className="wallet-empty-note">No online cashback pending right now.</p>
+        )}
+      </section>
+
+      <section className="card settings-list cashback-list-section">
+        <header className="section-header">
+          <h2>On Hold cashback</h2>
+        </header>
+        {onHoldOrders.length > 0 ? (
+          onHoldOrders.map((order) => (
+            <article key={order.id} className="settings-list-row">
+              <div>
+                <h3>{order.id}</h3>
+                <p>Status: {order.fulfillmentStatus}</p>
+                <p>Cashback is on hold until return request resolution.</p>
+              </div>
+              <strong>{formatInr(order.cashbackPendingInr)}</strong>
+            </article>
+          ))
+        ) : (
+          <p className="wallet-empty-note">No cashback entries on hold.</p>
+        )}
+      </section>
+
+      <section className="card settings-list cashback-list-section">
+        <header className="section-header">
+          <h2>Confirmed cashback (eligible completed orders)</h2>
+        </header>
+        {confirmedOrders.length > 0 ? (
+          confirmedOrders.map((order) => (
+            <article key={order.id} className="settings-list-row">
+              <div>
+                <h3>{order.id}</h3>
+                <p>Status: {order.fulfillmentStatus}</p>
+                <p>Cashback will be credited after return window.</p>
+              </div>
+              <strong className="settings-credit">
+                +{formatInr(order.cashbackPendingInr)}
+              </strong>
+            </article>
+          ))
+        ) : (
+          <p className="wallet-empty-note">
+            Confirmed cashback entries will appear after delivery and return window completion.
+          </p>
+        )}
       </section>
     </div>
   );

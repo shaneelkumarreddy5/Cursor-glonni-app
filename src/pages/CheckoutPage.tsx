@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PageIntro } from "../components/ui/PageIntro";
 import { bankOffers } from "../data/mockCatalog";
@@ -56,11 +56,33 @@ export function CheckoutPage() {
     selectedPaymentMethodId,
     setSelectedPaymentMethodId,
     placeOrder,
+    userCodEligibilityFlag,
+    codOrderLimitInr,
   } = useCommerce();
   const [deliveryMode, setDeliveryMode] = useState<"standard" | "express">("standard");
   const deliveryFee = deliveryMode === "express" ? 199 : 0;
   const finalPayable = cartSubtotalInr + deliveryFee;
   const isCartEmpty = cartItems.length === 0;
+  const codUnavailableReason = useMemo(() => {
+    const reasons: string[] = [];
+
+    if (!userCodEligibilityFlag) {
+      reasons.push("COD is unavailable for this account.");
+    }
+
+    if (finalPayable > codOrderLimitInr) {
+      reasons.push(`COD is available only for orders up to ${formatInr(codOrderLimitInr)}.`);
+    }
+
+    return reasons.join(" ");
+  }, [codOrderLimitInr, finalPayable, userCodEligibilityFlag]);
+  const isCodAvailable = codUnavailableReason.length === 0;
+
+  useEffect(() => {
+    if (selectedPaymentMethodId === "cod" && !isCodAvailable) {
+      setSelectedPaymentMethodId("upi");
+    }
+  }, [isCodAvailable, selectedPaymentMethodId, setSelectedPaymentMethodId]);
 
   function handlePlaceOrder() {
     const createdOrder = placeOrder({ deliveryFeeInr: deliveryFee });
@@ -154,23 +176,32 @@ export function CheckoutPage() {
               <h2>Payment method</h2>
             </header>
             <div className="checkout-option-list">
-              {paymentMethods.map((method) => (
-                <label key={method.id} className="checkout-option">
-                  <input
-                    type="radio"
-                    name="payment"
-                    checked={selectedPaymentMethodId === method.id}
-                    onChange={() => setSelectedPaymentMethodId(method.id)}
-                  />
-                  <div>
-                    <span className="checkout-payment-label">
-                      <PaymentIcon method={method.id} />
-                      {method.title}
-                    </span>
-                    <p>{method.description}</p>
-                  </div>
-                </label>
-              ))}
+              {paymentMethods.map((method) => {
+                const isCodOption = method.id === "cod";
+                const isDisabled = isCodOption && !isCodAvailable;
+
+                return (
+                  <label key={method.id} className="checkout-option">
+                    <input
+                      type="radio"
+                      name="payment"
+                      checked={selectedPaymentMethodId === method.id}
+                      onChange={() => setSelectedPaymentMethodId(method.id)}
+                      disabled={isDisabled}
+                    />
+                    <div>
+                      <span className="checkout-payment-label">
+                        <PaymentIcon method={method.id} />
+                        {method.title}
+                      </span>
+                      <p>{method.description}</p>
+                      {isDisabled ? (
+                        <p className="checkout-helper-note">{codUnavailableReason}</p>
+                      ) : null}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
 
             <div className="checkout-bank-logo-row" aria-label="Supported bank cards">
@@ -180,8 +211,15 @@ export function CheckoutPage() {
             </div>
 
             <div className="checkout-cashback-note">
-              Cashback will be credited after successful delivery confirmation.
+              {selectedPaymentMethodId === "cod"
+                ? "Cashback will be credited only after successful delivery."
+                : "Cashback will be credited after successful delivery confirmation."}
             </div>
+            {selectedPaymentMethodId === "cod" ? (
+              <p className="checkout-helper-note">
+                Cashback is pending until delivery completion.
+              </p>
+            ) : null}
 
             <div className="chip-row" aria-label="Checkout trust signals">
               <span className="chip">256-bit encrypted payment</span>

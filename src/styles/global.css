@@ -1470,6 +1470,11 @@ input {
   font-weight: 600;
 }
 
+.checkout-helper-note {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
 .checkout-bank-offers {
   display: grid;
   gap: 0.5rem;
@@ -1763,6 +1768,62 @@ input {
   color: #c2410c;
 }
 
+.payment-method-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.4rem;
+}
+
+.payment-method-cod {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.payment-method-online {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cashback-status-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.4rem;
+}
+
+.cashback-status-pending {
+  border-color: #fef08a;
+  background: #fefce8;
+  color: #a16207;
+}
+
+.cashback-status-on-hold {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.cashback-status-confirmed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.cashback-status-cancelled {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
 .order-price-col {
   display: grid;
   gap: 0.5rem;
@@ -1803,6 +1864,15 @@ input {
 .order-policy-list {
   margin: 0;
   color: var(--text-muted);
+}
+
+.cashback-list-section {
+  gap: 0.55rem;
+}
+
+.wallet-empty-note {
+  color: var(--text-muted);
+  font-size: 0.84rem;
 }
 
 .not-found {
