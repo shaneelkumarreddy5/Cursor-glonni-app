@@ -1707,6 +1707,104 @@ input {
   font-size: 0.83rem;
 }
 
+.order-feedback p {
+  color: #166534;
+  font-weight: 700;
+}
+
+.order-list-row {
+  align-items: flex-start;
+}
+
+.order-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.order-status-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.14rem 0.45rem;
+}
+
+.order-status-ordered {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.order-status-shipped {
+  border-color: #bae6fd;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.order-status-delivered {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.order-status-cancelled {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.order-status-return-requested {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.order-price-col {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: end;
+}
+
+.order-action-row {
+  display: grid;
+  gap: 0.4rem;
+  justify-items: end;
+}
+
+.order-action-row .btn {
+  width: 100%;
+}
+
+.order-action-panel {
+  border-style: dashed;
+}
+
+.order-select,
+.order-textarea {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  padding: 0.52rem 0.62rem;
+}
+
+.order-textarea {
+  resize: vertical;
+}
+
+.order-policy {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.order-policy-list {
+  margin: 0;
+  color: var(--text-muted);
+}
+
 .not-found {
   width: min(620px, 100%);
   margin: 1.1rem auto;
@@ -1816,5 +1914,10 @@ input {
   .footer-inner {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .order-price-col,
+  .order-action-row {
+    justify-items: start;
   }
 }

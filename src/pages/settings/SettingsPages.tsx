@@ -1,12 +1,34 @@
+import { useMemo, useState } from "react";
 import { PageIntro } from "../../components/ui/PageIntro";
-import { useCommerce } from "../../state/CommerceContext";
+import { type OrderRecord, useCommerce } from "../../state/CommerceContext";
 import { formatInr } from "../../utils/currency";
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const CANCEL_REASONS = [
+  "Ordered by mistake",
+  "Found a better price",
+  "Need faster delivery",
+  "Shipping address issue",
+  "Other",
+];
+
+const RETURN_REASONS = [
+  "Damaged item received",
+  "Wrong item delivered",
+  "Size or fit issue",
+  "Quality not as expected",
+  "Missing accessories",
+  "Other",
+];
 
 const faqItems = [
   "How is cashback calculated on Glonni?",
   "When will cashback be credited to wallet?",
   "How do I request a return or replacement?",
 ];
+
+type ActionMode = "cancel" | "return" | "no-return";
 
 function formatOrderDate(orderDateIso: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -18,9 +40,98 @@ function formatOrderDate(orderDateIso: string) {
   }).format(new Date(orderDateIso));
 }
 
+function getStatusClass(orderStatus: OrderRecord["fulfillmentStatus"]) {
+  if (orderStatus === "Ordered") {
+    return "order-status-badge order-status-ordered";
+  }
+  if (orderStatus === "Shipped") {
+    return "order-status-badge order-status-shipped";
+  }
+  if (orderStatus === "Delivered") {
+    return "order-status-badge order-status-delivered";
+  }
+  if (orderStatus === "Cancelled") {
+    return "order-status-badge order-status-cancelled";
+  }
+  return "order-status-badge order-status-return-requested";
+}
+
+function getReturnWindowState(order: OrderRecord) {
+  if (!order.deliveredAtIso) {
+    return {
+      isOpen: false,
+      isExpired: false,
+      deadlineLabel: null as string | null,
+      daysLeft: 0,
+    };
+  }
+
+  const deliveredAtMs = new Date(order.deliveredAtIso).getTime();
+  const deadlineMs = deliveredAtMs + order.returnWindowDays * DAY_IN_MS;
+  const remainingMs = deadlineMs - Date.now();
+  const daysLeft = Math.max(0, Math.ceil(remainingMs / DAY_IN_MS));
+  const deadlineLabel = new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(deadlineMs));
+
+  const isOpen =
+    order.fulfillmentStatus === "Delivered" &&
+    !order.returnWindowClosed &&
+    remainingMs >= 0;
+
+  const isExpired =
+    order.fulfillmentStatus === "Delivered" &&
+    !order.returnWindowClosed &&
+    remainingMs < 0;
+
+  return { isOpen, isExpired, deadlineLabel, daysLeft };
+}
+
+function getCancelDisabledTooltip(order: OrderRecord) {
+  if (order.fulfillmentStatus === "Ordered") {
+    return "";
+  }
+  if (order.fulfillmentStatus === "Shipped") {
+    return "Cannot cancel after shipping.";
+  }
+  if (order.fulfillmentStatus === "Delivered") {
+    return "Cannot cancel after delivery.";
+  }
+  if (order.fulfillmentStatus === "Cancelled") {
+    return "Order is already cancelled.";
+  }
+  return "Cancellation unavailable when return is requested.";
+}
+
+function getReturnDisabledTooltip(order: OrderRecord) {
+  const returnWindow = getReturnWindowState(order);
+
+  if (order.fulfillmentStatus === "Return Requested") {
+    return "Return already requested.";
+  }
+
+  if (order.fulfillmentStatus !== "Delivered") {
+    return "Return / Replace is available only after delivery.";
+  }
+
+  if (returnWindow.isExpired) {
+    return "Return window has ended.";
+  }
+
+  if (order.returnWindowClosed) {
+    return "Return window is closed.";
+  }
+
+  return "";
+}
+
 export function SettingsOverviewPage() {
   const { orders, pendingCashbackTotalInr, cartItemsCount } = useCommerce();
-  const activeOrders = orders.filter((order) => order.status !== "Delivered").length;
+  const activeOrders = orders.filter((order) =>
+    ["Ordered", "Shipped", "Return Requested"].includes(order.fulfillmentStatus),
+  ).length;
 
   return (
     <div className="stack settings-page">
@@ -53,41 +164,346 @@ export function SettingsOverviewPage() {
 }
 
 export function OrdersSettingsPage() {
-  const { orders } = useCommerce();
+  const { orders, cancelOrder, requestReturn, confirmNoReturn } = useCommerce();
+  const [activeAction, setActiveAction] = useState<{
+    orderId: string;
+    mode: ActionMode;
+  } | null>(null);
+  const [selectedReason, setSelectedReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  function openAction(orderId: string, mode: ActionMode) {
+    setActiveAction({ orderId, mode });
+    setNotes("");
+    setFeedbackMessage(null);
+
+    if (mode === "cancel") {
+      setSelectedReason(CANCEL_REASONS[0]);
+      return;
+    }
+
+    if (mode === "return") {
+      setSelectedReason(RETURN_REASONS[0]);
+      return;
+    }
+
+    setSelectedReason("");
+  }
+
+  function closeActionPanel() {
+    setActiveAction(null);
+    setSelectedReason("");
+    setNotes("");
+  }
+
+  function submitAction(order: OrderRecord) {
+    if (!activeAction || activeAction.orderId !== order.id) {
+      return;
+    }
+
+    if (activeAction.mode === "cancel") {
+      const result = cancelOrder(order.id, selectedReason, notes);
+      setFeedbackMessage(result.message);
+      if (result.ok) {
+        closeActionPanel();
+      }
+      return;
+    }
+
+    if (activeAction.mode === "return") {
+      const result = requestReturn(order.id, selectedReason, notes);
+      setFeedbackMessage(result.message);
+      if (result.ok) {
+        closeActionPanel();
+      }
+      return;
+    }
+
+    const result = confirmNoReturn(order.id);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      closeActionPanel();
+    }
+  }
+
+  const sortedOrders = useMemo(
+    () =>
+      [...orders].sort(
+        (first, second) =>
+          new Date(second.placedAtIso).getTime() -
+          new Date(first.placedAtIso).getTime(),
+      ),
+    [orders],
+  );
 
   return (
     <div className="stack settings-page">
       <PageIntro
         badge="Settings"
         title="Orders"
-        description="All placed orders from the mock checkout flow appear here."
+        description="Track orders and manage cancellation, return, and cashback policy actions."
       />
 
-      <section className="card settings-list">
-        {orders.length > 0 ? (
-          orders.map((order) => {
+      {feedbackMessage ? (
+        <section className="card order-feedback">
+          <p>{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="settings-list">
+        {sortedOrders.length > 0 ? (
+          sortedOrders.map((order) => {
             const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+            const canCancel = order.fulfillmentStatus === "Ordered";
+            const returnWindow = getReturnWindowState(order);
+            const canReturnOrReplace = returnWindow.isOpen;
+            const canNoReturn = returnWindow.isOpen;
+            const returnDisabledTooltip = getReturnDisabledTooltip(order);
+            const cancelDisabledTooltip = getCancelDisabledTooltip(order);
 
             return (
-              <article key={order.id} className="settings-list-row">
-                <div>
-                  <h3>{order.id}</h3>
-                  <p>
-                    Date: {formatOrderDate(order.placedAtIso)} • Status: {order.status}
-                  </p>
-                  <p>
-                    Items: {itemCount} • Payment: {order.paymentMethodTitle}
-                  </p>
-                  <p>
-                    Cashback: {formatInr(order.cashbackPendingInr)} ({order.cashbackStatus})
-                  </p>
-                </div>
-                <strong>{formatInr(order.payableAmountInr)}</strong>
-              </article>
+              <div key={order.id} className="stack-sm">
+                <article className="card settings-list-row order-list-row">
+                  <div>
+                    <div className="order-heading-row">
+                      <h3>{order.id}</h3>
+                      <span className={getStatusClass(order.fulfillmentStatus)}>
+                        {order.fulfillmentStatus}
+                      </span>
+                    </div>
+                    <p>Date: {formatOrderDate(order.placedAtIso)}</p>
+                    <p>
+                      Items: {itemCount} • Payment: {order.paymentMethodTitle}
+                    </p>
+                    <p>
+                      Cashback: {formatInr(order.cashbackPendingInr)} (
+                      {order.cashbackStatus})
+                    </p>
+                    {order.fulfillmentStatus === "Delivered" &&
+                    returnWindow.deadlineLabel ? (
+                      <p>
+                        Return window: {order.returnWindowDays} days (till{" "}
+                        {returnWindow.deadlineLabel})
+                        {returnWindow.isOpen
+                          ? ` • ${returnWindow.daysLeft} day(s) left`
+                          : order.returnWindowClosed
+                            ? " • Closed"
+                            : " • Expired"}
+                      </p>
+                    ) : null}
+                    {order.refundStatus === "Refund Initiated" ? (
+                      <p>
+                        Refund: {order.refundStatus} via{" "}
+                        {order.refundMethod ?? "Original payment method"}
+                      </p>
+                    ) : null}
+                    {order.cancellationReason ? (
+                      <p>Cancellation reason: {order.cancellationReason}</p>
+                    ) : null}
+                    {order.returnReason ? <p>Return reason: {order.returnReason}</p> : null}
+                    {order.pickupStatus === "Pickup Pending" ? (
+                      <p>Pickup status: Pickup pending</p>
+                    ) : null}
+                  </div>
+                  <div className="order-price-col">
+                    <strong>{formatInr(order.payableAmountInr)}</strong>
+                    <div className="order-action-row">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={!canCancel}
+                        title={!canCancel ? cancelDisabledTooltip : "Cancel this order"}
+                        onClick={() => openAction(order.id, "cancel")}
+                      >
+                        Cancel Order
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={!canReturnOrReplace}
+                        title={
+                          !canReturnOrReplace
+                            ? returnDisabledTooltip
+                            : "Request return or replacement"
+                        }
+                        onClick={() => openAction(order.id, "return")}
+                      >
+                        Return / Replace
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        disabled={!canNoReturn}
+                        title={
+                          !canNoReturn
+                            ? returnDisabledTooltip || "No Return unavailable"
+                            : "Confirm no return and release cashback"
+                        }
+                        onClick={() => openAction(order.id, "no-return")}
+                      >
+                        No Return
+                      </button>
+                    </div>
+                  </div>
+                </article>
+
+                {activeAction?.orderId === order.id ? (
+                  <section className="card order-action-panel">
+                    {activeAction.mode === "cancel" ? (
+                      <div className="stack-sm">
+                        <header className="section-header">
+                          <h2>Cancel Order</h2>
+                        </header>
+                        <p>
+                          Cancellation is available only before shipping. Please confirm the
+                          reason.
+                        </p>
+                        <label className="field">
+                          Cancellation reason
+                          <select
+                            value={selectedReason}
+                            onChange={(event) => setSelectedReason(event.target.value)}
+                            className="order-select"
+                          >
+                            {CANCEL_REASONS.map((reasonOption) => (
+                              <option key={reasonOption} value={reasonOption}>
+                                {reasonOption}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          Additional comments (optional)
+                          <textarea
+                            value={notes}
+                            onChange={(event) => setNotes(event.target.value)}
+                            className="order-textarea"
+                            rows={3}
+                            placeholder="Share any additional details"
+                          />
+                        </label>
+                        <div className="inline-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => submitAction(order)}
+                          >
+                            Confirm cancellation
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={closeActionPanel}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeAction.mode === "return" ? (
+                      <div className="stack-sm">
+                        <header className="section-header">
+                          <h2>Return / Replace</h2>
+                        </header>
+                        <p>
+                          Eligible within {order.returnWindowDays} days from delivery.
+                          Refund policy and cashback adjustments will apply.
+                        </p>
+                        <div className="order-policy">
+                          <p>
+                            <strong>Return policy:</strong> {order.returnPolicySummary}
+                          </p>
+                          <p>
+                            <strong>Refund timeline:</strong> {order.refundTimelineSummary}
+                          </p>
+                          <p>
+                            <strong>Non-returnable conditions:</strong>
+                          </p>
+                          <ul className="order-policy-list">
+                            {order.nonReturnableConditions.map((condition) => (
+                              <li key={condition}>{condition}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <label className="field">
+                          Return reason
+                          <select
+                            value={selectedReason}
+                            onChange={(event) => setSelectedReason(event.target.value)}
+                            className="order-select"
+                          >
+                            {RETURN_REASONS.map((reasonOption) => (
+                              <option key={reasonOption} value={reasonOption}>
+                                {reasonOption}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          Additional details (optional)
+                          <textarea
+                            value={notes}
+                            onChange={(event) => setNotes(event.target.value)}
+                            className="order-textarea"
+                            rows={3}
+                            placeholder="Share issue details for faster pickup"
+                          />
+                        </label>
+                        <div className="inline-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => submitAction(order)}
+                          >
+                            Confirm return request
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={closeActionPanel}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeAction.mode === "no-return" ? (
+                      <div className="stack-sm">
+                        <header className="section-header">
+                          <h2>No Return Confirmation</h2>
+                        </header>
+                        <p>
+                          Confirming this action closes the return window immediately.
+                          Cashback will move to confirmed release state as per policy.
+                        </p>
+                        <div className="inline-actions">
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => submitAction(order)}
+                          >
+                            Confirm No Return
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={closeActionPanel}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+              </div>
             );
           })
         ) : (
-          <article className="settings-list-row">
+          <article className="card settings-list-row">
             <div>
               <h3>No orders yet</h3>
               <p>Place an order from checkout to see it listed here.</p>
@@ -101,9 +517,16 @@ export function OrdersSettingsPage() {
 }
 
 export function WalletSettingsPage() {
-  const { orders, pendingCashbackTotalInr } = useCommerce();
-  const pendingCashbackOrders = orders.filter(
-    (order) => order.cashbackStatus === "Pending",
+  const {
+    orders,
+    pendingCashbackTotalInr,
+    onHoldCashbackTotalInr,
+    confirmedCashbackTotalInr,
+  } = useCommerce();
+
+  const cashbackEntries = [...orders].sort(
+    (first, second) =>
+      new Date(second.placedAtIso).getTime() - new Date(first.placedAtIso).getTime(),
   );
 
   return (
@@ -111,7 +534,7 @@ export function WalletSettingsPage() {
       <PageIntro
         badge="Settings"
         title="Wallet"
-        description="Cashback is tracked as pending and linked to corresponding orders."
+        description="Cashback stays linked to order lifecycle: pending, on hold, confirmed, or cancelled."
       />
 
       <section className="card settings-kpi-grid">
@@ -124,34 +547,45 @@ export function WalletSettingsPage() {
           <p>{formatInr(pendingCashbackTotalInr)}</p>
         </article>
         <article>
-          <h3>Pending entries</h3>
-          <p>{pendingCashbackOrders.length}</p>
+          <h3>On Hold cashback</h3>
+          <p>{formatInr(onHoldCashbackTotalInr)}</p>
+        </article>
+        <article>
+          <h3>Confirmed (scheduled)</h3>
+          <p>{formatInr(confirmedCashbackTotalInr)}</p>
         </article>
       </section>
 
       <section className="card settings-list">
-        {pendingCashbackOrders.length > 0 ? (
-          pendingCashbackOrders.map((order) => (
-            <article key={order.id} className="settings-list-row">
-              <div>
-                <h3>Cashback for {order.id}</h3>
-                <p>Placed on: {formatOrderDate(order.placedAtIso)}</p>
-                <p>Status: {order.cashbackStatus}</p>
-              </div>
-              <strong className="settings-credit">
-                +{formatInr(order.cashbackPendingInr)}
-              </strong>
-            </article>
-          ))
-        ) : (
-          <article className="settings-list-row">
+        {cashbackEntries.map((order) => (
+          <article key={order.id} className="settings-list-row">
             <div>
-              <h3>No pending cashback</h3>
-              <p>Pending cashback entries will appear after placing new orders.</p>
+              <h3>Cashback for {order.id}</h3>
+              <p>Order status: {order.fulfillmentStatus}</p>
+              <p>
+                Cashback status: {order.cashbackStatus}
+                {order.cashbackStatus === "Cancelled"
+                  ? " (not eligible)"
+                  : order.cashbackStatus === "Confirmed"
+                    ? " (will be credited)"
+                    : ""}
+              </p>
+              <p>Updated on: {formatOrderDate(order.placedAtIso)}</p>
             </div>
-            <strong>{formatInr(0)}</strong>
+            <strong
+              className={
+                order.cashbackStatus === "Confirmed"
+                  ? "settings-credit"
+                  : order.cashbackStatus === "Cancelled"
+                    ? "settings-debit"
+                    : ""
+              }
+            >
+              {order.cashbackStatus === "Cancelled" ? "-" : "+"}
+              {formatInr(order.cashbackPendingInr)}
+            </strong>
           </article>
-        )}
+        ))}
       </section>
     </div>
   );

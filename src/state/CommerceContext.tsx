@@ -15,6 +15,30 @@ import {
 } from "../data/mockCommerce";
 import { catalogProducts, type CatalogProduct } from "../data/mockCatalog";
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+export type OrderFulfillmentStatus =
+  | "Ordered"
+  | "Shipped"
+  | "Delivered"
+  | "Cancelled"
+  | "Return Requested";
+
+export type OrderCashbackStatus =
+  | "Pending"
+  | "On Hold"
+  | "Confirmed"
+  | "Cancelled";
+
+export type RefundStatus = "Not Applicable" | "Refund Initiated";
+
+export type ReturnPickupStatus = "Not Scheduled" | "Pickup Pending" | "Picked Up";
+
+export type OrderActionResult = {
+  ok: boolean;
+  message: string;
+};
+
 export type CartItem = {
   id: string;
   productId: string;
@@ -37,8 +61,8 @@ export type CartItem = {
 export type OrderRecord = {
   id: string;
   placedAtIso: string;
-  status: "Placed" | "Packed" | "Delivered";
-  cashbackStatus: "Pending";
+  fulfillmentStatus: OrderFulfillmentStatus;
+  cashbackStatus: OrderCashbackStatus;
   items: CartItem[];
   itemTotalInr: number;
   deliveryFeeInr: number;
@@ -48,6 +72,21 @@ export type OrderRecord = {
   addressSnapshot: MockAddress;
   paymentMethodId: PaymentMethodId;
   paymentMethodTitle: string;
+  returnWindowDays: number;
+  deliveredAtIso: string | null;
+  returnWindowClosed: boolean;
+  returnPolicySummary: string;
+  refundTimelineSummary: string;
+  nonReturnableConditions: string[];
+  refundStatus: RefundStatus;
+  refundMethod: "Original payment method" | "Glonni Wallet" | null;
+  cancellationReason: string | null;
+  cancellationNotes: string | null;
+  cancelledAtIso: string | null;
+  returnReason: string | null;
+  returnNotes: string | null;
+  returnRequestedAtIso: string | null;
+  pickupStatus: ReturnPickupStatus;
 };
 
 type AddToCartPayload = {
@@ -74,12 +113,25 @@ type CommerceContextValue = {
   cartSubtotalInr: number;
   cartCashbackTotalInr: number;
   pendingCashbackTotalInr: number;
+  onHoldCashbackTotalInr: number;
+  confirmedCashbackTotalInr: number;
   addToCart: (payload: AddToCartPayload) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
   removeCartItem: (itemId: string) => void;
   setSelectedAddressId: (addressId: string) => void;
   setSelectedPaymentMethodId: (methodId: PaymentMethodId) => void;
   placeOrder: (options: PlaceOrderOptions) => OrderRecord | null;
+  cancelOrder: (
+    orderId: string,
+    reason: string,
+    notes?: string,
+  ) => OrderActionResult;
+  requestReturn: (
+    orderId: string,
+    reason: string,
+    notes?: string,
+  ) => OrderActionResult;
+  confirmNoReturn: (orderId: string) => OrderActionResult;
   getOrderById: (orderId: string) => OrderRecord | undefined;
 };
 
@@ -90,6 +142,17 @@ const CART_ITEM_SEED_PRODUCTS = {
   laptop: catalogProducts[4],
   accessory: catalogProducts[8],
 };
+
+const DEFAULT_RETURN_WINDOW_DAYS = 7;
+const DEFAULT_RETURN_POLICY_SUMMARY =
+  "7-day return or replacement for eligible items after delivery.";
+const DEFAULT_REFUND_TIMELINE_SUMMARY =
+  "Refund initiated within 24 hours after request approval. Final settlement in 5-7 business days.";
+const DEFAULT_NON_RETURNABLE_CONDITIONS = [
+  "Physical damage due to misuse.",
+  "Missing original accessories or packaging.",
+  "Serial number / IMEI mismatch.",
+];
 
 function createCartItemId(
   productId: string,
@@ -108,8 +171,33 @@ function createOrderId(date = new Date()): string {
   return `GLN${compactDate}${randomSuffix}`;
 }
 
+function resolveRefundMethod(
+  paymentMethodId: PaymentMethodId,
+): "Original payment method" | "Glonni Wallet" {
+  return paymentMethodId === "cod" ? "Glonni Wallet" : "Original payment method";
+}
+
+function isReturnWindowOpen(order: OrderRecord, now = new Date()): boolean {
+  if (
+    order.fulfillmentStatus !== "Delivered" ||
+    order.returnWindowClosed ||
+    !order.deliveredAtIso
+  ) {
+    return false;
+  }
+
+  const deliveredAtMs = new Date(order.deliveredAtIso).getTime();
+  const returnDeadlineMs = deliveredAtMs + order.returnWindowDays * DAY_IN_MS;
+  return now.getTime() <= returnDeadlineMs;
+}
+
 function createSeedOrders(): OrderRecord[] {
-  const flagshipItem: CartItem = {
+  const now = new Date();
+  const orderedAtIso = new Date(now.getTime() - 2 * DAY_IN_MS).toISOString();
+  const shippedAtIso = new Date(now.getTime() - DAY_IN_MS).toISOString();
+  const deliveredAtIso = new Date(now.getTime() - 3 * DAY_IN_MS).toISOString();
+
+  const orderedItem: CartItem = {
     id: createCartItemId(
       CART_ITEM_SEED_PRODUCTS.flagship.id,
       "seed-verified",
@@ -132,7 +220,7 @@ function createSeedOrders(): OrderRecord[] {
     quantity: 1,
   };
 
-  const laptopItem: CartItem = {
+  const shippedItem: CartItem = {
     id: createCartItemId(
       CART_ITEM_SEED_PRODUCTS.laptop.id,
       "seed-nova",
@@ -155,7 +243,7 @@ function createSeedOrders(): OrderRecord[] {
     quantity: 1,
   };
 
-  const accessoryItem: CartItem = {
+  const deliveredItem: CartItem = {
     id: createCartItemId(
       CART_ITEM_SEED_PRODUCTS.accessory.id,
       "seed-city",
@@ -178,41 +266,100 @@ function createSeedOrders(): OrderRecord[] {
     quantity: 1,
   };
 
-  const firstOrderItemTotal = flagshipItem.unitPriceInr + laptopItem.unitPriceInr;
-  const firstOrderCashback = flagshipItem.unitCashbackInr + laptopItem.unitCashbackInr;
-  const secondOrderItemTotal = accessoryItem.unitPriceInr;
-  const secondOrderCashback = accessoryItem.unitCashbackInr;
+  const orderedPayable = orderedItem.unitPriceInr * orderedItem.quantity;
+  const shippedPayable = shippedItem.unitPriceInr * shippedItem.quantity;
+  const deliveredPayable = deliveredItem.unitPriceInr * deliveredItem.quantity;
 
   return [
     {
       id: "GLN2602129481",
-      placedAtIso: "2026-02-12T09:45:00.000Z",
-      status: "Packed",
+      placedAtIso: orderedAtIso,
+      fulfillmentStatus: "Ordered",
       cashbackStatus: "Pending",
-      items: [flagshipItem, laptopItem],
-      itemTotalInr: firstOrderItemTotal,
+      items: [orderedItem],
+      itemTotalInr: orderedPayable,
       deliveryFeeInr: 0,
-      payableAmountInr: firstOrderItemTotal,
-      cashbackPendingInr: firstOrderCashback,
+      payableAmountInr: orderedPayable,
+      cashbackPendingInr: orderedItem.unitCashbackInr,
       addressId: mockAddresses[0].id,
       addressSnapshot: mockAddresses[0],
       paymentMethodId: "upi",
       paymentMethodTitle: "UPI",
+      returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
+      deliveredAtIso: null,
+      returnWindowClosed: false,
+      returnPolicySummary: DEFAULT_RETURN_POLICY_SUMMARY,
+      refundTimelineSummary: DEFAULT_REFUND_TIMELINE_SUMMARY,
+      nonReturnableConditions: DEFAULT_NON_RETURNABLE_CONDITIONS,
+      refundStatus: "Not Applicable",
+      refundMethod: null,
+      cancellationReason: null,
+      cancellationNotes: null,
+      cancelledAtIso: null,
+      returnReason: null,
+      returnNotes: null,
+      returnRequestedAtIso: null,
+      pickupStatus: "Not Scheduled",
     },
     {
-      id: "GLN2602106403",
-      placedAtIso: "2026-02-10T15:20:00.000Z",
-      status: "Delivered",
+      id: "GLN2602116403",
+      placedAtIso: shippedAtIso,
+      fulfillmentStatus: "Shipped",
       cashbackStatus: "Pending",
-      items: [accessoryItem],
-      itemTotalInr: secondOrderItemTotal,
+      items: [shippedItem],
+      itemTotalInr: shippedPayable,
       deliveryFeeInr: 0,
-      payableAmountInr: secondOrderItemTotal,
-      cashbackPendingInr: secondOrderCashback,
+      payableAmountInr: shippedPayable,
+      cashbackPendingInr: shippedItem.unitCashbackInr,
       addressId: mockAddresses[1].id,
       addressSnapshot: mockAddresses[1],
       paymentMethodId: "card",
       paymentMethodTitle: "Credit / Debit Card",
+      returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
+      deliveredAtIso: null,
+      returnWindowClosed: false,
+      returnPolicySummary: DEFAULT_RETURN_POLICY_SUMMARY,
+      refundTimelineSummary: DEFAULT_REFUND_TIMELINE_SUMMARY,
+      nonReturnableConditions: DEFAULT_NON_RETURNABLE_CONDITIONS,
+      refundStatus: "Not Applicable",
+      refundMethod: null,
+      cancellationReason: null,
+      cancellationNotes: null,
+      cancelledAtIso: null,
+      returnReason: null,
+      returnNotes: null,
+      returnRequestedAtIso: null,
+      pickupStatus: "Not Scheduled",
+    },
+    {
+      id: "GLN2602102217",
+      placedAtIso: deliveredAtIso,
+      fulfillmentStatus: "Delivered",
+      cashbackStatus: "Pending",
+      items: [deliveredItem],
+      itemTotalInr: deliveredPayable,
+      deliveryFeeInr: 0,
+      payableAmountInr: deliveredPayable,
+      cashbackPendingInr: deliveredItem.unitCashbackInr,
+      addressId: mockAddresses[1].id,
+      addressSnapshot: mockAddresses[1],
+      paymentMethodId: "cod",
+      paymentMethodTitle: "Cash on Delivery",
+      returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
+      deliveredAtIso,
+      returnWindowClosed: false,
+      returnPolicySummary: DEFAULT_RETURN_POLICY_SUMMARY,
+      refundTimelineSummary: DEFAULT_REFUND_TIMELINE_SUMMARY,
+      nonReturnableConditions: DEFAULT_NON_RETURNABLE_CONDITIONS,
+      refundStatus: "Not Applicable",
+      refundMethod: null,
+      cancellationReason: null,
+      cancellationNotes: null,
+      cancelledAtIso: null,
+      returnReason: null,
+      returnNotes: null,
+      returnRequestedAtIso: null,
+      pickupStatus: "Not Scheduled",
     },
   ];
 }
@@ -245,7 +392,25 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     () =>
       orders.reduce(
         (sum, order) =>
-          order.cashbackStatus === "Pending"
+          order.cashbackStatus === "Pending" ? sum + order.cashbackPendingInr : sum,
+        0,
+      ),
+    [orders],
+  );
+  const onHoldCashbackTotalInr = useMemo(
+    () =>
+      orders.reduce(
+        (sum, order) =>
+          order.cashbackStatus === "On Hold" ? sum + order.cashbackPendingInr : sum,
+        0,
+      ),
+    [orders],
+  );
+  const confirmedCashbackTotalInr = useMemo(
+    () =>
+      orders.reduce(
+        (sum, order) =>
+          order.cashbackStatus === "Confirmed"
             ? sum + order.cashbackPendingInr
             : sum,
         0,
@@ -341,7 +506,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     const order: OrderRecord = {
       id: generatedOrderId,
       placedAtIso: now.toISOString(),
-      status: "Placed",
+      fulfillmentStatus: "Ordered",
       cashbackStatus: "Pending",
       items: cartItems,
       itemTotalInr,
@@ -352,12 +517,149 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       addressSnapshot: selectedAddress,
       paymentMethodId: selectedPaymentMethod.id,
       paymentMethodTitle: selectedPaymentMethod.title,
+      returnWindowDays: DEFAULT_RETURN_WINDOW_DAYS,
+      deliveredAtIso: null,
+      returnWindowClosed: false,
+      returnPolicySummary: DEFAULT_RETURN_POLICY_SUMMARY,
+      refundTimelineSummary: DEFAULT_REFUND_TIMELINE_SUMMARY,
+      nonReturnableConditions: DEFAULT_NON_RETURNABLE_CONDITIONS,
+      refundStatus: "Not Applicable",
+      refundMethod: null,
+      cancellationReason: null,
+      cancellationNotes: null,
+      cancelledAtIso: null,
+      returnReason: null,
+      returnNotes: null,
+      returnRequestedAtIso: null,
+      pickupStatus: "Not Scheduled",
     };
 
     setOrders((existingOrders) => [order, ...existingOrders]);
     setLastPlacedOrderId(order.id);
     setCartItems([]);
     return order;
+  }
+
+  function cancelOrder(
+    orderId: string,
+    reason: string,
+    notes?: string,
+  ): OrderActionResult {
+    const targetOrder = orders.find((order) => order.id === orderId);
+
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (targetOrder.fulfillmentStatus !== "Ordered") {
+      return {
+        ok: false,
+        message: "Cancellation is only available before shipping.",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedOrder: OrderRecord = {
+      ...targetOrder,
+      fulfillmentStatus: "Cancelled",
+      cashbackStatus: "Cancelled",
+      returnWindowClosed: true,
+      refundStatus: "Refund Initiated",
+      refundMethod: resolveRefundMethod(targetOrder.paymentMethodId),
+      cancellationReason: reason,
+      cancellationNotes: notes?.trim() ? notes.trim() : null,
+      cancelledAtIso: nowIso,
+      pickupStatus: "Not Scheduled",
+    };
+
+    setOrders((existingOrders) =>
+      existingOrders.map((order) => (order.id === orderId ? updatedOrder : order)),
+    );
+
+    return {
+      ok: true,
+      message: "Order cancelled successfully. No charges applied.",
+    };
+  }
+
+  function requestReturn(
+    orderId: string,
+    reason: string,
+    notes?: string,
+  ): OrderActionResult {
+    const targetOrder = orders.find((order) => order.id === orderId);
+
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (!isReturnWindowOpen(targetOrder)) {
+      return {
+        ok: false,
+        message: "Return request is not available for this order.",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedCashbackStatus: OrderCashbackStatus =
+      targetOrder.cashbackStatus === "Cancelled" ? "Cancelled" : "On Hold";
+
+    const updatedOrder: OrderRecord = {
+      ...targetOrder,
+      fulfillmentStatus: "Return Requested",
+      cashbackStatus: updatedCashbackStatus,
+      returnWindowClosed: true,
+      refundStatus: "Refund Initiated",
+      refundMethod: resolveRefundMethod(targetOrder.paymentMethodId),
+      returnReason: reason,
+      returnNotes: notes?.trim() ? notes.trim() : null,
+      returnRequestedAtIso: nowIso,
+      pickupStatus: "Pickup Pending",
+    };
+
+    setOrders((existingOrders) =>
+      existingOrders.map((order) => (order.id === orderId ? updatedOrder : order)),
+    );
+
+    return {
+      ok: true,
+      message:
+        "Return request submitted. Pickup pending and refund initiated (mock). Cashback moved to on hold.",
+    };
+  }
+
+  function confirmNoReturn(orderId: string): OrderActionResult {
+    const targetOrder = orders.find((order) => order.id === orderId);
+
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (!isReturnWindowOpen(targetOrder)) {
+      return {
+        ok: false,
+        message: "No Return confirmation is no longer available.",
+      };
+    }
+
+    const updatedOrder: OrderRecord = {
+      ...targetOrder,
+      returnWindowClosed: true,
+      cashbackStatus:
+        targetOrder.cashbackStatus === "Cancelled"
+          ? "Cancelled"
+          : "Confirmed",
+    };
+
+    setOrders((existingOrders) =>
+      existingOrders.map((order) => (order.id === orderId ? updatedOrder : order)),
+    );
+
+    return {
+      ok: true,
+      message:
+        "Return window closed. Cashback will be released as per policy.",
+    };
   }
 
   function getOrderById(orderId: string) {
@@ -377,12 +679,17 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       cartSubtotalInr,
       cartCashbackTotalInr,
       pendingCashbackTotalInr,
+      onHoldCashbackTotalInr,
+      confirmedCashbackTotalInr,
       addToCart,
       updateCartItemQuantity,
       removeCartItem,
       setSelectedAddressId,
       setSelectedPaymentMethodId,
       placeOrder,
+      cancelOrder,
+      requestReturn,
+      confirmNoReturn,
       getOrderById,
     }),
     [
@@ -395,6 +702,8 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       cartSubtotalInr,
       cartCashbackTotalInr,
       pendingCashbackTotalInr,
+      onHoldCashbackTotalInr,
+      confirmedCashbackTotalInr,
     ],
   );
 
