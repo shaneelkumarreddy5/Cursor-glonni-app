@@ -10,6 +10,8 @@ import { formatInr } from "../utils/currency";
 export type VendorStatus = "Under Scrutiny" | "Approved" | "Rejected";
 export type VendorProductStatus = "Draft" | "Under Review" | "Live" | "Rejected";
 export type VendorProductExtraOfferType = "Freebie" | "Discount" | "Coupon";
+export type VendorOrderStatus = "New" | "Packed" | "Shipped" | "Delivered";
+export type VendorOrderVisibilityState = "None" | "Cancelled" | "Return Requested";
 
 type VendorSummaryMetrics = {
   totalOrders: number;
@@ -29,6 +31,11 @@ type VendorOnboardingResult = {
 };
 
 type VendorProductMutationResult = {
+  ok: boolean;
+  message: string;
+};
+
+type VendorOrderMutationResult = {
   ok: boolean;
   message: string;
 };
@@ -74,6 +81,18 @@ export type VendorProduct = VendorProductPayload & {
   updatedAtIso: string;
 };
 
+export type VendorOrder = {
+  id: string;
+  productName: string;
+  quantity: number;
+  amountInr: number;
+  customerAddressMasked: string;
+  paymentMethod: "COD" | "Online";
+  status: VendorOrderStatus;
+  visibilityState: VendorOrderVisibilityState;
+  updatedAtIso: string;
+};
+
 type VendorContextValue = {
   isLoggedIn: boolean;
   vendorName: string;
@@ -83,6 +102,7 @@ type VendorContextValue = {
   hasCompletedOnboarding: boolean;
   summaryMetrics: VendorSummaryMetrics;
   vendorProducts: VendorProduct[];
+  vendorOrders: VendorOrder[];
   loginVendor: (email: string, password: string) => VendorLoginResult;
   submitOnboarding: (
     payload: VendorOnboardingData,
@@ -99,17 +119,17 @@ type VendorContextValue = {
     productId: string,
     reason: string,
   ) => VendorProductMutationResult;
+  updateVendorOrderStatus: (
+    orderId: string,
+    nextStatus: VendorOrderStatus,
+  ) => VendorOrderMutationResult;
   approveVendor: () => void;
   logoutVendor: () => void;
   setVendorStatus: (status: VendorStatus) => void;
 };
 
 const MOCK_VENDOR_NAME = "Astra Retail LLP";
-const MOCK_VENDOR_SUMMARY_BASE = {
-  totalOrders: 284,
-  pendingOrders: 19,
-  pendingSettlementInr: 125430,
-};
+const MOCK_VENDOR_PENDING_SETTLEMENT_INR = 125430;
 
 const CATEGORY_PRICE_BENCHMARKS: Record<
   VendorProductPayload["category"],
@@ -120,6 +140,13 @@ const CATEGORY_PRICE_BENCHMARKS: Record<
   Accessories: { min: 100, max: 50000 },
   Footwear: { min: 300, max: 30000 },
 };
+
+const ORDER_STATUS_SEQUENCE: VendorOrderStatus[] = [
+  "New",
+  "Packed",
+  "Shipped",
+  "Delivered",
+];
 
 function createVendorProductId() {
   return `VPRD-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -217,6 +244,56 @@ function createSeedVendorProducts(): VendorProduct[] {
   ];
 }
 
+function createSeedVendorOrders(): VendorOrder[] {
+  const now = new Date();
+  return [
+    {
+      id: "VORD-500101",
+      productName: "Galaxy A56 5G",
+      quantity: 1,
+      amountInr: 26999,
+      customerAddressMasked: "HSR Layout, Bengaluru - ******",
+      paymentMethod: "Online",
+      status: "New",
+      visibilityState: "None",
+      updatedAtIso: now.toISOString(),
+    },
+    {
+      id: "VORD-500227",
+      productName: "Adidas Runstep Pro",
+      quantity: 2,
+      amountInr: 8598,
+      customerAddressMasked: "Kharadi, Pune - ******",
+      paymentMethod: "COD",
+      status: "Packed",
+      visibilityState: "None",
+      updatedAtIso: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VORD-500392",
+      productName: "Buds Lite ANC",
+      quantity: 1,
+      amountInr: 2999,
+      customerAddressMasked: "Indiranagar, Bengaluru - ******",
+      paymentMethod: "COD",
+      status: "Shipped",
+      visibilityState: "Return Requested",
+      updatedAtIso: new Date(now.getTime() - 16 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VORD-500430",
+      productName: "AstraBook Air 14",
+      quantity: 1,
+      amountInr: 68999,
+      customerAddressMasked: "Velachery, Chennai - ******",
+      paymentMethod: "Online",
+      status: "Delivered",
+      visibilityState: "Cancelled",
+      updatedAtIso: new Date(now.getTime() - 28 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+}
+
 function getBenchmarkValidationError(payload: VendorProductPayload) {
   const benchmark = CATEGORY_PRICE_BENCHMARKS[payload.category];
   if (!benchmark) {
@@ -271,6 +348,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   );
   const [vendorProducts, setVendorProducts] =
     useState<VendorProduct[]>(createSeedVendorProducts);
+  const [vendorOrders, setVendorOrders] =
+    useState<VendorOrder[]>(createSeedVendorOrders);
 
   function loginVendor(email: string, password: string): VendorLoginResult {
     if (!email.trim() || !password.trim()) {
@@ -437,6 +516,51 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     return { ok: true, message: "Product rejected with reason." };
   }
 
+  function updateVendorOrderStatus(
+    orderId: string,
+    nextStatus: VendorOrderStatus,
+  ): VendorOrderMutationResult {
+    const targetOrder = vendorOrders.find((order) => order.id === orderId);
+    if (!targetOrder) {
+      return { ok: false, message: "Order not found." };
+    }
+
+    if (targetOrder.visibilityState !== "None") {
+      return {
+        ok: false,
+        message: `Status update blocked: order is ${targetOrder.visibilityState}.`,
+      };
+    }
+
+    const currentIndex = ORDER_STATUS_SEQUENCE.indexOf(targetOrder.status);
+    const nextIndex = ORDER_STATUS_SEQUENCE.indexOf(nextStatus);
+    if (currentIndex === -1 || nextIndex === -1) {
+      return { ok: false, message: "Invalid status update request." };
+    }
+
+    if (nextIndex !== currentIndex + 1) {
+      return {
+        ok: false,
+        message: "Order status can only be updated sequentially.",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    setVendorOrders((currentOrders) =>
+      currentOrders.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              status: nextStatus,
+              updatedAtIso: nowIso,
+            }
+          : order,
+      ),
+    );
+
+    return { ok: true, message: `Order moved to ${nextStatus}.` };
+  }
+
   function approveVendor() {
     setVendorStatus("Approved");
   }
@@ -445,14 +569,18 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     const activeProducts = vendorProducts.filter(
       (product) => product.status === "Live",
     ).length;
+    const totalOrders = vendorOrders.length;
+    const pendingOrders = vendorOrders.filter(
+      (order) => order.status !== "Delivered" && order.visibilityState === "None",
+    ).length;
 
     return {
-      totalOrders: MOCK_VENDOR_SUMMARY_BASE.totalOrders,
-      pendingOrders: MOCK_VENDOR_SUMMARY_BASE.pendingOrders,
+      totalOrders,
+      pendingOrders,
       activeProducts,
-      pendingSettlementInr: MOCK_VENDOR_SUMMARY_BASE.pendingSettlementInr,
+      pendingSettlementInr: MOCK_VENDOR_PENDING_SETTLEMENT_INR,
     };
-  }, [vendorProducts]);
+  }, [vendorOrders, vendorProducts]);
 
   const value = useMemo<VendorContextValue>(
     () => ({
@@ -464,17 +592,26 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       hasCompletedOnboarding: onboardingData !== null,
       summaryMetrics,
       vendorProducts,
+      vendorOrders,
       loginVendor,
       submitOnboarding,
       addVendorProduct,
       updateVendorProduct,
       approveVendorProduct,
       rejectVendorProduct,
+      updateVendorOrderStatus,
       approveVendor,
       logoutVendor,
       setVendorStatus,
     }),
-    [isLoggedIn, onboardingData, summaryMetrics, vendorProducts, vendorStatus],
+    [
+      isLoggedIn,
+      onboardingData,
+      summaryMetrics,
+      vendorOrders,
+      vendorProducts,
+      vendorStatus,
+    ],
   );
 
   return (

@@ -2962,6 +2962,156 @@ body {
   gap: 0.55rem;
 }
 
+.vendor-order-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.56rem;
+  padding: 0.68rem;
+}
+
+.vendor-order-row p {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.vendor-order-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.vendor-order-heading h3 {
+  font-size: 0.9rem;
+}
+
+.vendor-order-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-wrap: wrap;
+}
+
+.vendor-order-status-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+}
+
+.vendor-order-status-new {
+  border-color: #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.vendor-order-status-packed {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.vendor-order-status-shipped {
+  border-color: #bae6fd;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.vendor-order-status-delivered {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.vendor-order-payment-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+}
+
+.vendor-order-visibility-badge {
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+}
+
+.vendor-order-details {
+  border-top: 1px dashed var(--border-strong);
+  display: grid;
+  gap: 0.42rem;
+  padding-top: 0.62rem;
+}
+
+.vendor-order-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.32rem;
+}
+
+.vendor-order-timeline-step {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  color: #8a8a8a;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.vendor-order-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid #cfd4dc;
+  background: #ffffff;
+}
+
+.vendor-order-timeline-step.is-complete,
+.vendor-order-timeline-step.is-current {
+  color: #1f2937;
+}
+
+.vendor-order-timeline-step.is-complete .vendor-order-timeline-dot,
+.vendor-order-timeline-step.is-current .vendor-order-timeline-dot {
+  border-color: #22c55e;
+  background: #22c55e;
+}
+
+.vendor-cod-disclaimer {
+  border: 1px solid #fed7aa;
+  border-left: 3px solid #f97316;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #9a3412 !important;
+  font-size: 0.82rem !important;
+  font-weight: 600;
+  padding: 0.45rem 0.55rem;
+}
+
+.vendor-order-override-note {
+  border: 1px solid #fecaca;
+  border-left: 3px solid #ef4444;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #991b1b !important;
+  font-size: 0.82rem !important;
+  font-weight: 600;
+  padding: 0.45rem 0.55rem;
+}
+
 @media (min-width: 980px) {
   .vendor-products-grid {
     grid-template-columns: 1fr 1fr;

@@ -11,6 +11,8 @@ import { VendorLayout } from "./VendorLayout";
 import {
   VendorProvider,
   type VendorOnboardingData,
+  type VendorOrder,
+  type VendorOrderStatus,
   type VendorProduct,
   type VendorProductExtraOffer,
   type VendorProductExtraOfferType,
@@ -117,6 +119,48 @@ function getProductStatusClass(status: VendorProductStatus) {
     return "vendor-product-status vendor-product-status-live";
   }
   return "vendor-product-status vendor-product-status-rejected";
+}
+
+function getOrderStatusClass(status: VendorOrderStatus) {
+  if (status === "New") {
+    return "vendor-order-status-badge vendor-order-status-new";
+  }
+  if (status === "Packed") {
+    return "vendor-order-status-badge vendor-order-status-packed";
+  }
+  if (status === "Shipped") {
+    return "vendor-order-status-badge vendor-order-status-shipped";
+  }
+  return "vendor-order-status-badge vendor-order-status-delivered";
+}
+
+function getNextVendorOrderStatus(
+  status: VendorOrderStatus,
+): VendorOrderStatus | null {
+  if (status === "New") {
+    return "Packed";
+  }
+  if (status === "Packed") {
+    return "Shipped";
+  }
+  if (status === "Shipped") {
+    return "Delivered";
+  }
+  return null;
+}
+
+function getOrderTimelineStepClass(currentStatus: VendorOrderStatus, step: VendorOrderStatus) {
+  const orderSequence: VendorOrderStatus[] = ["New", "Packed", "Shipped", "Delivered"];
+  const currentIndex = orderSequence.indexOf(currentStatus);
+  const stepIndex = orderSequence.indexOf(step);
+
+  if (stepIndex < currentIndex) {
+    return "vendor-order-timeline-step is-complete";
+  }
+  if (stepIndex === currentIndex) {
+    return "vendor-order-timeline-step is-current";
+  }
+  return "vendor-order-timeline-step";
 }
 
 function formatTimestamp(isoDate: string) {
@@ -1005,11 +1049,158 @@ function VendorPlaceholderPage({
 }
 
 export function VendorOrdersPage() {
+  const { vendorOrders, updateVendorOrderStatus } = useVendor();
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const sortedOrders = useMemo(
+    () =>
+      [...vendorOrders].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [vendorOrders],
+  );
+
+  function handleSequentialUpdate(order: VendorOrder) {
+    const nextStatus = getNextVendorOrderStatus(order.status);
+    if (!nextStatus) {
+      setFeedbackMessage("Order is already delivered.");
+      return;
+    }
+
+    const result = updateVendorOrderStatus(order.id, nextStatus);
+    setFeedbackMessage(result.message);
+  }
+
   return (
-    <VendorPlaceholderPage
-      title="Orders"
-      description="Track order lifecycle and fulfillment operations."
-    />
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Orders"
+        description="Vendor-facing order queue. Only your assigned orders are shown."
+      />
+
+      {feedbackMessage ? (
+        <section className="vendor-placeholder-card">
+          <p className="vendor-auth-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="vendor-placeholder-card">
+        <div className="stack-sm">
+          {sortedOrders.map((order) => {
+            const isExpanded = expandedOrderId === order.id;
+            const isStatusUpdateBlocked = order.visibilityState !== "None";
+            const nextStatus = getNextVendorOrderStatus(order.status);
+
+            return (
+              <article key={order.id} className="vendor-order-row">
+                <div className="vendor-order-heading">
+                  <h3>{order.id}</h3>
+                  <div className="vendor-order-badge-row">
+                    <span className={getOrderStatusClass(order.status)}>{order.status}</span>
+                    {order.paymentMethod === "COD" ? (
+                      <span className="vendor-order-payment-badge">COD</span>
+                    ) : (
+                      <span className="vendor-order-payment-badge">Online</span>
+                    )}
+                    {order.visibilityState !== "None" ? (
+                      <span className="vendor-order-visibility-badge">
+                        {order.visibilityState}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <p>
+                  {order.productName} • Qty {order.quantity} • {formatInr(order.amountInr)}
+                </p>
+
+                <div className="inline-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() =>
+                      setExpandedOrderId(isExpanded ? null : order.id)
+                    }
+                  >
+                    {isExpanded ? "Hide Details" : "View Details"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!nextStatus || isStatusUpdateBlocked}
+                    onClick={() => handleSequentialUpdate(order)}
+                    title={
+                      isStatusUpdateBlocked
+                        ? "Status updates are disabled for cancelled/return-requested orders."
+                        : nextStatus
+                          ? `Move to ${nextStatus}`
+                          : "Order already delivered"
+                    }
+                  >
+                    {nextStatus ? `Mark as ${nextStatus}` : "Delivered"}
+                  </button>
+                </div>
+
+                {isExpanded ? (
+                  <section className="vendor-order-details">
+                    <p>
+                      <strong>Order ID:</strong> {order.id}
+                    </p>
+                    <p>
+                      <strong>Product:</strong> {order.productName}
+                    </p>
+                    <p>
+                      <strong>Quantity:</strong> {order.quantity}
+                    </p>
+                    <p>
+                      <strong>Amount:</strong> {formatInr(order.amountInr)}
+                    </p>
+                    <p>
+                      <strong>Customer Address:</strong> {order.customerAddressMasked}
+                    </p>
+
+                    <div className="vendor-order-timeline" aria-label={`Timeline for ${order.id}`}>
+                      {(["New", "Packed", "Shipped", "Delivered"] as VendorOrderStatus[]).map(
+                        (timelineStep) => (
+                          <div
+                            key={timelineStep}
+                            className={getOrderTimelineStepClass(order.status, timelineStep)}
+                          >
+                            <span className="vendor-order-timeline-dot" aria-hidden="true" />
+                            <span>{timelineStep}</span>
+                          </div>
+                        ),
+                      )}
+                    </div>
+
+                    {order.paymentMethod === "COD" ? (
+                      <p className="vendor-cod-disclaimer">
+                        COD order: settlement is processed after successful delivery and policy
+                        checks.
+                      </p>
+                    ) : null}
+
+                    {order.visibilityState === "Cancelled" ? (
+                      <p className="vendor-order-override-note">
+                        This order is cancelled. Vendor status override is not allowed.
+                      </p>
+                    ) : null}
+                    {order.visibilityState === "Return Requested" ? (
+                      <p className="vendor-order-override-note">
+                        Return requested by customer. Vendor status override is not allowed.
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 }
 
