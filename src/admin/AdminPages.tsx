@@ -2,6 +2,14 @@ import { useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, Outlet, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "../routes/paths";
 import {
+  type AdminFaultAssignee,
+  type AdminOrderStatus,
+  type AdminPaymentType,
+  type AdminRtoAdjustmentStatus,
+  type AdminReturnStatus,
+  useOrderOperations,
+} from "../state/OrderOperationsContext";
+import {
   type PriceExceptionStatus,
   type ProductModerationStatus,
   type ProductPricingFlag,
@@ -81,6 +89,53 @@ function getExceptionStatusLabel(status: PriceExceptionStatus) {
     return "Not requested";
   }
   return status;
+}
+
+function getAdminOrderStatusClass(status: AdminOrderStatus) {
+  if (status === "Delivered") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (status === "Cancelled" || status === "Return Requested") {
+    return "admin-status-badge admin-status-rejected";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
+function getPaymentTypeClass(paymentType: AdminPaymentType) {
+  if (paymentType === "COD") {
+    return "admin-status-badge admin-status-suspended";
+  }
+  return "admin-status-badge admin-status-approved";
+}
+
+function getReturnStatusClass(status: AdminReturnStatus) {
+  if (status === "Closed") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (status === "Received") {
+    return "admin-status-badge admin-status-suspended";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
+function getRtoStatusClass(status: AdminRtoAdjustmentStatus) {
+  if (status === "Charge Confirmed") {
+    return "admin-status-badge admin-status-rejected";
+  }
+  if (status === "Charge Reversed") {
+    return "admin-status-badge admin-status-approved";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
+function getTimelineStepClass(isCompleted: boolean, isCurrent: boolean) {
+  if (isCompleted) {
+    return "admin-order-timeline-step is-complete";
+  }
+  if (isCurrent) {
+    return "admin-order-timeline-step is-current";
+  }
+  return "admin-order-timeline-step";
 }
 
 function formatDate(isoDate: string) {
@@ -270,6 +325,13 @@ const ADMIN_VENDOR_ACTIONS: AdminVendorActionButton[] = [
   { label: "Approve Vendor", actionType: "Approved", buttonClassName: "btn btn-primary" },
   { label: "Reject Vendor", actionType: "Rejected", buttonClassName: "btn btn-secondary" },
   { label: "Suspend Vendor", actionType: "Suspended", buttonClassName: "btn btn-secondary" },
+];
+
+const DISPUTE_FAULT_OPTIONS: AdminFaultAssignee[] = [
+  "User",
+  "Vendor",
+  "Courier",
+  "Platform",
 ];
 
 export function AdminVendorDetailPage() {
@@ -853,20 +915,510 @@ export function AdminProductDetailPage() {
 }
 
 export function AdminOrdersPage() {
+  const { orders } = useOrderOperations();
+  const sortedOrders = useMemo(
+    () =>
+      [...orders].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [orders],
+  );
+
   return (
-    <AdminPlaceholderPage
-      title="Orders"
-      description="Order monitoring, escalations, and fulfillment oversight."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Orders"
+        description="Monitor all marketplace orders with payment status and fulfillment flow."
+      />
+
+      <section className="admin-placeholder-card">
+        <div className="admin-orders-table-wrap">
+          <div className="admin-orders-table-head" role="presentation">
+            <span>Order ID</span>
+            <span>User</span>
+            <span>Vendor</span>
+            <span>Product</span>
+            <span>Amount</span>
+            <span>Payment Type</span>
+            <span>Current Status</span>
+          </div>
+
+          <div className="admin-orders-table-body">
+            {sortedOrders.map((order) => (
+              <Link
+                key={order.id}
+                to={ROUTES.adminOrderDetail(order.id)}
+                className="admin-orders-table-row"
+              >
+                <span className="admin-product-name-cell">{order.id}</span>
+                <span>{order.userName}</span>
+                <span>{order.vendorName}</span>
+                <span>{order.productName}</span>
+                <span>{formatInr(order.amountInr)}</span>
+                <span className={getPaymentTypeClass(order.paymentType)}>
+                  {order.paymentType}
+                </span>
+                <div className="admin-product-status-row">
+                  <span className={getAdminOrderStatusClass(order.status)}>{order.status}</span>
+                  {order.dispute?.isFlagged ? (
+                    <span className="admin-status-badge admin-status-suspended">Dispute</span>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function AdminOrderDetailPage() {
+  const { orderId } = useParams();
+  const { getOrderById, getOrderAuditLog, assignDisputeFault } = useOrderOperations();
+  const order = orderId ? getOrderById(orderId) : undefined;
+  const [selectedFault, setSelectedFault] = useState<AdminFaultAssignee>("User");
+  const [disputeReason, setDisputeReason] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  if (!order) {
+    return (
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Order not found"
+          description="The selected order does not exist in current admin mock state."
+        />
+        <Link to={ROUTES.adminOrders} className="btn btn-secondary">
+          Back to Orders
+        </Link>
+      </section>
+    );
+  }
+
+  const timelineSteps: Array<{ label: string; timestamp: string | null }> = [
+    { label: "Ordered", timestamp: order.timeline.orderedAtIso },
+    { label: "Packed", timestamp: order.timeline.packedAtIso },
+    { label: "Shipped", timestamp: order.timeline.shippedAtIso },
+    { label: "Delivered", timestamp: order.timeline.deliveredAtIso },
+  ];
+  const currentTimelineIndex = order.timeline.deliveredAtIso
+    ? 3
+    : order.timeline.shippedAtIso
+      ? 2
+      : order.timeline.packedAtIso
+        ? 1
+        : 0;
+  const orderAuditLog = getOrderAuditLog(order.id);
+  const vendorAdjustmentLabel =
+    order.financialImpact.vendorWalletAdjustmentInr > 0
+      ? `+${formatInr(order.financialImpact.vendorWalletAdjustmentInr)}`
+      : formatInr(order.financialImpact.vendorWalletAdjustmentInr);
+
+  function handleAssignFault() {
+    const result = assignDisputeFault(order.id, selectedFault, disputeReason);
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setDisputeReason("");
+    }
+  }
+
+  return (
+    <div className="stack">
+      <section className="admin-placeholder-card">
+        <div className="admin-vendor-detail-topbar">
+          <div>
+            <AdminSectionHeader
+              title={order.id}
+              description={`${order.productName} • ${order.userName} • ${order.vendorName}`}
+            />
+          </div>
+          <div className="admin-product-status-row">
+            <span className={getPaymentTypeClass(order.paymentType)}>{order.paymentType}</span>
+            <span className={getAdminOrderStatusClass(order.status)}>{order.status}</span>
+          </div>
+        </div>
+        <p className="admin-vendor-status-message">
+          Order value: <strong>{formatInr(order.amountInr)}</strong>
+        </p>
+        <Link to={ROUTES.adminOrders} className="btn btn-secondary">
+          Back to Orders
+        </Link>
+      </section>
+
+      <section className="admin-vendor-detail-grid">
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Order Timeline"
+            description="Operational lifecycle from ordered to delivered."
+          />
+          <div className="admin-order-timeline">
+            {timelineSteps.map((step, index) => (
+              <div
+                key={step.label}
+                className={getTimelineStepClass(
+                  index < currentTimelineIndex,
+                  index === currentTimelineIndex,
+                )}
+              >
+                <span className="admin-order-timeline-dot" aria-hidden="true" />
+                <div>
+                  <p>{step.label}</p>
+                  <small>{step.timestamp ? formatDateTime(step.timestamp) : "Pending"}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Action Snapshot"
+            description="User, vendor, and delivery partner activity status."
+          />
+          <div className="admin-details-list">
+            <p>
+              <strong>User action:</strong> {order.userAction}
+            </p>
+            <p>
+              <strong>Vendor action:</strong> {order.vendorAction}
+            </p>
+            <p>
+              <strong>Delivery partner status:</strong> {order.deliveryPartnerStatus}
+            </p>
+            <p>
+              <strong>Last updated:</strong> {formatDateTime(order.updatedAtIso)}
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section className="admin-vendor-detail-grid">
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Dispute Resolution"
+            description="Assign accountability and apply financial adjustment outcome."
+          />
+          {order.dispute?.isFlagged ? (
+            <>
+              <div className="admin-details-list">
+                <p>
+                  <strong>Dispute source:</strong> {order.dispute.source}
+                </p>
+                <p>
+                  <strong>Status:</strong> {order.dispute.status}
+                </p>
+                <p>
+                  <strong>Current assigned fault:</strong>{" "}
+                  {order.dispute.assignedFault ?? "Unassigned"}
+                </p>
+                {order.dispute.adminReason ? (
+                  <p>
+                    <strong>Latest dispute reason:</strong> {order.dispute.adminReason}
+                  </p>
+                ) : null}
+              </div>
+              <div className="admin-dispute-controls">
+                <label className="field">
+                  Assign fault
+                  <select
+                    className="order-select"
+                    value={selectedFault}
+                    onChange={(event) =>
+                      setSelectedFault(event.target.value as AdminFaultAssignee)
+                    }
+                  >
+                    {DISPUTE_FAULT_OPTIONS.map((fault) => (
+                      <option key={fault} value={fault}>
+                        {fault}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Dispute resolution reason (mandatory)
+                  <textarea
+                    className="order-textarea"
+                    rows={3}
+                    value={disputeReason}
+                    onChange={(event) => setDisputeReason(event.target.value)}
+                    placeholder="Enter why this party is assigned fault"
+                  />
+                </label>
+                <button type="button" className="btn btn-primary" onClick={handleAssignFault}>
+                  Resolve Dispute
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="admin-vendor-status-message">
+              No dispute is flagged for this order.
+            </p>
+          )}
+        </article>
+
+        <article className="admin-placeholder-card">
+          <AdminSectionHeader
+            title="Financial Impact"
+            description="Mock impact on vendor wallet and user refund/cashback."
+          />
+          <div className="admin-details-list">
+            <p>
+              <strong>Vendor wallet adjustment:</strong> {vendorAdjustmentLabel}
+            </p>
+            <p>
+              <strong>Vendor wallet status:</strong> {order.financialImpact.vendorWalletStatus}
+            </p>
+            <p>
+              <strong>User refund status:</strong> {order.financialImpact.userRefundStatus}
+            </p>
+            <p>
+              <strong>User cashback status:</strong> {order.financialImpact.userCashbackStatus}
+            </p>
+            <p>
+              <strong>Admin reason:</strong>{" "}
+              {order.financialImpact.adminReason ?? "No admin reason recorded yet."}
+            </p>
+          </div>
+        </article>
+      </section>
+
+      {feedbackMessage ? (
+        <section className="admin-placeholder-card">
+          <p className="admin-action-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Audit Log (Admin Only)"
+          description="Tracks returns, RTO, and dispute resolution actions."
+        />
+        {orderAuditLog.length > 0 ? (
+          <div className="stack-sm">
+            {orderAuditLog.map((entry) => (
+              <article key={entry.id} className="admin-audit-row">
+                <div className="admin-audit-row-top">
+                  <span className="admin-status-badge">{entry.actionType}</span>
+                  <strong>{formatDateTime(entry.createdAtIso)}</strong>
+                </div>
+                <p>{entry.reason}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="admin-vendor-status-message">
+            No admin operations actions are logged for this order yet.
+          </p>
+        )}
+      </section>
+    </div>
   );
 }
 
 export function AdminReturnsRtoPage() {
+  const {
+    returnCases,
+    rtoCases,
+    approveReturnResolution,
+    closeReturnWithReason,
+    confirmRtoCharge,
+    reverseRtoCharge,
+  } = useOrderOperations();
+  const [returnReasonById, setReturnReasonById] = useState<Record<string, string>>({});
+  const [rtoReasonById, setRtoReasonById] = useState<Record<string, string>>({});
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const sortedReturns = useMemo(
+    () =>
+      [...returnCases].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [returnCases],
+  );
+  const sortedRtoCases = useMemo(
+    () =>
+      [...rtoCases].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [rtoCases],
+  );
+
+  function handleApproveReturn(returnCaseId: string) {
+    const result = approveReturnResolution(returnCaseId);
+    setFeedbackMessage(result.message);
+  }
+
+  function handleCloseReturn(returnCaseId: string) {
+    const result = closeReturnWithReason(returnCaseId, returnReasonById[returnCaseId] ?? "");
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setReturnReasonById((currentReasons) => ({ ...currentReasons, [returnCaseId]: "" }));
+    }
+  }
+
+  function handleConfirmRtoCharge(rtoCaseId: string) {
+    const result = confirmRtoCharge(rtoCaseId, rtoReasonById[rtoCaseId] ?? "");
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setRtoReasonById((currentReasons) => ({ ...currentReasons, [rtoCaseId]: "" }));
+    }
+  }
+
+  function handleReverseRtoCharge(rtoCaseId: string) {
+    const result = reverseRtoCharge(rtoCaseId, rtoReasonById[rtoCaseId] ?? "");
+    setFeedbackMessage(result.message);
+    if (result.ok) {
+      setRtoReasonById((currentReasons) => ({ ...currentReasons, [rtoCaseId]: "" }));
+    }
+  }
+
   return (
-    <AdminPlaceholderPage
-      title="Returns / RTO"
-      description="Track return flow, return-to-origin cases, and issue trends."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Returns / RTO"
+        description="Resolve returns, process RTO adjustments, and document admin reasons."
+      />
+
+      {feedbackMessage ? (
+        <section className="admin-placeholder-card">
+          <p className="admin-action-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="Returns Management"
+          description="Approve return resolutions or close return requests with reason."
+        />
+        <div className="stack-sm">
+          {sortedReturns.map((returnCase) => (
+            <article key={returnCase.id} className="admin-ops-row">
+              <div className="admin-ops-row-head">
+                <h3>{returnCase.orderId}</h3>
+                <span className={getReturnStatusClass(returnCase.status)}>{returnCase.status}</span>
+              </div>
+              <p>
+                <strong>Return reason:</strong> {returnCase.returnReason}
+              </p>
+              <p>
+                <strong>Last admin reason:</strong>{" "}
+                {returnCase.adminReason ?? "No reason recorded yet."}
+              </p>
+              <p>
+                <strong>Updated:</strong> {formatDateTime(returnCase.updatedAtIso)}
+              </p>
+              <div className="inline-actions">
+                <Link to={ROUTES.adminOrderDetail(returnCase.orderId)} className="btn btn-secondary">
+                  Open Order
+                </Link>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleApproveReturn(returnCase.id)}
+                >
+                  Approve Return Resolution
+                </button>
+              </div>
+              <label className="field">
+                Close return reason (mandatory)
+                <textarea
+                  className="order-textarea"
+                  rows={3}
+                  value={returnReasonById[returnCase.id] ?? ""}
+                  onChange={(event) =>
+                    setReturnReasonById((currentReasons) => ({
+                      ...currentReasons,
+                      [returnCase.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter reason for closing return request"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleCloseReturn(returnCase.id)}
+              >
+                Close Return
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <AdminSectionHeader
+          title="RTO Management"
+          description="Confirm or reverse RTO charge with mandatory reason."
+        />
+        <div className="stack-sm">
+          {sortedRtoCases.map((rtoCase) => (
+            <article key={rtoCase.id} className="admin-ops-row">
+              <div className="admin-ops-row-head">
+                <h3>{rtoCase.orderId}</h3>
+                <span className={getRtoStatusClass(rtoCase.adjustmentStatus)}>
+                  {rtoCase.adjustmentStatus}
+                </span>
+              </div>
+              <p>
+                <strong>Courier issue:</strong> {rtoCase.courierIssueReason}
+              </p>
+              <p>
+                <strong>RTO charge:</strong> {formatInr(rtoCase.rtoChargeInr)}
+              </p>
+              <p>
+                <strong>Last admin reason:</strong>{" "}
+                {rtoCase.adminReason ?? "No reason recorded yet."}
+              </p>
+              <p>
+                <strong>Updated:</strong> {formatDateTime(rtoCase.updatedAtIso)}
+              </p>
+              <div className="inline-actions">
+                <Link to={ROUTES.adminOrderDetail(rtoCase.orderId)} className="btn btn-secondary">
+                  Open Order
+                </Link>
+              </div>
+              <label className="field">
+                RTO action reason (mandatory)
+                <textarea
+                  className="order-textarea"
+                  rows={3}
+                  value={rtoReasonById[rtoCase.id] ?? ""}
+                  onChange={(event) =>
+                    setRtoReasonById((currentReasons) => ({
+                      ...currentReasons,
+                      [rtoCase.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Enter reason for RTO adjustment action"
+                />
+              </label>
+              <div className="inline-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => handleConfirmRtoCharge(rtoCase.id)}
+                >
+                  Confirm RTO Charge
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => handleReverseRtoCharge(rtoCase.id)}
+                >
+                  Reverse RTO Charge
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
