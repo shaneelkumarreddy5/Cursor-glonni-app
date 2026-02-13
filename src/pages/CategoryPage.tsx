@@ -26,17 +26,20 @@ export function CategoryPage() {
   const brandFilters = Array.from(
     new Map(catalogProducts.map((product) => [product.brand, product.brandLogoUrl])).entries(),
   );
+  const priceFilters = ["Under ₹10,000", "₹10,000 - ₹30,000", "₹30,000 - ₹60,000", "Above ₹60,000"];
+  const deliveryFilters = ["Same day", "Next day", "2-4 days"];
+  const ratingFilters = ["4.5 and above", "4.0 and above", "3.5 and above"];
 
   const productsToRender = [...sponsoredProducts, ...organicProducts];
 
   return (
     <div className="plp-page stack">
       <section className="card plp-intro">
-        <span className="badge plp-badge">PLP</span>
-        <h1>Category Listing - Mobiles, Laptops, Accessories, and Footwear</h1>
+        <span className="badge plp-badge">Category listing</span>
+        <h1>Discover curated products with clear pricing and offer visibility</h1>
         <p>
-          First 4 cards are sponsored placements. All remaining cards are organic products sorted
-          by best price.
+          Filter by category, brand, rating, and delivery preferences. Sponsored placements are
+          clearly labeled for transparent browsing.
         </p>
         <div className="plp-toolbar">
           <div className="plp-filter-row" role="list" aria-label="Category filters">
@@ -46,7 +49,7 @@ export function CategoryPage() {
               </button>
             ))}
           </div>
-          <span className="plp-sort-pill">Sort: Best Price</span>
+          <span className="plp-sort-pill">Sort by: Best price first</span>
         </div>
         <div className="plp-brand-filter-row" role="list" aria-label="Brand filters">
           {brandFilters.map(([brandName, logoUrl]) => (
@@ -58,66 +61,106 @@ export function CategoryPage() {
         </div>
       </section>
 
-      <section className="card plp-summary">
-        <p>
-          Showing {productsToRender.length} products: {sponsoredProducts.length} sponsored +{" "}
-          {organicProducts.length} organic.
-        </p>
-      </section>
+      <section className="plp-layout">
+        <aside className="card plp-filter-panel">
+          <section className="plp-filter-group">
+            <h3>Price range</h3>
+            {priceFilters.map((item) => (
+              <label key={item} className="plp-filter-option">
+                <span>{item}</span>
+                <input type="checkbox" />
+              </label>
+            ))}
+          </section>
 
-      <section className="plp-grid" aria-label="Product listing grid">
-        {productsToRender.map((product, index) => (
-          <article key={product.id} className="plp-product-card">
-            <div className="plp-image-wrap">
-              {product.sponsored ? <span className="plp-sponsored-pill">Sponsored</span> : null}
-              <button
-                type="button"
-                className="plp-wishlist-button"
-                aria-label={`Save ${product.name} to wishlist`}
-              >
-                <WishlistIcon />
-              </button>
-              <img
-                src={product.imageUrl}
-                alt={`${product.name} ${product.category} product image`}
-                className="plp-product-image"
-                loading="lazy"
-              />
-            </div>
+          <section className="plp-filter-group">
+            <h3>Delivery speed</h3>
+            {deliveryFilters.map((item) => (
+              <label key={item} className="plp-filter-option">
+                <span>{item}</span>
+                <input type="checkbox" />
+              </label>
+            ))}
+          </section>
 
-            <div className="plp-product-copy">
-              <span className="plp-category-pill">{product.category}</span>
-              <div className="plp-brand-row">
-                <img src={product.brandLogoUrl} alt={`${product.brand} logo`} className="plp-brand-logo" />
-                <span>{product.brand}</span>
-              </div>
-              <h2>{product.name}</h2>
-              <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
+          <section className="plp-filter-group">
+            <h3>Customer rating</h3>
+            {ratingFilters.map((item) => (
+              <label key={item} className="plp-filter-option">
+                <span>{item}</span>
+                <input type="checkbox" />
+              </label>
+            ))}
+          </section>
 
-              <div className="plp-price-block">
-                <div className="plp-price-headline">
-                  <strong>{formatInr(product.priceInr)}</strong>
-                  <span>{formatInr(product.mrpInr)}</span>
+          <button type="button" className="btn btn-secondary btn-block">
+            Clear all filters
+          </button>
+        </aside>
+
+        <div className="stack-sm">
+          <section className="card plp-summary">
+            <p>
+              Showing {productsToRender.length} products: {sponsoredProducts.length} sponsored +{" "}
+              {organicProducts.length} organic.
+            </p>
+          </section>
+
+          <section className="plp-grid" aria-label="Product listing grid">
+            {productsToRender.map((product, index) => (
+              <article key={product.id} className="plp-product-card">
+                <div className="plp-image-wrap">
+                  {product.sponsored ? <span className="plp-sponsored-pill">Sponsored</span> : null}
+                  <button
+                    type="button"
+                    className="plp-wishlist-button"
+                    aria-label={`Save ${product.name} to wishlist`}
+                  >
+                    <WishlistIcon />
+                  </button>
+                  <img
+                    src={product.imageUrl}
+                    alt={`${product.name} ${product.category} product image`}
+                    className="plp-product-image"
+                    loading="lazy"
+                  />
                 </div>
-                <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
-              </div>
 
-              {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}
+                <div className="plp-product-copy">
+                  <span className="plp-category-pill">{product.category}</span>
+                  <div className="plp-brand-row">
+                    <img src={product.brandLogoUrl} alt={`${product.brand} logo`} className="plp-brand-logo" />
+                    <span>{product.brand}</span>
+                  </div>
+                  <h2>{product.name}</h2>
+                  <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
 
-              <div className="plp-rating-row">
-                <span className="plp-rating-pill">
-                  <StarIcon />
-                  {product.rating.toFixed(1)}
-                </span>
-                <span className="plp-rank-label">
-                  {index < sponsoredProducts.length
-                    ? `Sponsored slot ${index + 1}`
-                    : `Best price rank ${index - sponsoredProducts.length + 1}`}
-                </span>
-              </div>
-            </div>
-          </article>
-        ))}
+                  <div className="plp-price-block">
+                    <div className="plp-price-headline">
+                      <strong>{formatInr(product.priceInr)}</strong>
+                      <span>{formatInr(product.mrpInr)}</span>
+                    </div>
+                    <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
+                  </div>
+
+                  {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}
+
+                  <div className="plp-rating-row">
+                    <span className="plp-rating-pill">
+                      <StarIcon />
+                      {product.rating.toFixed(1)}
+                    </span>
+                    <span className="plp-rank-label">
+                      {index < sponsoredProducts.length
+                        ? `Sponsored slot ${index + 1}`
+                        : `Organic rank ${index - sponsoredProducts.length + 1}`}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
       </section>
     </div>
   );

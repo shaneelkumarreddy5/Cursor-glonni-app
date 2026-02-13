@@ -12,6 +12,10 @@ export function SettingsLayout() {
         <header className="section-header">
           <h2>Settings</h2>
         </header>
+        <div className="stack-sm">
+          <span className="muted-tag">Rohit Sharma</span>
+          <p className="footer-copy">Manage account, orders, support, and communication preferences.</p>
+        </div>
         <nav aria-label="Settings sections" className="settings-nav">
           {SETTINGS_NAV_ITEMS.map((item) => (
             <NavLink

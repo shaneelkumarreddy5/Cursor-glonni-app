@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { PRIMARY_NAV_ITEMS } from "../routes/paths";
+import { PRIMARY_NAV_ITEMS, ROUTES } from "../routes/paths";
 
 function navClassName(isActive: boolean) {
   return isActive ? "nav-link active" : "nav-link";
@@ -9,12 +9,41 @@ export function MainLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-inner">
+        <div className="topbar-meta">
+          <p>Free delivery over ₹15,000 · Secure checkout · Cashback-first shopping</p>
+        </div>
+
+        <div className="topbar-main topbar-container">
           <NavLink to="/" className="brand">
             <span className="brand-mark">G</span>
             <span className="brand-text">Glonni</span>
           </NavLink>
-          <nav aria-label="Main navigation" className="primary-nav">
+
+          <form
+            className="global-search"
+            role="search"
+            onSubmit={(event) => event.preventDefault()}
+            aria-label="Search products"
+          >
+            <input type="search" placeholder="Search for phones, laptops, accessories..." />
+            <button type="submit">Search</button>
+          </form>
+
+          <div className="topbar-actions">
+            <NavLink to={ROUTES.settingsOrders} className="topbar-action-link">
+              Orders
+            </NavLink>
+            <NavLink to={ROUTES.cart} className="topbar-action-link">
+              Cart
+            </NavLink>
+            <NavLink to={ROUTES.settings} className="topbar-action-link">
+              Account
+            </NavLink>
+          </div>
+        </div>
+
+        <div className="topbar-nav-wrap">
+          <nav aria-label="Main navigation" className="primary-nav topbar-container">
             {PRIMARY_NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}
@@ -33,7 +62,17 @@ export function MainLayout() {
       </main>
 
       <footer className="footer">
-        <p>Glonni MVP storefront - cashback-first shopping experience for Indian users.</p>
+        <div className="footer-inner">
+          <div>
+            <p className="footer-brand">Glonni</p>
+            <p className="footer-copy">A modern minimal storefront focused on fast discovery.</p>
+          </div>
+          <div className="footer-links">
+            <NavLink to={ROUTES.settingsSupport}>Help Center</NavLink>
+            <NavLink to={ROUTES.settingsOrders}>Track Order</NavLink>
+            <NavLink to={ROUTES.settings}>Account Settings</NavLink>
+          </div>
+        </div>
       </footer>
     </div>
   );

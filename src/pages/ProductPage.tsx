@@ -62,9 +62,9 @@ export function ProductPage() {
   return (
     <div className="stack pdp-page">
       <PageIntro
-        badge="PDP"
+        badge="Product details"
         title={featuredProduct.name}
-        description="Vendor comparison, cashback visibility, and offers are UI-only mock modules for MVP."
+        description="Compare verified sellers, review offers, and choose the best final value before checkout."
       />
 
       <section className="product-layout pdp-layout">
@@ -112,11 +112,17 @@ export function ProductPage() {
 
           <div className="inline-actions">
             <button type="button" className="btn btn-primary">
-              Add to Cart
+              Buy now
             </button>
             <button type="button" className="btn btn-secondary">
-              Buy Now
+              Add to cart
             </button>
+          </div>
+
+          <div className="chip-row" aria-label="Shopping assurance">
+            <span className="chip">7 day replacement</span>
+            <span className="chip">Secure payment</span>
+            <span className="chip">GST invoice available</span>
           </div>
         </article>
       </section>
@@ -124,11 +130,16 @@ export function ProductPage() {
       <section className="two-column pdp-lower-grid">
         <article className="card">
           <header className="section-header">
-            <h2>Vendor Offers</h2>
+            <h2>Seller comparison</h2>
           </header>
           <div className="pdp-vendor-list">
             {vendorOptions.map((vendor) => (
-              <label key={vendor.id} className="pdp-vendor-option">
+              <label
+                key={vendor.id}
+                className={
+                  selectedVendorId === vendor.id ? "pdp-vendor-option is-selected" : "pdp-vendor-option"
+                }
+              >
                 <input
                   type="radio"
                   name="vendor"
@@ -149,7 +160,7 @@ export function ProductPage() {
 
         <article className="card">
           <header className="section-header">
-            <h2>Bank Offers</h2>
+            <h2>Bank and payment offers</h2>
           </header>
           <div className="pdp-bank-offer-list">
             {bankOffers.map((offer) => (

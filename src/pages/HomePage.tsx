@@ -18,14 +18,19 @@ type HeroSlide = {
 
 const heroSlides: HeroSlide[] = [
   {
-    title: "Premium Phones Week",
-    subtitle: "Extra cashback on top-rated 5G mobiles and smart accessories.",
+    title: "Smartphone Upgrade Days",
+    subtitle: "Flagship and mid-range picks with exchange bonus and instant offers.",
     imageUrl: "https://images.unsplash.com/photo-1510557880182-3f8ec8d146f8?auto=format&fit=crop&w=1200&q=80",
   },
   {
-    title: "Laptop Upgrade Carnival",
-    subtitle: "Student and creator laptops with flexible bank offers.",
+    title: "Work and Study Essentials",
+    subtitle: "Laptops, earbuds, and accessories curated for daily productivity.",
     imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    title: "Weekend Fashion and Lifestyle",
+    subtitle: "Shoes and style picks with free shipping and easy returns.",
+    imageUrl: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=1200&q=80",
   },
 ];
 
@@ -147,15 +152,20 @@ export function HomePage() {
     <div className="home-landing stack">
       <section className="card home-banner">
         <header className="home-banner-header">
-          <span className="badge home-badge">Today only</span>
-          <h1>Mega Cashback - Up to ₹500 Cashback Today</h1>
+          <span className="badge home-badge">New season launch</span>
+          <h1>Modern shopping, minimal interface, faster checkout</h1>
           <p>
-            Discover curated deals from Indian sellers across mobiles, accessories, footwear, and
-            laptops.
+            Discover curated products from trusted Indian sellers across mobiles, laptops,
+            accessories, and lifestyle categories.
           </p>
+          <div className="chip-row" aria-label="Store highlights">
+            <span className="chip">Free delivery above ₹15,000</span>
+            <span className="chip">Secure payment methods</span>
+            <span className="chip">Real-time order tracking</span>
+          </div>
           <div className="inline-actions">
             <Link to={ROUTES.category} className="btn btn-primary home-cta">
-              Explore category deals
+              Start shopping
             </Link>
             <Link to={ROUTES.product} className="btn btn-secondary home-cta-secondary">
               View featured product
@@ -175,7 +185,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <HomeSection title="Shop by category" subtitle="Quick access to high-intent shopping lanes.">
+      <HomeSection title="Shop by category" subtitle="Jump into focused shopping lanes in one click.">
         <div className="home-category-grid" role="list" aria-label="Category cards">
           {homeCategoryTiles.map((category) => (
             <article key={category.name} className="home-category-card" role="listitem">
@@ -190,8 +200,8 @@ export function HomePage() {
       </HomeSection>
 
       <HomeSection
-        title="Sponsored products and best picks"
-        subtitle="First 4 products are sponsored placements, followed by organic picks."
+        title="Trending products"
+        subtitle="Sponsored placements are clearly marked, followed by top organic picks."
       >
         <div className="home-product-grid">
           {storefrontFeed.map((product, index) => (
@@ -203,7 +213,7 @@ export function HomePage() {
       <section className="card home-bank-strip">
         <header className="home-section-header">
           <h2>Bank Offers</h2>
-          <p>10% off with HDFC | Axis | ICICI - More offers</p>
+          <p>Instant discounts and cashback from partner banks.</p>
         </header>
         <div className="home-bank-offer-row" role="list" aria-label="Bank offers">
           {bankOffers.map((offer) => (
@@ -216,8 +226,8 @@ export function HomePage() {
       </section>
 
       <HomeSection
-        title="Top Brands - Electronics"
-        subtitle="Trusted brands currently leading this category."
+        title="Top brands"
+        subtitle="Most trusted electronics and lifestyle brands this week."
       >
         <div className="home-brand-grid">
           {topBrandHighlights.map((brand) => (
@@ -232,7 +242,7 @@ export function HomePage() {
         </div>
       </HomeSection>
 
-      <HomeSection title="For You" subtitle="Recommended products based on popular shopper journeys.">
+      <HomeSection title="Recommended for you" subtitle="Personalized picks based on current trends.">
         <div className="home-product-grid">
           {recommendedProducts.map((product) => (
             <HomeProductCard key={product.id} product={product} sponsored={false} />

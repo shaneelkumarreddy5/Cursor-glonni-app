@@ -67,9 +67,16 @@ export function CheckoutPage() {
   return (
     <div className="stack checkout-page">
       <PageIntro
-        badge="Checkout"
-        title="Checkout"
-        description="Confirm delivery, payment method, and order totals before placing your order."
+        badge="Secure checkout"
+        title="Complete your order"
+        description="Choose delivery and payment method, then confirm your final amount."
+        actions={
+          <div className="inline-actions">
+            <Link to={ROUTES.cart} className="btn btn-secondary">
+              Back to cart
+            </Link>
+          </div>
+        }
       />
 
       <section className="two-column">
@@ -113,7 +120,7 @@ export function CheckoutPage() {
 
           <article className="card checkout-card">
             <header className="section-header">
-              <h2>Payment Method (Mock)</h2>
+              <h2>Payment method</h2>
             </header>
             <div className="checkout-option-list">
               <label className="checkout-option">
@@ -167,6 +174,11 @@ export function CheckoutPage() {
             <div className="checkout-cashback-note">
               Cashback will be credited after successful delivery confirmation.
             </div>
+
+            <div className="chip-row" aria-label="Checkout trust signals">
+              <span className="chip">256-bit encrypted payment</span>
+              <span className="chip">Easy returns policy</span>
+            </div>
           </article>
 
           <article className="card checkout-card">
@@ -186,7 +198,7 @@ export function CheckoutPage() {
 
         <article className="card checkout-summary-card">
           <header className="section-header">
-            <h2>Price Breakdown</h2>
+            <h2>Order total</h2>
           </header>
 
           <div className="checkout-line-items">

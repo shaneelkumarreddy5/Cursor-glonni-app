@@ -27,15 +27,25 @@ export function CartPage() {
   return (
     <div className="stack cart-page">
       <PageIntro
-        badge="Cart"
-        title="Your Cart"
-        description="Review selected products, compare savings, and continue to secure checkout."
+        badge="Shopping bag"
+        title="Review your bag before checkout"
+        description="Check seller details, compare savings, and confirm final payable amount."
+        actions={
+          <div className="inline-actions">
+            <Link to={ROUTES.category} className="btn btn-secondary">
+              Continue shopping
+            </Link>
+            <Link to={ROUTES.checkout} className="btn btn-primary">
+              Checkout now
+            </Link>
+          </div>
+        }
       />
 
       <section className="two-column">
         <article className="card">
           <header className="section-header">
-            <h2>Line Items</h2>
+            <h2>Line items ({cartItems.length})</h2>
           </header>
           <div className="stack-sm">
             {cartItems.map(({ product, quantity, seller }) => (
@@ -63,6 +73,11 @@ export function CartPage() {
           <header className="section-header">
             <h2>Order Summary</h2>
           </header>
+
+          <div className="chip-row">
+            <span className="chip">You save {formatInr(discountTotal)}</span>
+            <span className="chip">Estimated cashback {formatInr(cashbackTotal)}</span>
+          </div>
 
           <div className="cart-summary-list">
             <div>
