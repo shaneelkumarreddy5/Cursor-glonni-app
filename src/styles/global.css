@@ -3170,6 +3170,129 @@ body {
   color: #b91c1c;
 }
 
+.vendor-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.vendor-return-row,
+.vendor-rto-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.68rem;
+}
+
+.vendor-return-row p,
+.vendor-rto-row p {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.vendor-return-heading,
+.vendor-rto-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.vendor-return-heading h3,
+.vendor-rto-heading h3 {
+  font-size: 0.89rem;
+}
+
+.vendor-return-status-badge,
+.vendor-rto-status-badge {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.45rem;
+}
+
+.vendor-return-status-requested {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.vendor-return-status-pending {
+  border-color: #bae6fd;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.vendor-return-status-hub {
+  border-color: #d9f99d;
+  background: #f7fee7;
+  color: #3f6212;
+}
+
+.vendor-return-status-adjusted {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.vendor-rto-status-charge {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.vendor-rto-status-review {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.vendor-rto-status-reversed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.vendor-return-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.vendor-return-timeline-step {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  color: #8a8a8a;
+  font-size: 0.71rem;
+  text-align: center;
+}
+
+.vendor-return-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid #cfd4dc;
+  background: #ffffff;
+}
+
+.vendor-return-timeline-step.is-complete,
+.vendor-return-timeline-step.is-current {
+  color: #1f2937;
+}
+
+.vendor-return-timeline-step.is-complete .vendor-return-timeline-dot,
+.vendor-return-timeline-step.is-current .vendor-return-timeline-dot {
+  border-color: #22c55e;
+  background: #22c55e;
+}
+
 @media (min-width: 980px) {
   .vendor-products-grid {
     grid-template-columns: 1fr 1fr;

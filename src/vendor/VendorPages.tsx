@@ -13,6 +13,8 @@ import {
   type VendorOnboardingData,
   type VendorOrder,
   type VendorOrderStatus,
+  type VendorReturnCaseStatus,
+  type VendorRtoResolutionStatus,
   type VendorWalletEntryStatus,
   type VendorProduct,
   type VendorProductExtraOffer,
@@ -172,6 +174,51 @@ function getOrderTimelineStepClass(currentStatus: VendorOrderStatus, step: Vendo
     return "vendor-order-timeline-step is-current";
   }
   return "vendor-order-timeline-step";
+}
+
+function getReturnCaseStatusClass(status: VendorReturnCaseStatus) {
+  if (status === "Return Requested") {
+    return "vendor-return-status-badge vendor-return-status-requested";
+  }
+  if (status === "Pickup Pending") {
+    return "vendor-return-status-badge vendor-return-status-pending";
+  }
+  if (status === "Received at Hub") {
+    return "vendor-return-status-badge vendor-return-status-hub";
+  }
+  return "vendor-return-status-badge vendor-return-status-adjusted";
+}
+
+function getReturnTimelineStepClass(
+  currentStatus: VendorReturnCaseStatus,
+  timelineStep: VendorReturnCaseStatus,
+) {
+  const returnSequence: VendorReturnCaseStatus[] = [
+    "Return Requested",
+    "Pickup Pending",
+    "Received at Hub",
+    "Refund Adjusted",
+  ];
+  const currentIndex = returnSequence.indexOf(currentStatus);
+  const timelineIndex = returnSequence.indexOf(timelineStep);
+
+  if (timelineIndex < currentIndex) {
+    return "vendor-return-timeline-step is-complete";
+  }
+  if (timelineIndex === currentIndex) {
+    return "vendor-return-timeline-step is-current";
+  }
+  return "vendor-return-timeline-step";
+}
+
+function getRtoResolutionClass(status: VendorRtoResolutionStatus) {
+  if (status === "Charge Applied") {
+    return "vendor-rto-status-badge vendor-rto-status-charge";
+  }
+  if (status === "Under Review") {
+    return "vendor-rto-status-badge vendor-rto-status-review";
+  }
+  return "vendor-rto-status-badge vendor-rto-status-reversed";
 }
 
 function formatTimestamp(isoDate: string) {
@@ -1210,6 +1257,136 @@ export function VendorOrdersPage() {
             );
           })}
         </div>
+      </section>
+    </div>
+  );
+}
+
+export function VendorReturnsRtoPage() {
+  const { vendorReturnCases, vendorRtoCases } = useVendor();
+  const [activeTab, setActiveTab] = useState<"returns" | "rtos">("returns");
+
+  const sortedReturnCases = useMemo(
+    () =>
+      [...vendorReturnCases].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [vendorReturnCases],
+  );
+
+  const sortedRtoCases = useMemo(
+    () =>
+      [...vendorRtoCases].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() -
+          new Date(first.updatedAtIso).getTime(),
+      ),
+    [vendorRtoCases],
+  );
+
+  return (
+    <div className="stack vendor-page">
+      <VendorSectionHeader
+        title="Returns & RTO"
+        description="Track return cases and RTO resolutions. User return rights cannot be overridden by vendor."
+      />
+
+      <section className="vendor-placeholder-card">
+        <div className="vendor-tab-row">
+          <button
+            type="button"
+            className={activeTab === "returns" ? "plp-filter-chip is-selected" : "plp-filter-chip"}
+            onClick={() => setActiveTab("returns")}
+          >
+            Returns
+          </button>
+          <button
+            type="button"
+            className={activeTab === "rtos" ? "plp-filter-chip is-selected" : "plp-filter-chip"}
+            onClick={() => setActiveTab("rtos")}
+          >
+            RTOs
+          </button>
+        </div>
+
+        {activeTab === "returns" ? (
+          <div className="stack-sm">
+            {sortedReturnCases.length > 0 ? (
+              sortedReturnCases.map((returnCase) => (
+                <article key={returnCase.id} className="vendor-return-row">
+                  <div className="vendor-return-heading">
+                    <h3>{returnCase.orderId}</h3>
+                    <span className={getReturnCaseStatusClass(returnCase.status)}>
+                      {returnCase.status}
+                    </span>
+                  </div>
+                  <p>
+                    Product: {returnCase.productName}
+                  </p>
+                  <p>
+                    Reason: {returnCase.reason}
+                  </p>
+                  <div className="vendor-return-timeline">
+                    {(
+                      [
+                        "Return Requested",
+                        "Pickup Pending",
+                        "Received at Hub",
+                        "Refund Adjusted",
+                      ] as VendorReturnCaseStatus[]
+                    ).map((timelineStep) => (
+                      <div
+                        key={timelineStep}
+                        className={getReturnTimelineStepClass(returnCase.status, timelineStep)}
+                      >
+                        <span className="vendor-return-timeline-dot" aria-hidden="true" />
+                        <span>{timelineStep}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p>No return cases for this vendor right now.</p>
+            )}
+          </div>
+        ) : (
+          <div className="stack-sm">
+            {sortedRtoCases.length > 0 ? (
+              sortedRtoCases.map((rtoCase) => (
+                <article key={rtoCase.id} className="vendor-rto-row">
+                  <div className="vendor-rto-heading">
+                    <h3>{rtoCase.orderId}</h3>
+                    <span className={getRtoResolutionClass(rtoCase.resolutionStatus)}>
+                      {rtoCase.resolutionStatus}
+                    </span>
+                  </div>
+                  <p>
+                    Product: {rtoCase.productName}
+                  </p>
+                  <p>
+                    Courier issue: {rtoCase.courierIssue}
+                  </p>
+                  <p>
+                    RTO charge: {formatInr(rtoCase.rtoChargeInr)}
+                  </p>
+                  <p>
+                    Updated: {formatTimestamp(rtoCase.updatedAtIso)}
+                  </p>
+                  <div className="inline-actions">
+                    <button type="button" className="btn btn-secondary">
+                      Upload Evidence (Mock)
+                    </button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p>No RTO cases for this vendor right now.</p>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

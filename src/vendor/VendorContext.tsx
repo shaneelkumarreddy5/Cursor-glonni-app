@@ -13,6 +13,15 @@ export type VendorProductStatus = "Draft" | "Under Review" | "Live" | "Rejected"
 export type VendorProductExtraOfferType = "Freebie" | "Discount" | "Coupon";
 export type VendorOrderStatus = "New" | "Packed" | "Shipped" | "Delivered";
 export type VendorOrderVisibilityState = "None" | "Cancelled" | "Return Requested";
+export type VendorReturnCaseStatus =
+  | "Return Requested"
+  | "Pickup Pending"
+  | "Received at Hub"
+  | "Refund Adjusted";
+export type VendorRtoResolutionStatus =
+  | "Charge Applied"
+  | "Under Review"
+  | "Reversed";
 
 type VendorSummaryMetrics = {
   totalOrders: number;
@@ -96,6 +105,25 @@ export type VendorOrder = {
   updatedAtIso: string;
 };
 
+export type VendorReturnCase = {
+  id: string;
+  orderId: string;
+  productName: string;
+  reason: string;
+  status: VendorReturnCaseStatus;
+  updatedAtIso: string;
+};
+
+export type VendorRtoCase = {
+  id: string;
+  orderId: string;
+  productName: string;
+  courierIssue: string;
+  rtoChargeInr: number;
+  resolutionStatus: VendorRtoResolutionStatus;
+  updatedAtIso: string;
+};
+
 export type VendorWalletEntryStatus = "Pending" | "Available" | "Adjusted";
 
 export type VendorWalletEntry = {
@@ -113,7 +141,9 @@ type VendorWalletAdjustment = {
   orderId: string;
   productName: string;
   amountInr: number;
-  reason: "Cancelled" | "Return Requested";
+  reason: "Cancelled" | "Return Requested" | "RTO";
+  linkedReturnCaseId: string | null;
+  linkedRtoCaseId: string | null;
   createdAtIso: string;
   reversalDueAtIso: string;
   reversalCreated: boolean;
@@ -136,6 +166,8 @@ type VendorContextValue = {
   summaryMetrics: VendorSummaryMetrics;
   vendorProducts: VendorProduct[];
   vendorOrders: VendorOrder[];
+  vendorReturnCases: VendorReturnCase[];
+  vendorRtoCases: VendorRtoCase[];
   walletEntries: VendorWalletEntry[];
   walletSummary: VendorWalletSummary;
   lastSettledAmountInr: number;
@@ -369,13 +401,55 @@ function createSeedVendorOrders(): VendorOrder[] {
   ];
 }
 
-function createSeedWalletAdjustments(orders: VendorOrder[]): VendorWalletAdjustment[] {
+function createSeedVendorReturnCases(orders: VendorOrder[]): VendorReturnCase[] {
   return orders
+    .filter((order) => order.visibilityState === "Return Requested")
+    .map((order) => ({
+      id: `VRET-${order.id}`,
+      orderId: order.id,
+      productName: order.productName,
+      reason: "Damaged item received",
+      status: "Pickup Pending",
+      updatedAtIso: order.updatedAtIso,
+    }));
+}
+
+function createSeedVendorRtoCases(): VendorRtoCase[] {
+  const now = Date.now();
+  return [
+    {
+      id: "VRTO-900221",
+      orderId: "VORD-500227",
+      productName: "Adidas Runstep Pro",
+      courierIssue: "Customer not reachable in three delivery attempts.",
+      rtoChargeInr: 145,
+      resolutionStatus: "Charge Applied",
+      updatedAtIso: new Date(now - 12 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: "VRTO-900338",
+      orderId: "VORD-500101",
+      productName: "Galaxy A56 5G",
+      courierIssue: "Courier reported address mismatch during handoff.",
+      rtoChargeInr: 180,
+      resolutionStatus: "Under Review",
+      updatedAtIso: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+}
+
+function createSeedWalletAdjustments(
+  orders: VendorOrder[],
+  returnCases: VendorReturnCase[],
+  rtoCases: VendorRtoCase[],
+): VendorWalletAdjustment[] {
+  const now = Date.now();
+  const orderPolicyAdjustments = orders
     .filter((order) => order.visibilityState !== "None")
     .map((order) => {
-      const now = Date.now();
       const isReturnRequested = order.visibilityState === "Return Requested";
       const reversalDueAtMs = isReturnRequested ? now - 30_000 : now + 120_000;
+      const linkedReturnCase = returnCases.find((returnCase) => returnCase.orderId === order.id);
       const adjustmentReason: VendorWalletAdjustment["reason"] =
         order.visibilityState === "Cancelled" ? "Cancelled" : "Return Requested";
 
@@ -385,12 +459,30 @@ function createSeedWalletAdjustments(orders: VendorOrder[]): VendorWalletAdjustm
         productName: order.productName,
         amountInr: order.amountInr,
         reason: adjustmentReason,
+        linkedReturnCaseId: linkedReturnCase?.id ?? null,
+        linkedRtoCaseId: null,
         createdAtIso: new Date(now).toISOString(),
         reversalDueAtIso: new Date(reversalDueAtMs).toISOString(),
         reversalCreated: false,
         reversalCreatedAtIso: null,
       };
     });
+
+  const rtoAdjustments = rtoCases.map((rtoCase) => ({
+    id: `WADJ-${rtoCase.id}`,
+    orderId: rtoCase.orderId,
+    productName: rtoCase.productName,
+    amountInr: rtoCase.rtoChargeInr,
+    reason: "RTO" as const,
+    linkedReturnCaseId: null,
+    linkedRtoCaseId: rtoCase.id,
+    createdAtIso: rtoCase.updatedAtIso,
+    reversalDueAtIso: new Date(now + 60_000).toISOString(),
+    reversalCreated: false,
+    reversalCreatedAtIso: null,
+  }));
+
+  return [...orderPolicyAdjustments, ...rtoAdjustments];
 }
 
 function applyWalletAdjustmentTransitions(
@@ -470,6 +562,15 @@ function getPayloadValidationError(payload: VendorProductPayload) {
   return getBenchmarkValidationError(payload);
 }
 
+const SEEDED_VENDOR_ORDERS = createSeedVendorOrders();
+const SEEDED_VENDOR_RETURN_CASES = createSeedVendorReturnCases(SEEDED_VENDOR_ORDERS);
+const SEEDED_VENDOR_RTO_CASES = createSeedVendorRtoCases();
+const SEEDED_WALLET_ADJUSTMENTS = createSeedWalletAdjustments(
+  SEEDED_VENDOR_ORDERS,
+  SEEDED_VENDOR_RETURN_CASES,
+  SEEDED_VENDOR_RTO_CASES,
+);
+
 const VendorContext = createContext<VendorContextValue | null>(null);
 
 export function VendorProvider({ children }: { children: ReactNode }) {
@@ -481,16 +582,81 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const [vendorProducts, setVendorProducts] =
     useState<VendorProduct[]>(createSeedVendorProducts);
   const [vendorOrders, setVendorOrders] =
-    useState<VendorOrder[]>(createSeedVendorOrders);
+    useState<VendorOrder[]>(SEEDED_VENDOR_ORDERS);
+  const [vendorReturnCases, setVendorReturnCases] =
+    useState<VendorReturnCase[]>(SEEDED_VENDOR_RETURN_CASES);
+  const [vendorRtoCases, setVendorRtoCases] =
+    useState<VendorRtoCase[]>(SEEDED_VENDOR_RTO_CASES);
   const [walletAdjustments, setWalletAdjustments] = useState<VendorWalletAdjustment[]>(
-    () => createSeedWalletAdjustments(createSeedVendorOrders()),
+    SEEDED_WALLET_ADJUSTMENTS,
   );
 
   useEffect(() => {
     const refreshWalletAdjustments = () => {
-      setWalletAdjustments((currentAdjustments) =>
-        applyWalletAdjustmentTransitions(currentAdjustments),
-      );
+      const now = new Date();
+      setWalletAdjustments((currentAdjustments) => {
+        const nextAdjustments = applyWalletAdjustmentTransitions(
+          currentAdjustments,
+          now,
+        );
+        if (nextAdjustments === currentAdjustments) {
+          return currentAdjustments;
+        }
+
+        const previouslyCreatedById = new Set(
+          currentAdjustments
+            .filter((adjustment) => adjustment.reversalCreated)
+            .map((adjustment) => adjustment.id),
+        );
+        const newlyReversedAdjustments = nextAdjustments.filter(
+          (adjustment) =>
+            adjustment.reversalCreated &&
+            !previouslyCreatedById.has(adjustment.id),
+        );
+
+        if (newlyReversedAdjustments.length > 0) {
+          const reversedReturnCaseIds = newlyReversedAdjustments
+            .map((adjustment) => adjustment.linkedReturnCaseId)
+            .filter((linkedReturnCaseId): linkedReturnCaseId is string =>
+              Boolean(linkedReturnCaseId),
+            );
+          const reversedRtoCaseIds = newlyReversedAdjustments
+            .map((adjustment) => adjustment.linkedRtoCaseId)
+            .filter((linkedRtoCaseId): linkedRtoCaseId is string =>
+              Boolean(linkedRtoCaseId),
+            );
+
+          if (reversedReturnCaseIds.length > 0) {
+            setVendorReturnCases((currentCases) =>
+              currentCases.map((returnCase) =>
+                reversedReturnCaseIds.includes(returnCase.id)
+                  ? {
+                      ...returnCase,
+                      status: "Refund Adjusted",
+                      updatedAtIso: now.toISOString(),
+                    }
+                  : returnCase,
+              ),
+            );
+          }
+
+          if (reversedRtoCaseIds.length > 0) {
+            setVendorRtoCases((currentCases) =>
+              currentCases.map((rtoCase) =>
+                reversedRtoCaseIds.includes(rtoCase.id)
+                  ? {
+                      ...rtoCase,
+                      resolutionStatus: "Reversed",
+                      updatedAtIso: now.toISOString(),
+                    }
+                  : rtoCase,
+              ),
+            );
+          }
+        }
+
+        return nextAdjustments;
+      });
     };
 
     refreshWalletAdjustments();
@@ -757,7 +923,9 @@ export function VendorProvider({ children }: { children: ReactNode }) {
         note:
           adjustment.reason === "Cancelled"
             ? "Temporary deduction for cancelled order."
-            : "Temporary deduction for return requested order.",
+            : adjustment.reason === "Return Requested"
+              ? "Temporary deduction for return requested order."
+              : "Temporary RTO deduction applied.",
         updatedAtIso: adjustment.createdAtIso,
       };
 
@@ -822,6 +990,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       summaryMetrics,
       vendorProducts,
       vendorOrders,
+      vendorReturnCases,
+      vendorRtoCases,
       walletEntries,
       walletSummary,
       lastSettledAmountInr: MOCK_LAST_SETTLED_AMOUNT_INR,
@@ -844,6 +1014,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       walletEntries,
       walletSummary,
       vendorOrders,
+      vendorReturnCases,
+      vendorRtoCases,
       vendorProducts,
       vendorStatus,
     ],
