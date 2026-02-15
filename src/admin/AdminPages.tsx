@@ -27,6 +27,7 @@ import {
 } from "../state/VendorLifecycleContext";
 import { formatInr } from "../utils/currency";
 import { AdminProvider, useAdmin } from "./AdminContext";
+import { AdminCategoryManagementSection } from "./AdminCategoryManagementSection";
 import { AdminLayout } from "./AdminLayout";
 
 const STATIC_USERS_COUNT = 12450;
@@ -1918,9 +1919,12 @@ export function AdminSupportPage() {
 
 export function AdminSettingsPage() {
   return (
-    <AdminPlaceholderPage
-      title="Settings"
-      description="Admin account preferences, platform flags, and policy switches."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Settings"
+        description="Admin-only platform controls for category availability, rules, and policy inheritance."
+      />
+      <AdminCategoryManagementSection />
+    </div>
   );
 }
