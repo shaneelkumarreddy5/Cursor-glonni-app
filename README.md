@@ -2,6 +2,8 @@
 
 Modern web application scaffold for an e-commerce platform called **Glonni**.
 
+> **Note**: This repository uses `main` as the default branch.
+
 ## What is included
 
 - React + TypeScript + Vite setup
