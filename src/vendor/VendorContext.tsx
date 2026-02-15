@@ -15,7 +15,14 @@ import {
   type AdPricingSlab,
   useAdMonetization,
 } from "../state/AdMonetizationContext";
+import { type CatalogCategory } from "../data/mockCatalog";
 import { formatInr } from "../utils/currency";
+import {
+  resolveVendorCategorySelection,
+  resolveVendorCategorySelectionByCategoryCode,
+  resolveVendorCategorySelectionFromLegacyCategory,
+  type VendorMainCategoryName,
+} from "./vendorCategorySystem";
 
 export type VendorStatus = VendorLifecycleStatus;
 export type VendorProductStatus = "Draft" | "Under Review" | "Live" | "Rejected";
@@ -83,7 +90,9 @@ export type VendorProductExtraOffer = {
 };
 
 export type VendorProductPayload = {
-  category: "Mobiles" | "Laptops" | "Accessories" | "Footwear";
+  mainCategoryCode: string;
+  subCategoryCode: string;
+  subSubCategoryCode: string;
   brand: string;
   productName: string;
   images: string[];
@@ -93,7 +102,21 @@ export type VendorProductPayload = {
   extraOffers: VendorProductExtraOffer[];
 };
 
-export type VendorProduct = VendorProductPayload & {
+export type VendorProductCategoryRules = {
+  cashbackPercentage: number;
+  codEligible: boolean;
+  returnEligible: boolean;
+  shippingRequired: boolean;
+  isPhysical: boolean;
+};
+
+export type VendorProduct = VendorProductPayload &
+  VendorProductCategoryRules & {
+    categoryCode: string;
+    category: string;
+    mainCategoryName: VendorMainCategoryName;
+    subCategoryName: string;
+    subSubCategoryName: string;
   id: string;
   status: VendorProductStatus;
   rejectionReason: string | null;
@@ -148,7 +171,7 @@ export type VendorAd = {
   type: VendorAdType;
   productId: string | null;
   productName: string | null;
-  category: VendorProductPayload["category"] | null;
+  category: CatalogCategory | null;
   durationDays: number;
   budgetInr: number;
   fixedPriceInr: number;
@@ -164,7 +187,7 @@ export type VendorAd = {
 export type VendorAdPayload = {
   type: VendorAdType;
   productId: string | null;
-  category: VendorProductPayload["category"] | null;
+  category: CatalogCategory | null;
   durationDays: number;
   budgetInr: number;
 };
@@ -346,7 +369,8 @@ type VendorContextValue = {
   getVendorAdRemainingDays: (ad: VendorAd) => number;
   getVendorProductVisibilityPriority: (
     productId: string,
-    category: VendorProductPayload["category"],
+    mainCategoryName: VendorMainCategoryName,
+    subCategoryName: string,
   ) => number;
   approveVendor: () => void;
   logoutVendor: () => void;
@@ -361,13 +385,14 @@ const MOCK_NEXT_SETTLEMENT_DATE_ISO = new Date(
 ).toISOString();
 
 const CATEGORY_PRICE_BENCHMARKS: Record<
-  VendorProductPayload["category"],
+  VendorMainCategoryName,
   { min: number; max: number }
 > = {
-  Mobiles: { min: 3000, max: 180000 },
-  Laptops: { min: 15000, max: 300000 },
-  Accessories: { min: 100, max: 50000 },
+  "Mobiles & Related": { min: 3000, max: 180000 },
+  "Computers & Laptops": { min: 15000, max: 300000 },
   Footwear: { min: 300, max: 30000 },
+  "Pet Food": { min: 100, max: 15000 },
+  "Digital Products": { min: 99, max: 50000 },
 };
 
 const ORDER_STATUS_SEQUENCE: VendorOrderStatus[] = [
@@ -444,12 +469,70 @@ function normalizeExtraOffers(extraOffers: VendorProductExtraOffer[]) {
     .filter((extraOffer) => extraOffer.value);
 }
 
+type SeedVendorProductInput = {
+  id: string;
+  categoryCode?: string;
+  legacyCategory?: string;
+  brand: string;
+  productName: string;
+  images: string[];
+  priceInr: number;
+  stockQuantity: number;
+  specifications: VendorProductSpecification[];
+  extraOffers: VendorProductExtraOffer[];
+  status: VendorProductStatus;
+  rejectionReason: string | null;
+  updatedAtIso: string;
+};
+
+function createSeedVendorProduct(seedInput: SeedVendorProductInput): VendorProduct {
+  const resolvedCategory =
+    (seedInput.categoryCode
+      ? resolveVendorCategorySelectionByCategoryCode(seedInput.categoryCode)
+      : null) ??
+    (seedInput.legacyCategory
+      ? resolveVendorCategorySelectionFromLegacyCategory(seedInput.legacyCategory)
+      : null) ??
+    resolveVendorCategorySelection("GL-MOB", "SM", "AN");
+
+  if (!resolvedCategory) {
+    throw new Error("Vendor category configuration is invalid.");
+  }
+
+  return {
+    id: seedInput.id,
+    categoryCode: resolvedCategory.categoryCode,
+    category: resolvedCategory.categoryPathLabel,
+    mainCategoryCode: resolvedCategory.mainCategoryCode,
+    subCategoryCode: resolvedCategory.subCategoryCode,
+    subSubCategoryCode: resolvedCategory.subSubCategoryCode,
+    mainCategoryName: resolvedCategory.mainCategoryName,
+    subCategoryName: resolvedCategory.subCategoryName,
+    subSubCategoryName: resolvedCategory.subSubCategoryName,
+    cashbackPercentage: resolvedCategory.rules.cashbackPercentage,
+    codEligible: resolvedCategory.rules.codEligible,
+    returnEligible: resolvedCategory.rules.returnEligible,
+    shippingRequired: resolvedCategory.rules.shippingRequired,
+    isPhysical: resolvedCategory.rules.isPhysical,
+    brand: seedInput.brand,
+    productName: seedInput.productName,
+    images: seedInput.images,
+    priceInr: seedInput.priceInr,
+    stockQuantity: seedInput.stockQuantity,
+    specifications: seedInput.specifications,
+    extraOffers: seedInput.extraOffers,
+    status: seedInput.status,
+    rejectionReason: seedInput.rejectionReason,
+    updatedAtIso: seedInput.updatedAtIso,
+  };
+}
+
 function createSeedVendorProducts(): VendorProduct[] {
   const nowIso = new Date().toISOString();
   return [
-    {
+    createSeedVendorProduct({
       id: "VPRD-100221",
-      category: "Accessories",
+      categoryCode: "GL-MOB-ACC-EB",
       brand: "OnePlus",
       productName: "Buds Lite ANC",
       images: ["buds-lite-front.png", "buds-lite-case.png"],
@@ -463,10 +546,10 @@ function createSeedVendorProducts(): VendorProduct[] {
       status: "Draft",
       rejectionReason: null,
       updatedAtIso: nowIso,
-    },
-    {
+    }),
+    createSeedVendorProduct({
       id: "VPRD-100482",
-      category: "Mobiles",
+      categoryCode: "GL-MOB-SM-AN",
       brand: "Samsung",
       productName: "Galaxy A56 5G",
       images: ["a56-front.png", "a56-back.png"],
@@ -480,10 +563,10 @@ function createSeedVendorProducts(): VendorProduct[] {
       status: "Under Review",
       rejectionReason: null,
       updatedAtIso: nowIso,
-    },
-    {
+    }),
+    createSeedVendorProduct({
       id: "VPRD-100915",
-      category: "Footwear",
+      categoryCode: "GL-FTW-SPS-RUN",
       brand: "Adidas",
       productName: "Adidas Runstep Pro",
       images: ["runstep-top.png", "runstep-side.png"],
@@ -497,10 +580,10 @@ function createSeedVendorProducts(): VendorProduct[] {
       status: "Live",
       rejectionReason: null,
       updatedAtIso: nowIso,
-    },
-    {
+    }),
+    createSeedVendorProduct({
       id: "VPRD-101071",
-      category: "Laptops",
+      categoryCode: "GL-CMP-LAP-TL",
       brand: "Astra Compute",
       productName: "AstraBook Air 14",
       images: ["astrabook-open.png"],
@@ -514,7 +597,7 @@ function createSeedVendorProducts(): VendorProduct[] {
       status: "Rejected",
       rejectionReason: "Benchmark mismatch: listed price is too low for category.",
       updatedAtIso: nowIso,
-    },
+    }),
   ];
 }
 
@@ -823,14 +906,61 @@ function isOrderSettlementAvailable(order: VendorOrder) {
   );
 }
 
-function getBenchmarkValidationError(payload: VendorProductPayload) {
-  const benchmark = CATEGORY_PRICE_BENCHMARKS[payload.category];
+function mapVendorCategoryToCatalogCategory(
+  mainCategoryName: VendorMainCategoryName,
+  subCategoryName: string | null = null,
+): CatalogCategory | null {
+  if (mainCategoryName === "Mobiles & Related") {
+    if (subCategoryName === "Accessories") {
+      return "Accessories";
+    }
+    return "Mobiles";
+  }
+  if (mainCategoryName === "Computers & Laptops") {
+    return "Laptops";
+  }
+  if (mainCategoryName === "Footwear") {
+    return "Footwear";
+  }
+  return null;
+}
+
+function getCategorySelectionValidationResult(payload: VendorProductPayload) {
+  const resolvedCategory = resolveVendorCategorySelection(
+    payload.mainCategoryCode,
+    payload.subCategoryCode,
+    payload.subSubCategoryCode,
+  );
+  if (!resolvedCategory) {
+    return {
+      resolvedCategory: null,
+      validationMessage:
+        "Select Main Category, Sub Category, and Sub-Sub Category before submitting.",
+    };
+  }
+  if (!resolvedCategory.isEnabled) {
+    return {
+      resolvedCategory: null,
+      validationMessage:
+        resolvedCategory.disabledReason ??
+        "Selected category is disabled by Admin. Please choose another category.",
+    };
+  }
+
+  return { resolvedCategory, validationMessage: null };
+}
+
+function getBenchmarkValidationError(
+  payload: VendorProductPayload,
+  mainCategoryName: VendorMainCategoryName,
+) {
+  const benchmark = CATEGORY_PRICE_BENCHMARKS[mainCategoryName];
   if (!benchmark) {
     return null;
   }
 
   if (payload.priceInr < benchmark.min || payload.priceInr > benchmark.max) {
-    return `Price benchmark check failed for ${payload.category}. Allowed range is ${formatInr(
+    return `Price benchmark check failed for ${mainCategoryName}. Allowed range is ${formatInr(
       benchmark.min,
     )} to ${formatInr(benchmark.max)}.`;
   }
@@ -838,7 +968,10 @@ function getBenchmarkValidationError(payload: VendorProductPayload) {
   return null;
 }
 
-function getPayloadValidationError(payload: VendorProductPayload) {
+function getPayloadValidationError(
+  payload: VendorProductPayload,
+  mainCategoryName: VendorMainCategoryName,
+) {
   if (!payload.productName.trim()) {
     return "Product name is required.";
   }
@@ -864,7 +997,7 @@ function getPayloadValidationError(payload: VendorProductPayload) {
     return "Add at least one valid specification key-value pair.";
   }
 
-  return getBenchmarkValidationError(payload);
+  return getBenchmarkValidationError(payload, mainCategoryName);
 }
 
 const SEEDED_VENDOR_PRODUCTS = createSeedVendorProducts();
@@ -1099,7 +1232,25 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    const validationError = getPayloadValidationError(payload);
+    const categorySelectionValidation = getCategorySelectionValidationResult(payload);
+    if (categorySelectionValidation.validationMessage) {
+      return {
+        ok: false,
+        message: categorySelectionValidation.validationMessage,
+      };
+    }
+    const resolvedCategory = categorySelectionValidation.resolvedCategory;
+    if (!resolvedCategory) {
+      return {
+        ok: false,
+        message: "Select Main Category, Sub Category, and Sub-Sub Category before submitting.",
+      };
+    }
+
+    const validationError = getPayloadValidationError(
+      payload,
+      resolvedCategory.mainCategoryName,
+    );
     if (validationError) {
       return { ok: false, message: validationError };
     }
@@ -1107,7 +1258,19 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     const nowIso = new Date().toISOString();
     const nextProduct: VendorProduct = {
       id: createVendorProductId(),
-      category: payload.category,
+      categoryCode: resolvedCategory.categoryCode,
+      category: resolvedCategory.categoryPathLabel,
+      mainCategoryCode: resolvedCategory.mainCategoryCode,
+      subCategoryCode: resolvedCategory.subCategoryCode,
+      subSubCategoryCode: resolvedCategory.subSubCategoryCode,
+      mainCategoryName: resolvedCategory.mainCategoryName,
+      subCategoryName: resolvedCategory.subCategoryName,
+      subSubCategoryName: resolvedCategory.subSubCategoryName,
+      cashbackPercentage: resolvedCategory.rules.cashbackPercentage,
+      codEligible: resolvedCategory.rules.codEligible,
+      returnEligible: resolvedCategory.rules.returnEligible,
+      shippingRequired: resolvedCategory.rules.shippingRequired,
+      isPhysical: resolvedCategory.rules.isPhysical,
       brand: payload.brand.trim(),
       productName: payload.productName.trim(),
       images: payload.images,
@@ -1144,7 +1307,25 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       return { ok: false, message: "Live products cannot be edited." };
     }
 
-    const validationError = getPayloadValidationError(payload);
+    const categorySelectionValidation = getCategorySelectionValidationResult(payload);
+    if (categorySelectionValidation.validationMessage) {
+      return {
+        ok: false,
+        message: categorySelectionValidation.validationMessage,
+      };
+    }
+    const resolvedCategory = categorySelectionValidation.resolvedCategory;
+    if (!resolvedCategory) {
+      return {
+        ok: false,
+        message: "Select Main Category, Sub Category, and Sub-Sub Category before submitting.",
+      };
+    }
+
+    const validationError = getPayloadValidationError(
+      payload,
+      resolvedCategory.mainCategoryName,
+    );
     if (validationError) {
       return { ok: false, message: validationError };
     }
@@ -1152,7 +1333,19 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     const nowIso = new Date().toISOString();
     const updatedProduct: VendorProduct = {
       ...targetProduct,
-      category: payload.category,
+      categoryCode: resolvedCategory.categoryCode,
+      category: resolvedCategory.categoryPathLabel,
+      mainCategoryCode: resolvedCategory.mainCategoryCode,
+      subCategoryCode: resolvedCategory.subCategoryCode,
+      subSubCategoryCode: resolvedCategory.subSubCategoryCode,
+      mainCategoryName: resolvedCategory.mainCategoryName,
+      subCategoryName: resolvedCategory.subCategoryName,
+      subSubCategoryName: resolvedCategory.subSubCategoryName,
+      cashbackPercentage: resolvedCategory.rules.cashbackPercentage,
+      codEligible: resolvedCategory.rules.codEligible,
+      returnEligible: resolvedCategory.rules.returnEligible,
+      shippingRequired: resolvedCategory.rules.shippingRequired,
+      isPhysical: resolvedCategory.rules.isPhysical,
       brand: payload.brand.trim(),
       productName: payload.productName.trim(),
       images: payload.images,
@@ -1324,6 +1517,16 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    const resolvedCatalogCategory =
+      payload.type === "Sponsored Product"
+        ? selectedProduct
+          ? mapVendorCategoryToCatalogCategory(
+              selectedProduct.mainCategoryName,
+              selectedProduct.subCategoryName,
+            )
+          : null
+        : payload.category;
+
     return createVendorAdRequest({
       vendorId: ACTIVE_VENDOR_ID,
       vendorName,
@@ -1331,10 +1534,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       productId: payload.type === "Sponsored Product" ? payload.productId : null,
       productName:
         payload.type === "Sponsored Product" ? selectedProduct?.productName ?? null : null,
-      category:
-        payload.type === "Sponsored Product"
-          ? selectedProduct?.category ?? payload.category
-          : payload.category,
+      category: resolvedCatalogCategory,
       durationDays: payload.durationDays,
       budgetInr: payload.budgetInr,
     });
@@ -1550,7 +1750,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
 
   function getVendorProductVisibilityPriority(
     productId: string,
-    category: VendorProductPayload["category"],
+    mainCategoryName: VendorMainCategoryName,
+    subCategoryName: string,
   ) {
     const now = new Date();
     const hasActiveProductAd = vendorAds.some(
@@ -1563,10 +1764,18 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       return 2;
     }
 
+    const mappedCategory = mapVendorCategoryToCatalogCategory(
+      mainCategoryName,
+      subCategoryName,
+    );
+    if (!mappedCategory) {
+      return 0;
+    }
+
     const hasActiveCategoryAd = vendorAds.some(
       (ad) =>
         ad.type === "Sponsored Category" &&
-        ad.category === category &&
+        ad.category === mappedCategory &&
         getVendorAdStatus(ad, now) === "Active",
     );
     if (hasActiveCategoryAd) {

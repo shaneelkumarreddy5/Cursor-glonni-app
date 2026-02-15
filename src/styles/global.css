@@ -2946,6 +2946,26 @@ body {
   padding: 0.72rem;
 }
 
+.vendor-category-rule-grid {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.vendor-category-rule-grid p {
+  color: #475569 !important;
+  font-size: 0.83rem !important;
+}
+
+.vendor-category-note {
+  border: 1px solid #bfdbfe;
+  border-left: 3px solid #2563eb;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a !important;
+  font-weight: 600;
+  padding: 0.45rem 0.55rem;
+}
+
 .vendor-inline-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

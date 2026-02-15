@@ -17,6 +17,12 @@ import { ACTIVE_VENDOR_ID } from "../state/VendorLifecycleContext";
 import { formatInr } from "../utils/currency";
 import { VendorLayout } from "./VendorLayout";
 import {
+  VENDOR_MAIN_CATEGORIES,
+  getVendorSubCategories,
+  getVendorSubSubCategories,
+  resolveVendorCategorySelection,
+} from "./vendorCategorySystem";
+import {
   VendorProvider,
   type VendorAdPayload,
   type VendorBankDetailsInput,
@@ -43,7 +49,9 @@ import {
 } from "./VendorContext";
 
 type VendorProductFormState = {
-  category: VendorProductPayload["category"];
+  mainCategoryCode: string;
+  subCategoryCode: string;
+  subSubCategoryCode: string;
   brand: string;
   productName: string;
   images: string[];
@@ -53,7 +61,7 @@ type VendorProductFormState = {
   extraOffers: VendorProductExtraOffer[];
 };
 
-const PRODUCT_CATEGORIES: VendorProductPayload["category"][] = [
+const SPONSORED_AD_CATEGORIES: NonNullable<VendorAdPayload["category"]>[] = [
   "Mobiles",
   "Laptops",
   "Accessories",
@@ -103,7 +111,9 @@ function VendorSectionHeader({
 
 function createEmptyProductFormState(): VendorProductFormState {
   return {
-    category: "Mobiles",
+    mainCategoryCode: "",
+    subCategoryCode: "",
+    subSubCategoryCode: "",
     brand: "",
     productName: "",
     images: [],
@@ -116,7 +126,9 @@ function createEmptyProductFormState(): VendorProductFormState {
 
 function createProductFormStateFromProduct(product: VendorProduct): VendorProductFormState {
   return {
-    category: product.category,
+    mainCategoryCode: product.mainCategoryCode,
+    subCategoryCode: product.subCategoryCode,
+    subSubCategoryCode: product.subSubCategoryCode,
     brand: product.brand,
     productName: product.productName,
     images: product.images,
@@ -137,7 +149,9 @@ function buildPayloadFromFormState(
   formState: VendorProductFormState,
 ): VendorProductPayload {
   return {
-    category: formState.category,
+    mainCategoryCode: formState.mainCategoryCode,
+    subCategoryCode: formState.subCategoryCode,
+    subSubCategoryCode: formState.subSubCategoryCode,
     brand: formState.brand,
     productName: formState.productName,
     images: formState.images,
@@ -920,8 +934,16 @@ export function VendorProductsPage() {
     () =>
       [...vendorProducts].sort(
         (first, second) =>
-          getVendorProductVisibilityPriority(second.id, second.category) -
-            getVendorProductVisibilityPriority(first.id, first.category) ||
+          getVendorProductVisibilityPriority(
+            second.id,
+            second.mainCategoryName,
+            second.subCategoryName,
+          ) -
+            getVendorProductVisibilityPriority(
+              first.id,
+              first.mainCategoryName,
+              first.subCategoryName,
+            ) ||
           new Date(second.updatedAtIso).getTime() -
             new Date(first.updatedAtIso).getTime(),
       ),
@@ -942,6 +964,17 @@ export function VendorProductsPage() {
 
     return counts;
   }, [sortedProducts]);
+
+  const availableSubCategories = getVendorSubCategories(formState.mainCategoryCode);
+  const availableSubSubCategories = getVendorSubSubCategories(
+    formState.mainCategoryCode,
+    formState.subCategoryCode,
+  );
+  const selectedCategorySelection = resolveVendorCategorySelection(
+    formState.mainCategoryCode,
+    formState.subCategoryCode,
+    formState.subSubCategoryCode,
+  );
 
   function updateFormField<Key extends keyof VendorProductFormState>(
     key: Key,
@@ -1041,6 +1074,20 @@ export function VendorProductsPage() {
 
   function handleProductSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!selectedCategorySelection) {
+      setFeedbackMessage(
+        "Select Main Category, Sub Category, and Sub-Sub Category before submitting.",
+      );
+      return;
+    }
+    if (!selectedCategorySelection.isEnabled) {
+      setFeedbackMessage(
+        selectedCategorySelection.disabledReason ??
+          "Selected category is disabled by Admin. Please choose another category.",
+      );
+      return;
+    }
 
     const payload = buildPayloadFromFormState(formState);
     if (Number.isNaN(payload.priceInr) || Number.isNaN(payload.stockQuantity)) {
@@ -1212,20 +1259,68 @@ export function VendorProductsPage() {
           <form className="vendor-onboarding-form" onSubmit={handleProductSubmit}>
             <div className="vendor-onboarding-grid">
               <label className="field">
-                Category
+                Main Category
                 <select
-                  value={formState.category}
+                  value={formState.mainCategoryCode}
                   onChange={(event) =>
-                    updateFormField(
-                      "category",
-                      event.target.value as VendorProductPayload["category"],
-                    )
+                    setFormState((currentState) => ({
+                      ...currentState,
+                      mainCategoryCode: event.target.value,
+                      subCategoryCode: "",
+                      subSubCategoryCode: "",
+                    }))
                   }
                   className="order-select"
                 >
-                  {PRODUCT_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  <option value="">Select Main Category</option>
+                  {VENDOR_MAIN_CATEGORIES.map((mainCategory) => (
+                    <option key={mainCategory.code} value={mainCategory.code}>
+                      {mainCategory.name}
+                      {!mainCategory.isEnabled ? " (Disabled by Admin)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                Sub Category
+                <select
+                  value={formState.subCategoryCode}
+                  onChange={(event) =>
+                    setFormState((currentState) => ({
+                      ...currentState,
+                      subCategoryCode: event.target.value,
+                      subSubCategoryCode: "",
+                    }))
+                  }
+                  className="order-select"
+                  disabled={!formState.mainCategoryCode}
+                >
+                  <option value="">Select Sub Category</option>
+                  {availableSubCategories.map((subCategory) => (
+                    <option key={subCategory.code} value={subCategory.code}>
+                      {subCategory.name}
+                      {!subCategory.isEnabled ? " (Disabled by Admin)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field">
+                Sub-Sub Category
+                <select
+                  value={formState.subSubCategoryCode}
+                  onChange={(event) =>
+                    updateFormField("subSubCategoryCode", event.target.value)
+                  }
+                  className="order-select"
+                  disabled={!formState.subCategoryCode}
+                >
+                  <option value="">Select Sub-Sub Category</option>
+                  {availableSubSubCategories.map((subSubCategory) => (
+                    <option key={subSubCategory.code} value={subSubCategory.code}>
+                      {subSubCategory.name}
+                      {!subSubCategory.isEnabled ? " (Disabled by Admin)" : ""}
                     </option>
                   ))}
                 </select>
@@ -1274,6 +1369,73 @@ export function VendorProductsPage() {
                   placeholder="42"
                 />
               </label>
+            </div>
+
+            <div className="vendor-subform-card">
+              <header className="section-header">
+                <h2>Category Rules (Auto-Applied)</h2>
+              </header>
+              {selectedCategorySelection ? (
+                <div className="vendor-category-rule-grid">
+                  <p>
+                    Selected category:{" "}
+                    <strong>{selectedCategorySelection.categoryPathLabel}</strong>
+                  </p>
+                  <p>
+                    Cashback: <strong>{selectedCategorySelection.rules.cashbackPercentage}%</strong>{" "}
+                    (read-only)
+                  </p>
+                  <p>
+                    COD:{" "}
+                    <strong>
+                      {selectedCategorySelection.rules.codEligible
+                        ? "Eligible"
+                        : "Not eligible"}
+                    </strong>{" "}
+                    (read-only)
+                  </p>
+                  <p>
+                    Returns:{" "}
+                    <strong>
+                      {selectedCategorySelection.rules.returnEligible
+                        ? "Eligible"
+                        : "Not eligible"}
+                    </strong>{" "}
+                    (read-only)
+                  </p>
+                  <p>
+                    Shipping:{" "}
+                    <strong>
+                      {selectedCategorySelection.rules.shippingRequired
+                        ? "Required"
+                        : "Not required"}
+                    </strong>{" "}
+                    (read-only)
+                  </p>
+                  <p>
+                    Product Type:{" "}
+                    <strong>
+                      {selectedCategorySelection.rules.isPhysical
+                        ? "Physical Product"
+                        : "Non-Physical Product"}
+                    </strong>{" "}
+                    (read-only)
+                  </p>
+                  {!selectedCategorySelection.isEnabled ? (
+                    <p className="vendor-reject-reason">
+                      {selectedCategorySelection.disabledReason}
+                    </p>
+                  ) : null}
+                  {selectedCategorySelection.mainCategoryName === "Digital Products" ? (
+                    <p className="vendor-category-note">
+                      Digital products are non-physical. COD and returns are disabled, and
+                      shipping fields are skipped.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p>Complete all 3 category levels to auto-apply category rules.</p>
+              )}
             </div>
 
             <label className="field">
@@ -1424,7 +1586,11 @@ export function VendorProductsPage() {
                   <div className="vendor-product-copy">
                     <div className="vendor-product-heading">
                       <h3>{product.productName}</h3>
-                      {getVendorProductVisibilityPriority(product.id, product.category) > 0 ? (
+                      {getVendorProductVisibilityPriority(
+                        product.id,
+                        product.mainCategoryName,
+                        product.subCategoryName,
+                      ) > 0 ? (
                         <span className="vendor-sponsored-tag">Sponsored</span>
                       ) : null}
                       <span className={getProductStatusClass(product.status)}>
@@ -1441,6 +1607,15 @@ export function VendorProductsPage() {
                     </p>
                     <p>
                       Price: {formatInr(product.priceInr)} • Stock: {product.stockQuantity}
+                    </p>
+                    <p>
+                      Cashback: {product.cashbackPercentage}% • COD:{" "}
+                      {product.codEligible ? "Eligible" : "Not eligible"} • Returns:{" "}
+                      {product.returnEligible ? "Eligible" : "Not eligible"}
+                    </p>
+                    <p>
+                      Shipping: {product.shippingRequired ? "Required" : "Not required"} • Product
+                      Type: {product.isPhysical ? "Physical" : "Non-Physical"}
                     </p>
                     <p>
                       Specs:{" "}
@@ -1946,7 +2121,7 @@ export function VendorAdsPage() {
   const [adType, setAdType] = useState<VendorAdType>("Sponsored Product");
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [selectedCategory, setSelectedCategory] =
-    useState<VendorProductPayload["category"]>("Mobiles");
+    useState<NonNullable<VendorAdPayload["category"]>>("Mobiles");
   const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
@@ -2130,11 +2305,13 @@ export function VendorAdsPage() {
                 <select
                   value={selectedCategory}
                   onChange={(event) =>
-                    setSelectedCategory(event.target.value as VendorProductPayload["category"])
+                    setSelectedCategory(
+                      event.target.value as NonNullable<VendorAdPayload["category"]>,
+                    )
                   }
                   className="order-select"
                 >
-                  {PRODUCT_CATEGORIES.map((category) => (
+                  {SPONSORED_AD_CATEGORIES.map((category) => (
                     <option key={category} value={category}>
                       {category}
                     </option>
