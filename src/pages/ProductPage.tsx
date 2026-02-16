@@ -365,14 +365,14 @@ export function ProductPage() {
               className="btn btn-primary"
               onClick={handleBuyNow}
             >
-              Buy now
+              Buy Now
             </button>
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn btn-primary"
               onClick={addCurrentConfigurationToCart}
             >
-              Add to cart
+              Add to Cart
             </button>
           </div>
           {addToCartMessage ? <p className="pdp-delivery-line">{addToCartMessage}</p> : null}
@@ -545,7 +545,7 @@ export function ProductPage() {
       <section className="pdp-mobile-action-bar" aria-label="Quick purchase actions">
         <button
           type="button"
-          className="btn btn-secondary"
+          className="btn btn-primary"
           onClick={addCurrentConfigurationToCart}
         >
           Add to Cart

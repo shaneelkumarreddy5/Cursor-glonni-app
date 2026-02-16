@@ -57,10 +57,10 @@ export function CartPage() {
             <h2>Line items ({cartItemsCount})</h2>
           </header>
           {isCartEmpty ? (
-            <div className="stack-sm">
-              <p>Your cart is empty. Add products from category or product pages.</p>
+            <div className="stack-sm empty-state-wrap">
+              <p className="empty-state">Your cart is empty. Add products from category or product pages.</p>
               <Link to={ROUTES.category} className="btn btn-primary">
-                Browse products
+                Start Shopping
               </Link>
             </div>
           ) : (
@@ -134,7 +134,7 @@ export function CartPage() {
               <h2>Saved for later ({savedForLaterItems.length})</h2>
             </header>
             {isSavedSectionEmpty ? (
-              <p className="wallet-empty-note">
+              <p className="wallet-empty-note empty-state">
                 Saved products will appear here for quick checkout later.
               </p>
             ) : (
