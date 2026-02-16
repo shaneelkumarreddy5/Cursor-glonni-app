@@ -4,7 +4,23 @@
 
 To complete the setup of `main` as the default branch for this repository on GitHub:
 
-### Steps for Repository Administrators:
+### Option 1: Using GitHub CLI (Recommended)
+
+If you have the GitHub CLI (`gh`) installed and authenticated, you can use the provided script:
+
+```bash
+.github/set-default-branch.sh
+```
+
+Or run the command directly:
+
+```bash
+gh repo edit shaneelkumarreddy5/Cursor-glonni-app --default-branch main
+```
+
+This single command will update the default branch to `main`.
+
+### Option 2: Using GitHub Web Interface
 
 1. Navigate to the repository on GitHub: https://github.com/shaneelkumarreddy5/Cursor-glonni-app
 2. Click on **Settings** (requires admin access)
