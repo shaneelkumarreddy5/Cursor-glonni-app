@@ -29,6 +29,7 @@ export function OrderSuccessPage() {
           description="Place an order from checkout to see confirmation and cashback details."
         />
         <section className="card order-success-card">
+          <p className="empty-state">No recent order is available in this session.</p>
           <div className="inline-actions">
             <Link to={ROUTES.cart} className="btn btn-secondary">
               Go to Cart

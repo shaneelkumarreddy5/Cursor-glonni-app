@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { PRIMARY_NAV_ITEMS, ROUTES } from "../routes/paths";
 import { useCommerce } from "../state/CommerceContext";
 
@@ -12,6 +12,17 @@ function mobileNavClassName(isActive: boolean) {
 
 export function MainLayout() {
   const { cartItemsCount } = useCommerce();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const shouldShowBackControl = location.pathname !== ROUTES.home;
+
+  function handleBackNavigation() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(ROUTES.home);
+  }
 
   return (
     <div className="app-shell">
@@ -43,9 +54,6 @@ export function MainLayout() {
             <NavLink to={ROUTES.admin} className="topbar-action-link">
               Admin
             </NavLink>
-            <NavLink to={ROUTES.settingsOrders} className="topbar-action-link">
-              Orders
-            </NavLink>
             <NavLink to={ROUTES.cart} className="topbar-action-link">
               Cart{cartItemsCount > 0 ? ` (${cartItemsCount})` : ""}
             </NavLink>
@@ -71,6 +79,14 @@ export function MainLayout() {
       </header>
 
       <main className="page-content">
+        {shouldShowBackControl ? (
+          <div className="page-nav-row">
+            <button type="button" className="page-back-link" onClick={handleBackNavigation}>
+              <span aria-hidden="true">←</span>
+              <span>Back</span>
+            </button>
+          </div>
+        ) : null}
         <Outlet />
       </main>
 

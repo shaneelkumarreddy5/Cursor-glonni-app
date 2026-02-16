@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import {
+  AddressIcon,
+  NotificationIcon,
+  OrdersIcon,
+  ProfileIcon,
+  SupportIcon,
+  WalletIcon,
+} from "../../components/ui/AppIcons";
 import { PageIntro } from "../../components/ui/PageIntro";
 import { ROUTES } from "../../routes/paths";
 import { useOrderOperations } from "../../state/OrderOperationsContext";
@@ -228,6 +236,60 @@ export function SettingsOverviewPage() {
           <p>{cartItemsCount} items</p>
         </article>
       </section>
+
+      <section className="card settings-shortcut-groups">
+        <div className="settings-shortcut-group">
+          <header className="section-header">
+            <h2>Shopping</h2>
+          </header>
+          <div className="settings-shortcut-grid">
+            <Link to={ROUTES.settingsOrders} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <OrdersIcon />
+              </span>
+              <span>Orders</span>
+            </Link>
+            <Link to={ROUTES.settingsWallet} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <WalletIcon />
+              </span>
+              <span>Wallet</span>
+            </Link>
+            <Link to={ROUTES.settingsSupport} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <SupportIcon />
+              </span>
+              <span>Support</span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="settings-shortcut-group">
+          <header className="section-header">
+            <h2>Account</h2>
+          </header>
+          <div className="settings-shortcut-grid">
+            <Link to={ROUTES.settingsProfile} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <ProfileIcon />
+              </span>
+              <span>Profile</span>
+            </Link>
+            <Link to={ROUTES.settingsAddresses} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <AddressIcon />
+              </span>
+              <span>Addresses</span>
+            </Link>
+            <Link to={ROUTES.settingsNotifications} className="settings-shortcut-link">
+              <span className="settings-link-icon" aria-hidden="true">
+                <NotificationIcon />
+              </span>
+              <span>Notifications</span>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -340,6 +402,7 @@ export function OrdersSettingsPage() {
         {sortedOrders.length > 0 ? (
           sortedOrders.map((order) => {
             const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+            const primaryOrderItem = order.items[0];
             const canCancel = order.fulfillmentStatus === "Ordered";
             const canMarkShipped = order.fulfillmentStatus === "Ordered";
             const canMarkDelivered = order.fulfillmentStatus === "Shipped";
@@ -354,7 +417,19 @@ export function OrdersSettingsPage() {
             return (
               <div key={order.id} className="stack-sm">
                 <article className="card settings-list-row order-list-row">
-                  <div>
+                  <div className="order-item-visual">
+                    {primaryOrderItem?.productImageUrl ? (
+                      <img
+                        src={primaryOrderItem.productImageUrl}
+                        alt={primaryOrderItem.productName}
+                        className="order-item-image"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="order-item-image order-item-image-fallback">No Image</div>
+                    )}
+                  </div>
+                  <div className="order-main-copy">
                     <div className="order-heading-row">
                       <h3>{order.id}</h3>
                       <span className={getStatusClass(order.fulfillmentStatus)}>
@@ -385,6 +460,11 @@ export function OrdersSettingsPage() {
                     {order.fulfillmentStatus === "Cancelled" ? (
                       <p className="order-timeline-note">
                         Delivery timeline stopped because this order was cancelled.
+                      </p>
+                    ) : null}
+                    {primaryOrderItem ? (
+                      <p className="order-primary-item">
+                        Product: <strong>{primaryOrderItem.productName}</strong>
                       </p>
                     ) : null}
                     <p>Date: {formatOrderDate(order.placedAtIso)}</p>
@@ -448,63 +528,72 @@ export function OrdersSettingsPage() {
                   <div className="order-price-col">
                     <strong>{formatInr(order.payableAmountInr)}</strong>
                     <div className="order-action-row">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={!canMarkShipped}
-                        title={!canMarkShipped ? getMarkShippedTooltip(order) : "Mark as shipped"}
-                        onClick={() => runOrderLifecycleAction(order, "ship")}
-                      >
-                        Mark Shipped
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={!canMarkDelivered}
-                        title={!canMarkDelivered ? getMarkDeliveredTooltip(order) : "Mark as delivered"}
-                        onClick={() => runOrderLifecycleAction(order, "deliver")}
-                      >
-                        Mark Delivered
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={!canCancel}
-                        title={!canCancel ? cancelDisabledTooltip : "Cancel this order"}
-                        onClick={() => openAction(order.id, "cancel")}
-                      >
-                        Cancel Order
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={!canReturnOrReplace}
-                        title={
-                          !canReturnOrReplace
-                            ? returnDisabledTooltip
-                            : "Request return or replacement"
-                        }
-                        onClick={() => openAction(order.id, "return")}
-                      >
-                        Return / Replace
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        disabled={!canNoReturn}
-                        title={
-                          !canNoReturn
-                            ? returnDisabledTooltip || "No Return unavailable"
-                            : "Confirm no return and release cashback"
-                        }
-                        onClick={() => openAction(order.id, "no-return")}
-                      >
-                        No Return
-                      </button>
+                      {canMarkShipped ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          title="Mark as shipped"
+                          onClick={() => runOrderLifecycleAction(order, "ship")}
+                        >
+                          Mark Shipped
+                        </button>
+                      ) : null}
+                      {canMarkDelivered ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          title="Mark as delivered"
+                          onClick={() => runOrderLifecycleAction(order, "deliver")}
+                        >
+                          Mark Delivered
+                        </button>
+                      ) : null}
+                      {canCancel ? (
+                        <button
+                          type="button"
+                          className="btn btn-destructive"
+                          title="Cancel this order"
+                          onClick={() => openAction(order.id, "cancel")}
+                        >
+                          Cancel Order
+                        </button>
+                      ) : null}
+                      {canReturnOrReplace ? (
+                        <button
+                          type="button"
+                          className="btn btn-destructive"
+                          title="Request return for this order"
+                          onClick={() => openAction(order.id, "return")}
+                        >
+                          Return Product
+                        </button>
+                      ) : null}
+                      {canNoReturn ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          title="Confirm no return and release cashback"
+                          onClick={() => openAction(order.id, "no-return")}
+                        >
+                          No Return
+                        </button>
+                      ) : null}
                       <Link to={supportLink} className="btn btn-secondary">
                         Need Help?
                       </Link>
                     </div>
+                    {!canCancel && cancelDisabledTooltip ? (
+                      <p className="order-action-note">{cancelDisabledTooltip}</p>
+                    ) : null}
+                    {!canReturnOrReplace && returnDisabledTooltip ? (
+                      <p className="order-action-note">{returnDisabledTooltip}</p>
+                    ) : null}
+                    {!canMarkShipped ? (
+                      <p className="order-action-note">{getMarkShippedTooltip(order)}</p>
+                    ) : null}
+                    {!canMarkDelivered ? (
+                      <p className="order-action-note">{getMarkDeliveredTooltip(order)}</p>
+                    ) : null}
                   </div>
                 </article>
 
@@ -546,7 +635,7 @@ export function OrdersSettingsPage() {
                         <div className="inline-actions">
                           <button
                             type="button"
-                            className="btn btn-primary"
+                            className="btn btn-destructive"
                             onClick={() => submitAction(order)}
                           >
                             Confirm cancellation
@@ -614,7 +703,7 @@ export function OrdersSettingsPage() {
                         <div className="inline-actions">
                           <button
                             type="button"
-                            className="btn btn-primary"
+                            className="btn btn-destructive"
                             onClick={() => submitAction(order)}
                           >
                             Confirm return request
@@ -663,12 +752,11 @@ export function OrdersSettingsPage() {
             );
           })
         ) : (
-          <article className="card settings-list-row">
-            <div>
+          <article className="card settings-list-row settings-empty-row">
+            <div className="empty-state-wrap">
               <h3>No orders yet</h3>
-              <p>Place an order from checkout to see it listed here.</p>
+              <p className="empty-state">Place an order from checkout to see it listed here.</p>
             </div>
-            <strong>-</strong>
           </article>
         )}
       </section>

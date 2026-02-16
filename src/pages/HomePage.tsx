@@ -169,7 +169,7 @@ function HomeProductCard({
         </div>
         <span className="home-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
         <div className="inline-actions">
-          <button type="button" className="btn btn-secondary" onClick={() => onAddToCart(product)}>
+          <button type="button" className="btn btn-primary" onClick={() => onAddToCart(product)}>
             Add to Cart
           </button>
           <button type="button" className="btn btn-primary" onClick={() => onBuyNow(product)}>
@@ -195,7 +195,7 @@ export function HomePage() {
   const organicProducts = catalogProductsWithVisibility.filter(
     (product) => !product.sponsored,
   );
-  const storefrontFeed = [...sponsoredProducts, ...organicProducts.slice(0, 6)];
+  const regularProducts = organicProducts.slice(0, 8);
   const recommendedProducts = organicProducts
     .slice()
     .sort((first, second) => second.rating - first.rating)
@@ -239,10 +239,10 @@ export function HomePage() {
           </div>
           <div className="inline-actions">
             <Link to={ROUTES.category} className="btn btn-primary home-cta">
-              Start shopping
+              Start Shopping
             </Link>
             <Link to={ROUTES.product} className="btn btn-secondary home-cta-secondary">
-              View featured product
+              View Details
             </Link>
           </div>
         </header>
@@ -279,20 +279,47 @@ export function HomePage() {
       </HomeSection>
 
       <HomeSection
-        title="Trending products"
-        subtitle="Sponsored placements are clearly marked, followed by top organic picks."
+        title="Sponsored products"
+        subtitle="Paid placements are clearly marked for transparent discovery."
       >
-        <div className="home-product-grid">
-          {storefrontFeed.map((product) => (
-            <HomeProductCard
-              key={product.id}
-              product={product}
-              sponsored={product.sponsored}
-              onAddToCart={addDefaultConfigurationToCart}
-              onBuyNow={handleBuyNow}
-            />
-          ))}
-        </div>
+        {sponsoredProducts.length > 0 ? (
+          <div className="home-product-grid">
+            {sponsoredProducts.map((product) => (
+              <HomeProductCard
+                key={product.id}
+                product={product}
+                sponsored={true}
+                onAddToCart={addDefaultConfigurationToCart}
+                onBuyNow={handleBuyNow}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">
+            No sponsored products are active right now. Check regular products below.
+          </p>
+        )}
+      </HomeSection>
+
+      <HomeSection
+        title="Regular products"
+        subtitle="Browse the everyday catalog with clear pricing and cashback visibility."
+      >
+        {regularProducts.length > 0 ? (
+          <div className="home-product-grid">
+            {regularProducts.map((product) => (
+              <HomeProductCard
+                key={product.id}
+                product={product}
+                sponsored={false}
+                onAddToCart={addDefaultConfigurationToCart}
+                onBuyNow={handleBuyNow}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">Regular products are currently unavailable.</p>
+        )}
       </HomeSection>
 
       <section className="card home-bank-strip">
@@ -328,17 +355,21 @@ export function HomePage() {
       </HomeSection>
 
       <HomeSection title="Recommended for you" subtitle="Personalized picks based on current trends.">
-        <div className="home-product-grid">
-          {recommendedProducts.map((product) => (
-            <HomeProductCard
-              key={product.id}
-              product={product}
-              sponsored={false}
-              onAddToCart={addDefaultConfigurationToCart}
-              onBuyNow={handleBuyNow}
-            />
-          ))}
-        </div>
+        {recommendedProducts.length > 0 ? (
+          <div className="home-product-grid">
+            {recommendedProducts.map((product) => (
+              <HomeProductCard
+                key={product.id}
+                product={product}
+                sponsored={false}
+                onAddToCart={addDefaultConfigurationToCart}
+                onBuyNow={handleBuyNow}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">No recommendations are available right now.</p>
+        )}
       </HomeSection>
     </div>
   );
