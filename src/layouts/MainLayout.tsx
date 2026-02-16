@@ -1,10 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { PRIMARY_NAV_ITEMS, ROUTES } from "../routes/paths";
+import { ROUTES } from "../routes/paths";
 import { useCommerce } from "../state/CommerceContext";
-
-function navClassName(isActive: boolean) {
-  return isActive ? "nav-link active" : "nav-link";
-}
 
 function mobileNavClassName(isActive: boolean) {
   return isActive ? "mobile-nav-link active" : "mobile-nav-link";
@@ -15,6 +11,7 @@ export function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const shouldShowBackControl = location.pathname !== ROUTES.home;
+  const cartCountLabel = cartItemsCount > 99 ? "99+" : `${cartItemsCount}`;
 
   function handleBackNavigation() {
     if (window.history.length > 1) {
@@ -27,14 +24,12 @@ export function MainLayout() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="topbar-meta">
-          <p>Free delivery over ₹15,000 · Secure checkout · Cashback-first shopping</p>
-        </div>
-
         <div className="topbar-main topbar-container">
           <NavLink to="/" className="brand">
-            <span className="brand-mark">G</span>
-            <span className="brand-text">Glonni</span>
+            <span className="brand-mark" aria-hidden="true">
+              B
+            </span>
+            <span className="brand-text">Bazaar</span>
           </NavLink>
 
           <form
@@ -43,38 +38,36 @@ export function MainLayout() {
             onSubmit={(event) => event.preventDefault()}
             aria-label="Search products"
           >
-            <input type="search" placeholder="Search for phones, laptops, accessories..." />
-            <button type="submit">Search</button>
+            <input type="search" placeholder="Search for mobiles, earbuds, trusted brands..." />
           </form>
 
           <div className="topbar-actions">
-            <NavLink to={ROUTES.vendor} className="topbar-action-link">
-              Vendor
+            <button type="button" className="topbar-locale-btn">
+              EN/HI
+            </button>
+
+            <NavLink to={ROUTES.vendor} className="topbar-action-link topbar-desktop-link">
+              Seller
             </NavLink>
-            <NavLink to={ROUTES.admin} className="topbar-action-link">
+            <NavLink to={ROUTES.admin} className="topbar-action-link topbar-desktop-link">
               Admin
             </NavLink>
-            <NavLink to={ROUTES.cart} className="topbar-action-link">
-              Cart{cartItemsCount > 0 ? ` (${cartItemsCount})` : ""}
+
+            <NavLink to={ROUTES.settings} className="topbar-profile-link">
+              <span className="topbar-profile-avatar" aria-hidden="true">
+                A
+              </span>
+              <span className="topbar-profile-copy">
+                <small>Namaste,</small>
+                <strong>Arjun</strong>
+              </span>
             </NavLink>
-            <NavLink to={ROUTES.settings} className="topbar-action-link">
-              Account
+
+            <NavLink to={ROUTES.cart} className="topbar-cart-link" aria-label="Open cart">
+              <span>Cart</span>
+              <strong>{cartCountLabel}</strong>
             </NavLink>
           </div>
-        </div>
-
-        <div className="topbar-nav-wrap">
-          <nav aria-label="Main navigation" className="primary-nav topbar-container">
-            {PRIMARY_NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => navClassName(isActive)}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
         </div>
       </header>
 
@@ -120,10 +113,12 @@ export function MainLayout() {
       <footer className="footer">
         <div className="footer-inner">
           <div>
-            <p className="footer-brand">Glonni</p>
-            <p className="footer-copy">A modern minimal storefront focused on fast discovery.</p>
+            <p className="footer-brand">Bazaar</p>
+            <p className="footer-copy">© 2023 Friendly Tech Commerce. Made for India with care.</p>
           </div>
           <div className="footer-links">
+            <NavLink to={ROUTES.vendor}>Seller Hub</NavLink>
+            <NavLink to={ROUTES.admin}>Admin</NavLink>
             <NavLink to={ROUTES.settingsSupport}>Help Center</NavLink>
             <NavLink to={ROUTES.settingsOrders}>Track Order</NavLink>
             <NavLink to={ROUTES.settings}>Account Settings</NavLink>
