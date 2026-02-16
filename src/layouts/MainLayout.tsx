@@ -27,9 +27,9 @@ export function MainLayout() {
         <div className="topbar-main topbar-container">
           <NavLink to="/" className="brand">
             <span className="brand-mark" aria-hidden="true">
-              B
+              G
             </span>
-            <span className="brand-text">Bazaar</span>
+            <span className="brand-text">glonni</span>
           </NavLink>
 
           <form
@@ -113,8 +113,8 @@ export function MainLayout() {
       <footer className="footer">
         <div className="footer-inner">
           <div>
-            <p className="footer-brand">Bazaar</p>
-            <p className="footer-copy">© 2023 Friendly Tech Commerce. Made for India with care.</p>
+            <p className="footer-brand">glonni</p>
+            <p className="footer-copy">© 2023 glonni. Your trusted shopping partner in India.</p>
           </div>
           <div className="footer-links">
             <NavLink to={ROUTES.vendor}>Seller Hub</NavLink>

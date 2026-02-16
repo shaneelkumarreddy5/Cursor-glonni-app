@@ -22,14 +22,14 @@ const LANDING_CATEGORIES: LandingCategoryTile[] = [
     imageProductId: "sp-1",
   },
   {
-    title: "Audio",
-    category: "Accessories",
-    imageProductId: "og-6",
-  },
-  {
     title: "Laptops",
     category: "Laptops",
     imageProductId: "og-4",
+  },
+  {
+    title: "Audio",
+    category: "Accessories",
+    imageProductId: "og-6",
   },
   {
     title: "Wearables",
@@ -37,29 +37,29 @@ const LANDING_CATEGORIES: LandingCategoryTile[] = [
     imageProductId: "og-7",
   },
   {
+    title: "Footwear",
+    category: "Footwear",
+    imageProductId: "og-8",
+  },
+  {
     title: "Home Tech",
     category: "Laptops",
     imageProductId: "og-5",
-  },
-  {
-    title: "Lifestyle",
-    category: "Footwear",
-    imageProductId: "og-8",
   },
 ];
 
 const LANDING_PROMISES = [
   {
     title: "100% Original",
-    description: "Sourced directly from brands",
+    description: "Authentic products only",
   },
   {
     title: "Easy Returns",
-    description: "7-day hassle-free policy",
+    description: "7-day return policy",
   },
   {
-    title: "Secure UPI / COD",
-    description: "Safe and transparent payments",
+    title: "Fast Delivery",
+    description: "Express shipping available",
   },
 ] as const;
 
@@ -187,22 +187,20 @@ export function HomePage() {
     <div className="landing-page stack">
       <section className="landing-hero card">
         <div className="landing-hero-copy">
-          <span className="landing-kicker">New arrivals</span>
+          <span className="landing-kicker">Exclusive Deals</span>
           <h1>
-            Namaste, Arjun.
-            <span> Smart tech </span>
-            for your smart home.
+            Welcome to
+            <span> glonni</span>
           </h1>
           <p>
-            Find the best deals on trusted brands delivered directly to your doorstep with secure
-            checkout and cashback-first pricing.
+            Discover the best deals on mobiles, electronics, fashion & more. Shop from trusted brands with fast delivery and easy returns.
           </p>
           <div className="landing-hero-actions">
             <Link to={getCategoryRoute("Mobiles")} className="btn btn-primary">
-              View Offers
+              Shop Now
             </Link>
             <Link to={ROUTES.category} className="btn btn-secondary">
-              Shop by Category
+              Browse Categories
             </Link>
           </div>
         </div>
@@ -210,7 +208,7 @@ export function HomePage() {
         <div className="landing-hero-media">
           <img
             src={heroProduct?.imageUrl ?? HERO_FALLBACK_IMAGE}
-            alt="Featured smart tech product"
+            alt="Featured product on glonni"
             className="landing-hero-image"
           />
           <div className="landing-score-chip">
@@ -218,8 +216,8 @@ export function HomePage() {
               ✓
             </span>
             <div>
-              <p>Seller Score</p>
-              <strong>4.9 / 5 Excellent</strong>
+              <p>Customer Rating</p>
+              <strong>4.8 / 5 ★</strong>
             </div>
           </div>
         </div>
@@ -268,7 +266,8 @@ export function HomePage() {
 
       <section className="landing-deals-section card">
         <header className="landing-section-header">
-          <h2>Trusted Hero Deals</h2>
+          <h2>Top Deals for You</h2>
+          <Link to={ROUTES.category}>See All</Link>
         </header>
 
         {trustedDeals.length > 0 ? (
