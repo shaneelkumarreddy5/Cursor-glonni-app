@@ -27,7 +27,6 @@ import {
 } from "../state/VendorLifecycleContext";
 import { formatInr } from "../utils/currency";
 import { AdminProvider, useAdmin } from "./AdminContext";
-import { AdminCategoryManagementSection } from "./AdminCategoryManagementSection";
 import { AdminLayout } from "./AdminLayout";
 
 const STATIC_USERS_COUNT = 12450;
@@ -44,15 +43,6 @@ function AdminSectionHeader({ title, description }: AdminPlaceholderPageProps) {
       <h2>{title}</h2>
       <p>{description}</p>
     </header>
-  );
-}
-
-function AdminPlaceholderPage({ title, description }: AdminPlaceholderPageProps) {
-  return (
-    <section className="admin-placeholder-card">
-      <AdminSectionHeader title={title} description={description} />
-      <p>Placeholder page for the Admin MVP foundation (frontend mock state only).</p>
-    </section>
   );
 }
 
@@ -176,6 +166,191 @@ function formatDateTime(isoDate: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(isoDate));
+}
+
+type AdminSupportTab = "userTickets" | "vendorTickets" | "systemNotes";
+type AdminSupportStatus = "Open" | "In Progress" | "Resolved";
+type AdminUserIssueType = "Order" | "Payment" | "Cashback" | "Account" | "Other";
+type AdminVendorIssueCategory = "Listing" | "Pricing" | "Orders" | "Settlement";
+
+type AdminUserSupportTicket = {
+  id: string;
+  userName: string;
+  issueType: AdminUserIssueType;
+  status: AdminSupportStatus;
+  message: string;
+  relatedOrderId: string | null;
+  adminResponse: string;
+  updatedAtIso: string;
+};
+
+type AdminVendorSupportTicket = {
+  id: string;
+  vendorName: string;
+  issueCategory: AdminVendorIssueCategory;
+  status: AdminSupportStatus;
+  message: string;
+  productId: string | null;
+  adminResponse: string;
+  updatedAtIso: string;
+};
+
+type AdminSystemNote = {
+  id: string;
+  note: string;
+  createdAtIso: string;
+};
+
+type AdminSettingsControlKey = "codEnabled" | "returnsEnabled" | "vendorAdsEnabled";
+
+const ADMIN_SUPPORT_TABS: Array<{ key: AdminSupportTab; label: string }> = [
+  { key: "userTickets", label: "User Support Tickets" },
+  { key: "vendorTickets", label: "Vendor Support Tickets" },
+  { key: "systemNotes", label: "System Notes" },
+];
+
+const SEEDED_ADMIN_USER_SUPPORT_TICKETS: AdminUserSupportTicket[] = [
+  {
+    id: "UST-24031",
+    userName: "Aarav Sharma",
+    issueType: "Order",
+    status: "Open",
+    message:
+      "I received a different color for my order. Please help with replacement eligibility.",
+    relatedOrderId: "ORD-780541",
+    adminResponse: "",
+    updatedAtIso: "2026-02-15T09:42:00.000Z",
+  },
+  {
+    id: "UST-24028",
+    userName: "Priya Nair",
+    issueType: "Cashback",
+    status: "In Progress",
+    message: "Cashback is still pending even after delivery and return window completion.",
+    relatedOrderId: "ORD-780112",
+    adminResponse: "Team is validating delivery and return lock timestamps.",
+    updatedAtIso: "2026-02-14T16:11:00.000Z",
+  },
+  {
+    id: "UST-24017",
+    userName: "Rahul Verma",
+    issueType: "Payment",
+    status: "Resolved",
+    message: "UPI was debited twice for one order.",
+    relatedOrderId: "ORD-779945",
+    adminResponse: "Double debit reversed. Refund reflected in source account.",
+    updatedAtIso: "2026-02-13T13:26:00.000Z",
+  },
+];
+
+const SEEDED_ADMIN_VENDOR_SUPPORT_TICKETS: AdminVendorSupportTicket[] = [
+  {
+    id: "VST-9204",
+    vendorName: "Skyline Mobiles",
+    issueCategory: "Listing",
+    status: "Open",
+    message: "Two approved listings are still not visible in storefront search.",
+    productId: "PRD-MOB-2207",
+    adminResponse: "",
+    updatedAtIso: "2026-02-15T10:20:00.000Z",
+  },
+  {
+    id: "VST-9198",
+    vendorName: "PetNest Foods",
+    issueCategory: "Settlement",
+    status: "In Progress",
+    message: "Wallet settlement mismatch for COD orders in last cycle.",
+    productId: null,
+    adminResponse: "Finance queue tagged. Reconciliation in progress.",
+    updatedAtIso: "2026-02-14T12:38:00.000Z",
+  },
+  {
+    id: "VST-9183",
+    vendorName: "ByteHub Computers",
+    issueCategory: "Pricing",
+    status: "Resolved",
+    message: "Price exception update not reflecting in vendor dashboard.",
+    productId: "PRD-CMP-1120",
+    adminResponse: "Rule cache refreshed. Updated pricing is visible now.",
+    updatedAtIso: "2026-02-12T18:06:00.000Z",
+  },
+];
+
+const SEEDED_ADMIN_SYSTEM_NOTES: AdminSystemNote[] = [
+  {
+    id: "NOTE-1402",
+    note: "Escalate repeated cashback delays if unresolved beyond 24 hours.",
+    createdAtIso: "2026-02-15T08:35:00.000Z",
+  },
+  {
+    id: "NOTE-1398",
+    note: "Vendor settlement mismatch tickets should be tagged for finance review first.",
+    createdAtIso: "2026-02-14T10:05:00.000Z",
+  },
+];
+
+const ADMIN_PLATFORM_CONTROL_ROWS: Array<{
+  key: AdminSettingsControlKey;
+  label: string;
+  hint: string;
+}> = [
+  {
+    key: "codEnabled",
+    label: "Enable / Disable COD",
+    hint: "Visual toggle only for MVP. Checkout logic is unchanged.",
+  },
+  {
+    key: "returnsEnabled",
+    label: "Enable / Disable Returns",
+    hint: "Visual toggle only for MVP. Existing return flows continue unchanged.",
+  },
+  {
+    key: "vendorAdsEnabled",
+    label: "Enable / Disable Vendor Ads",
+    hint: "Visual toggle only for MVP. Ad behavior is not modified here.",
+  },
+];
+
+const ADMIN_SETTINGS_CATEGORY_ROWS: Array<{ name: string; code: string }> = [
+  { name: "Mobiles & Accessories", code: "CAT-MOB" },
+  { name: "Computers & Laptops", code: "CAT-COM" },
+  { name: "Footwear", code: "CAT-FTW" },
+  { name: "Pet Food", code: "CAT-PET" },
+  { name: "Digital Products", code: "CAT-DIG" },
+];
+
+const ADMIN_CASHBACK_WALLET_RULE_BLOCKS: Array<{ title: string; content: string }> = [
+  {
+    title: "Cashback credit timing",
+    content:
+      "Cashback is credited only after successful delivery and after the return window closes.",
+  },
+  {
+    title: "Pending vs Confirmed",
+    content:
+      "Wallet cashback remains Pending while order is in return-risk period, and moves to Confirmed once return eligibility expires without return.",
+  },
+];
+
+function getAdminSupportStatusClass(status: AdminSupportStatus) {
+  if (status === "Resolved") {
+    return "admin-status-badge admin-status-approved";
+  }
+  if (status === "In Progress") {
+    return "admin-status-badge admin-status-suspended";
+  }
+  return "admin-status-badge admin-status-scrutiny";
+}
+
+function mapTicketResponseById<T extends { id: string; adminResponse: string }>(tickets: T[]) {
+  return tickets.reduce<Record<string, string>>((responseById, ticket) => {
+    responseById[ticket.id] = ticket.adminResponse;
+    return responseById;
+  }, {});
+}
+
+function createAdminSystemNoteId() {
+  return `NOTE-${Date.now().toString(36).toUpperCase()}`;
 }
 
 export function AdminProviderRoute() {
@@ -1935,22 +2110,565 @@ export function AdminAdsPage() {
 }
 
 export function AdminSupportPage() {
+  const [activeTab, setActiveTab] = useState<AdminSupportTab>("userTickets");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [userTickets, setUserTickets] = useState<AdminUserSupportTicket[]>(
+    SEEDED_ADMIN_USER_SUPPORT_TICKETS,
+  );
+  const [vendorTickets, setVendorTickets] = useState<AdminVendorSupportTicket[]>(
+    SEEDED_ADMIN_VENDOR_SUPPORT_TICKETS,
+  );
+  const [selectedUserTicketId, setSelectedUserTicketId] = useState<string | null>(
+    SEEDED_ADMIN_USER_SUPPORT_TICKETS[0]?.id ?? null,
+  );
+  const [selectedVendorTicketId, setSelectedVendorTicketId] = useState<string | null>(
+    SEEDED_ADMIN_VENDOR_SUPPORT_TICKETS[0]?.id ?? null,
+  );
+  const [userResponseDraftById, setUserResponseDraftById] = useState<Record<string, string>>(() =>
+    mapTicketResponseById(SEEDED_ADMIN_USER_SUPPORT_TICKETS),
+  );
+  const [vendorResponseDraftById, setVendorResponseDraftById] = useState<Record<string, string>>(
+    () => mapTicketResponseById(SEEDED_ADMIN_VENDOR_SUPPORT_TICKETS),
+  );
+  const [systemNotes, setSystemNotes] = useState<AdminSystemNote[]>(SEEDED_ADMIN_SYSTEM_NOTES);
+  const [systemNoteInput, setSystemNoteInput] = useState("");
+
+  const sortedUserTickets = useMemo(
+    () =>
+      [...userTickets].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() - new Date(first.updatedAtIso).getTime(),
+      ),
+    [userTickets],
+  );
+  const sortedVendorTickets = useMemo(
+    () =>
+      [...vendorTickets].sort(
+        (first, second) =>
+          new Date(second.updatedAtIso).getTime() - new Date(first.updatedAtIso).getTime(),
+      ),
+    [vendorTickets],
+  );
+
+  const selectedUserTicket = useMemo(
+    () =>
+      selectedUserTicketId
+        ? sortedUserTickets.find((ticket) => ticket.id === selectedUserTicketId) ?? null
+        : null,
+    [selectedUserTicketId, sortedUserTickets],
+  );
+  const selectedVendorTicket = useMemo(
+    () =>
+      selectedVendorTicketId
+        ? sortedVendorTickets.find((ticket) => ticket.id === selectedVendorTicketId) ?? null
+        : null,
+    [selectedVendorTicketId, sortedVendorTickets],
+  );
+
+  function handleUpdateUserTicketStatus(nextStatus: AdminSupportStatus) {
+    if (!selectedUserTicket) {
+      setFeedbackMessage("Select a user ticket to update its status.");
+      return;
+    }
+    const adminResponse = (userResponseDraftById[selectedUserTicket.id] ?? "").trim();
+    setUserTickets((currentTickets) =>
+      currentTickets.map((ticket) =>
+        ticket.id === selectedUserTicket.id
+          ? {
+              ...ticket,
+              status: nextStatus,
+              adminResponse,
+              updatedAtIso: new Date().toISOString(),
+            }
+          : ticket,
+      ),
+    );
+    setUserResponseDraftById((currentDraft) => ({
+      ...currentDraft,
+      [selectedUserTicket.id]: adminResponse,
+    }));
+    setFeedbackMessage(`User ticket ${selectedUserTicket.id} updated to ${nextStatus}.`);
+  }
+
+  function handleUpdateVendorTicketStatus(nextStatus: AdminSupportStatus) {
+    if (!selectedVendorTicket) {
+      setFeedbackMessage("Select a vendor ticket to update its status.");
+      return;
+    }
+    const adminResponse = (vendorResponseDraftById[selectedVendorTicket.id] ?? "").trim();
+    setVendorTickets((currentTickets) =>
+      currentTickets.map((ticket) =>
+        ticket.id === selectedVendorTicket.id
+          ? {
+              ...ticket,
+              status: nextStatus,
+              adminResponse,
+              updatedAtIso: new Date().toISOString(),
+            }
+          : ticket,
+      ),
+    );
+    setVendorResponseDraftById((currentDraft) => ({
+      ...currentDraft,
+      [selectedVendorTicket.id]: adminResponse,
+    }));
+    setFeedbackMessage(`Vendor ticket ${selectedVendorTicket.id} updated to ${nextStatus}.`);
+  }
+
+  function handleAddSystemNote(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextNote = systemNoteInput.trim();
+    if (!nextNote) {
+      setFeedbackMessage("Enter a note before saving.");
+      return;
+    }
+    setSystemNotes((currentNotes) => [
+      {
+        id: createAdminSystemNoteId(),
+        note: nextNote,
+        createdAtIso: new Date().toISOString(),
+      },
+      ...currentNotes,
+    ]);
+    setSystemNoteInput("");
+    setFeedbackMessage("System note saved for admin review.");
+  }
+
   return (
-    <AdminPlaceholderPage
-      title="Support"
-      description="Support queue health, escalations, and resolution workflows."
-    />
+    <div className="stack">
+      <AdminSectionHeader
+        title="Support"
+        description="Manage user and vendor tickets, track status, and store admin-only internal notes."
+      />
+
+      {feedbackMessage ? (
+        <section className="admin-placeholder-card">
+          <p className="admin-action-feedback">{feedbackMessage}</p>
+        </section>
+      ) : null}
+
+      <section className="admin-placeholder-card">
+        <header className="section-header">
+          <h2>Support Sections</h2>
+        </header>
+        <div className="admin-tab-row" role="tablist" aria-label="Admin support sections">
+          {ADMIN_SUPPORT_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              className={
+                activeTab === tab.key ? "admin-tab-button is-active" : "admin-tab-button"
+              }
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {activeTab === "userTickets" ? (
+        <section className="admin-support-grid">
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>User Support Tickets</h2>
+            </header>
+            <div className="admin-support-table-wrap">
+              <div
+                className="admin-support-table-head admin-support-user-columns"
+                role="presentation"
+              >
+                <span>Ticket ID</span>
+                <span>User name</span>
+                <span>Issue type</span>
+                <span>Status</span>
+              </div>
+              <div className="admin-support-table-body">
+                {sortedUserTickets.map((ticket) => (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    className={
+                      selectedUserTicketId === ticket.id
+                        ? "admin-support-ticket-row admin-support-user-columns is-selected"
+                        : "admin-support-ticket-row admin-support-user-columns"
+                    }
+                    onClick={() => setSelectedUserTicketId(ticket.id)}
+                  >
+                    <span className="admin-support-ticket-id-cell">{ticket.id}</span>
+                    <span>{ticket.userName}</span>
+                    <span>{ticket.issueType}</span>
+                    <span className={getAdminSupportStatusClass(ticket.status)}>{ticket.status}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </article>
+
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>Ticket Detail</h2>
+            </header>
+            {selectedUserTicket ? (
+              <div className="stack-sm">
+                <div className="admin-support-detail-meta">
+                  <p>
+                    Ticket ID: <strong>{selectedUserTicket.id}</strong>
+                  </p>
+                  <p>
+                    User: <strong>{selectedUserTicket.userName}</strong>
+                  </p>
+                  <p>
+                    Issue Type: <strong>{selectedUserTicket.issueType}</strong>
+                  </p>
+                  <p>
+                    Status:{" "}
+                    <span className={getAdminSupportStatusClass(selectedUserTicket.status)}>
+                      {selectedUserTicket.status}
+                    </span>
+                  </p>
+                  <p>
+                    Last updated: <strong>{formatDateTime(selectedUserTicket.updatedAtIso)}</strong>
+                  </p>
+                  <p>
+                    Related Order ID:{" "}
+                    <strong>
+                      {selectedUserTicket.relatedOrderId
+                        ? selectedUserTicket.relatedOrderId
+                        : "Not linked"}
+                    </strong>
+                  </p>
+                </div>
+                <p>
+                  User message: <strong>{selectedUserTicket.message}</strong>
+                </p>
+                <label className="field">
+                  Admin response
+                  <textarea
+                    className="order-textarea"
+                    rows={4}
+                    value={userResponseDraftById[selectedUserTicket.id] ?? ""}
+                    onChange={(event) =>
+                      setUserResponseDraftById((currentDraft) => ({
+                        ...currentDraft,
+                        [selectedUserTicket.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Write internal response or resolution summary"
+                  />
+                </label>
+                <div className="inline-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleUpdateUserTicketStatus("In Progress")}
+                  >
+                    Mark In Progress
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleUpdateUserTicketStatus("Resolved")}
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedUserTicketId(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p>Select a user ticket from the list to open detail view.</p>
+            )}
+          </article>
+        </section>
+      ) : null}
+
+      {activeTab === "vendorTickets" ? (
+        <section className="admin-support-grid">
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>Vendor Support Tickets</h2>
+            </header>
+            <div className="admin-support-table-wrap">
+              <div
+                className="admin-support-table-head admin-support-vendor-columns"
+                role="presentation"
+              >
+                <span>Ticket ID</span>
+                <span>Vendor name</span>
+                <span>Product ID</span>
+                <span>Issue category</span>
+                <span>Status</span>
+              </div>
+              <div className="admin-support-table-body">
+                {sortedVendorTickets.map((ticket) => (
+                  <button
+                    key={ticket.id}
+                    type="button"
+                    className={
+                      selectedVendorTicketId === ticket.id
+                        ? "admin-support-ticket-row admin-support-vendor-columns is-selected"
+                        : "admin-support-ticket-row admin-support-vendor-columns"
+                    }
+                    onClick={() => setSelectedVendorTicketId(ticket.id)}
+                  >
+                    <span className="admin-support-ticket-id-cell">{ticket.id}</span>
+                    <span>{ticket.vendorName}</span>
+                    <span>{ticket.productId ? ticket.productId : "Not linked"}</span>
+                    <span>{ticket.issueCategory}</span>
+                    <span className={getAdminSupportStatusClass(ticket.status)}>{ticket.status}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </article>
+
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>Ticket Detail</h2>
+            </header>
+            {selectedVendorTicket ? (
+              <div className="stack-sm">
+                <div className="admin-support-detail-meta">
+                  <p>
+                    Ticket ID: <strong>{selectedVendorTicket.id}</strong>
+                  </p>
+                  <p>
+                    Vendor: <strong>{selectedVendorTicket.vendorName}</strong>
+                  </p>
+                  <p>
+                    Product ID:{" "}
+                    <strong>
+                      {selectedVendorTicket.productId ? selectedVendorTicket.productId : "Not linked"}
+                    </strong>
+                  </p>
+                  <p>
+                    Issue Category: <strong>{selectedVendorTicket.issueCategory}</strong>
+                  </p>
+                  <p>
+                    Status:{" "}
+                    <span className={getAdminSupportStatusClass(selectedVendorTicket.status)}>
+                      {selectedVendorTicket.status}
+                    </span>
+                  </p>
+                  <p>
+                    Last updated:{" "}
+                    <strong>{formatDateTime(selectedVendorTicket.updatedAtIso)}</strong>
+                  </p>
+                </div>
+                <p>
+                  Vendor message: <strong>{selectedVendorTicket.message}</strong>
+                </p>
+                <label className="field">
+                  Admin response
+                  <textarea
+                    className="order-textarea"
+                    rows={4}
+                    value={vendorResponseDraftById[selectedVendorTicket.id] ?? ""}
+                    onChange={(event) =>
+                      setVendorResponseDraftById((currentDraft) => ({
+                        ...currentDraft,
+                        [selectedVendorTicket.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Write response for vendor issue handling"
+                  />
+                </label>
+                <div className="inline-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleUpdateVendorTicketStatus("In Progress")}
+                  >
+                    Mark In Progress
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleUpdateVendorTicketStatus("Resolved")}
+                  >
+                    Resolve
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedVendorTicketId(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p>Select a vendor ticket from the list to open detail view.</p>
+            )}
+          </article>
+        </section>
+      ) : null}
+
+      {activeTab === "systemNotes" ? (
+        <section className="admin-support-grid">
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>System Notes (Admin-only)</h2>
+            </header>
+            <p>
+              Internal remarks for support triage. Notes stay inside admin workflow and are not
+              visible to users or vendors.
+            </p>
+            <form className="stack-sm" onSubmit={handleAddSystemNote}>
+              <label className="field">
+                New internal note
+                <textarea
+                  className="order-textarea"
+                  rows={4}
+                  value={systemNoteInput}
+                  onChange={(event) => setSystemNoteInput(event.target.value)}
+                  placeholder="Add internal context, escalation reason, or handover instructions"
+                />
+              </label>
+              <button type="submit" className="btn btn-primary">
+                Save Note
+              </button>
+            </form>
+          </article>
+
+          <article className="admin-placeholder-card">
+            <header className="section-header">
+              <h2>Saved Notes</h2>
+            </header>
+            <div className="stack-sm">
+              {systemNotes.length > 0 ? (
+                systemNotes.map((note) => (
+                  <article key={note.id} className="admin-system-note-row">
+                    <p>{note.note}</p>
+                    <small>{formatDateTime(note.createdAtIso)}</small>
+                  </article>
+                ))
+              ) : (
+                <p>No notes recorded yet.</p>
+              )}
+            </div>
+          </article>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
 export function AdminSettingsPage() {
+  const navigate = useNavigate();
+  const { adminName, logoutAdmin } = useAdmin();
+  const [platformControls, setPlatformControls] = useState<
+    Record<AdminSettingsControlKey, boolean>
+  >({
+    codEnabled: true,
+    returnsEnabled: true,
+    vendorAdsEnabled: true,
+  });
+
+  function handleToggleControl(controlKey: AdminSettingsControlKey) {
+    setPlatformControls((currentState) => ({
+      ...currentState,
+      [controlKey]: !currentState[controlKey],
+    }));
+  }
+
+  function handleAdminLogout() {
+    logoutAdmin();
+    navigate(ROUTES.admin, { replace: true });
+  }
+
   return (
     <div className="stack">
       <AdminSectionHeader
         title="Settings"
-        description="Admin-only platform controls for category availability, rules, and policy inheritance."
+        description="Admin-only platform controls, policy references, and account details (MVP view/state only)."
       />
-      <AdminCategoryManagementSection />
+
+      <section className="admin-placeholder-card">
+        <header className="section-header">
+          <h2>Platform Controls</h2>
+        </header>
+        <p>Toggle states are visual-only for MVP and do not alter existing business logic.</p>
+        <div className="admin-settings-control-list">
+          {ADMIN_PLATFORM_CONTROL_ROWS.map((controlRow) => (
+            <article key={controlRow.key} className="admin-settings-control-row">
+              <div className="admin-settings-control-copy">
+                <h3>{controlRow.label}</h3>
+                <p>{controlRow.hint}</p>
+              </div>
+              <label className="admin-settings-switch">
+                <input
+                  type="checkbox"
+                  checked={platformControls[controlRow.key]}
+                  onChange={() => handleToggleControl(controlRow.key)}
+                />
+                <span>{platformControls[controlRow.key] ? "Enabled" : "Disabled"}</span>
+              </label>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <header className="section-header">
+          <h2>Category Management (View Only)</h2>
+        </header>
+        <p>Current top-level categories with code and active status. Editing is disabled for MVP.</p>
+        <div className="admin-settings-category-grid">
+          {ADMIN_SETTINGS_CATEGORY_ROWS.map((category) => (
+            <article key={category.code} className="admin-settings-category-card">
+              <h3>{category.name}</h3>
+              <p>
+                Category code: <strong>{category.code}</strong>
+              </p>
+              <span className="admin-status-badge admin-status-approved">Active</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <header className="section-header">
+          <h2>Cashback & Wallet Rules (Read-only)</h2>
+        </header>
+        <div className="admin-settings-readonly-grid">
+          {ADMIN_CASHBACK_WALLET_RULE_BLOCKS.map((ruleBlock) => (
+            <article key={ruleBlock.title} className="admin-settings-readonly-card">
+              <h3>{ruleBlock.title}</h3>
+              <p>{ruleBlock.content}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="admin-placeholder-card">
+        <header className="section-header">
+          <h2>Admin Profile</h2>
+        </header>
+        <div className="admin-settings-profile-grid">
+          <article className="admin-settings-profile-card">
+            <h3>Admin name</h3>
+            <p>{adminName}</p>
+          </article>
+          <article className="admin-settings-profile-card">
+            <h3>Role</h3>
+            <p>Marketplace Operations Admin</p>
+          </article>
+        </div>
+        <div className="inline-actions">
+          <button type="button" className="btn btn-secondary" onClick={handleAdminLogout}>
+            Logout
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
