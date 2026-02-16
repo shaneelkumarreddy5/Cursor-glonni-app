@@ -5,70 +5,68 @@ import { ROUTES } from "../routes/paths";
 import { useAdMonetization } from "../state/AdMonetizationContext";
 import { useCommerce } from "../state/CommerceContext";
 import { formatInr } from "../utils/currency";
+import "../styles/homepage-glonni.css";
 
-type LandingCategoryTile = {
+type HeroSlide = {
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaTo: string;
+  imageUrl: string;
+};
+
+type HomeCategoryTile = {
   title: string;
   category: CatalogCategory;
   imageProductId: string;
 };
 
-const HERO_FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80";
-
-const LANDING_CATEGORIES: LandingCategoryTile[] = [
+const HERO_SLIDES: HeroSlide[] = [
   {
-    title: "Mobiles",
-    category: "Mobiles",
-    imageProductId: "sp-1",
+    title: "Shop and Earn Real Money",
+    subtitle: "Get up to 20% instant cashback on top global brands.",
+    ctaLabel: "Shop Now",
+    ctaTo: `${ROUTES.category}?category=Mobiles`,
+    imageUrl:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuDC7N4t2J3BHQ9sbbDuinU4yYreLsYs5Y11TgF9RgjU7jLRNvELugFCfXKQrBHWMSEyIFvIYb9pDYD3ieganbZNO5vGJJi33tJt8QPbf_qFsgMMrJwmbMlpLAkBxW78aaAWy2V-Y4RgPJSch5oq-_B17r6SUrtocW4p1doOnFkBwOdjbsagv1Kn__RwpsaLyMloOdZlpIl4xnI4y3c2n4p9Zn8rOT41410604ul8kLUyGd-b6tLPs0xCOtJM2GiHf8JOP09qD_GxCc",
   },
   {
-    title: "Laptops",
-    category: "Laptops",
-    imageProductId: "og-4",
-  },
-  {
-    title: "Audio",
-    category: "Accessories",
-    imageProductId: "og-6",
-  },
-  {
-    title: "Wearables",
-    category: "Accessories",
-    imageProductId: "og-7",
-  },
-  {
-    title: "Footwear",
-    category: "Footwear",
-    imageProductId: "og-8",
-  },
-  {
-    title: "Home Tech",
-    category: "Laptops",
-    imageProductId: "og-5",
+    title: "Tech Deals",
+    subtitle: "Latest gadgets at lowest prices with trusted delivery.",
+    ctaLabel: "Explore",
+    ctaTo: `${ROUTES.category}?category=Accessories`,
+    imageUrl:
+      "https://lh3.googleusercontent.com/aida-public/AB6AXuB6H0jQc6K2ZfxVvMsUbpXAZXWwitGsUcsopJIvXg2kl8YVUYOpmLtwC35nWDT0fqDaktzOYmpMrwNq0pkSjzn10gmDaH8C8REl_gGvtO1FhOUF_22ztaiz2fMza3xERqgVhgWrklTwhNNoiPwshW3SkXc0crI2WGI8-PBuCgp3OsoEBqGrR7EnvlF8-RcMzZ069KlmrQ3_uI6ItoKrHDqrsHbLcQVfZruN5-HGQyXLgeFb9f28r6TlN8e-ONi7XYkSwkdR0LsSKOk",
   },
 ];
 
-const LANDING_PROMISES = [
-  {
-    title: "100% Original",
-    description: "Authentic products only",
-  },
-  {
-    title: "Easy Returns",
-    description: "7-day return policy",
-  },
-  {
-    title: "Fast Delivery",
-    description: "Express shipping available",
-  },
+const HOME_CATEGORIES: HomeCategoryTile[] = [
+  { title: "Electronics", category: "Mobiles", imageProductId: "sp-1" },
+  { title: "Fashion", category: "Footwear", imageProductId: "og-8" },
+  { title: "Home", category: "Laptops", imageProductId: "og-4" },
+  { title: "Beauty", category: "Accessories", imageProductId: "og-6" },
+  { title: "Grocery", category: "Accessories", imageProductId: "og-7" },
+];
+
+const TRUST_ITEMS = [
+  "Secure Payments",
+  "Easy Returns",
+  "Cashback Guarantee",
 ] as const;
+
+const RECENTLY_VIEWED_IDS = ["og-7", "og-8"] as const;
+
+const BRAND_NAMES = ["Samsung", "Nike", "Apple", "Adidas"] as const;
+
+const HOME_FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80";
 
 function getCategoryRoute(category: CatalogCategory) {
   return `${ROUTES.category}?category=${encodeURIComponent(category)}`;
 }
 
 function getProductImage(productId: string) {
-  return catalogProducts.find((product) => product.id === productId)?.imageUrl ?? HERO_FALLBACK_IMAGE;
+  return catalogProducts.find((product) => product.id === productId)?.imageUrl ?? HOME_FALLBACK_IMAGE;
 }
 
 function formatEstimatedReviewCount(product: CatalogProduct) {
@@ -86,54 +84,42 @@ function getDiscountPercent(product: CatalogProduct) {
   return Math.round(((product.mrpInr - product.priceInr) / product.mrpInr) * 100);
 }
 
-function LandingDealCard({
+function isProduct(value: CatalogProduct | undefined): value is CatalogProduct {
+  return Boolean(value);
+}
+
+function SponsoredDealCard({
   product,
-  sponsored,
   onAddToCart,
   onBuyNow,
 }: {
   product: CatalogProduct;
-  sponsored: boolean;
   onAddToCart: (product: CatalogProduct) => void;
   onBuyNow: (product: CatalogProduct) => void;
 }) {
   const productRoute = ROUTES.productDetail(product.id);
-  const discount = getDiscountPercent(product);
   const reviewCount = formatEstimatedReviewCount(product);
 
   return (
-    <article className="landing-deal-card">
-      <Link to={productRoute} className="landing-deal-media-link" aria-label={`View details for ${product.name}`}>
-        {sponsored ? (
-          <span className="landing-deal-tag">Bestseller</span>
-        ) : discount > 0 ? (
-          <span className="landing-deal-tag">{discount}% OFF</span>
-        ) : null}
-        <img
-          src={product.imageUrl}
-          alt={`${product.name} product image`}
-          className="landing-deal-image"
-          loading="lazy"
-        />
+    <article className="gh-sponsored-card">
+      <Link to={productRoute} className="gh-sponsored-media-link">
+        <span className="gh-sponsored-pill">Sponsored</span>
+        <img src={product.imageUrl} alt={`${product.name} product image`} loading="lazy" />
       </Link>
-
-      <div className="landing-deal-copy">
-        <p className="landing-deal-rating">
-          <span aria-hidden="true">★</span>
-          <strong>{product.rating.toFixed(1)}</strong>
-          <span>({reviewCount})</span>
-        </p>
-
+      <div className="gh-sponsored-copy">
         <h3>
           <Link to={productRoute}>{product.name}</Link>
         </h3>
-
-        <div className="landing-deal-price-row">
+        <p className="gh-rating-row">
+          <strong>{product.rating.toFixed(1)}</strong>
+          <span>({reviewCount})</span>
+        </p>
+        <p className="gh-price-row">
           <strong>{formatInr(product.priceInr)}</strong>
-          <span>{formatInr(product.mrpInr)}</span>
-        </div>
-
-        <div className="landing-deal-actions">
+          {product.mrpInr > product.priceInr ? <span>{formatInr(product.mrpInr)}</span> : null}
+        </p>
+        <p className="gh-cashback-pill">Cashback {formatInr(product.cashbackInr)}</p>
+        <div className="gh-card-actions">
           <button type="button" className="btn btn-secondary" onClick={() => onAddToCart(product)}>
             Add to Cart
           </button>
@@ -151,16 +137,30 @@ export function HomePage() {
   const { addToCart } = useCommerce();
   const { getCatalogSponsoredFlag } = useAdMonetization();
 
-  const catalogProductsWithVisibility = catalogProducts.map((product) => ({
+  const productsWithVisibility = catalogProducts.map((product) => ({
     ...product,
     sponsored: getCatalogSponsoredFlag(product.id, product.sponsored),
   }));
-  const sponsoredProducts = catalogProductsWithVisibility.filter((product) => product.sponsored);
-  const organicProducts = catalogProductsWithVisibility.filter((product) => !product.sponsored);
-  const heroProduct =
-    catalogProductsWithVisibility.find((product) => product.category === "Accessories") ??
-    catalogProductsWithVisibility[0];
-  const trustedDeals = [...sponsoredProducts, ...organicProducts].slice(0, 4);
+
+  const sponsoredProducts = productsWithVisibility.filter((product) => product.sponsored);
+  const organicProducts = productsWithVisibility.filter((product) => !product.sponsored);
+
+  const sponsoredDeals =
+    sponsoredProducts.length >= 2 ? sponsoredProducts.slice(0, 2) : productsWithVisibility.slice(0, 2);
+
+  const flashDeals = [...productsWithVisibility]
+    .sort((first, second) => getDiscountPercent(second) - getDiscountPercent(first))
+    .slice(0, 2);
+
+  const trendingProducts = [...productsWithVisibility]
+    .sort((first, second) => second.rating - first.rating)
+    .slice(0, 2);
+
+  const recommendedProducts = [...organicProducts, ...sponsoredProducts].slice(0, 2);
+
+  const recentlyViewedProducts = RECENTLY_VIEWED_IDS.map((id) =>
+    productsWithVisibility.find((product) => product.id === id),
+  ).filter(isProduct);
 
   function addDefaultConfigurationToCart(product: CatalogProduct) {
     const vendorOptions = getVendorOptionsForProduct(product);
@@ -168,7 +168,6 @@ export function HomePage() {
     if (!defaultVendor) {
       return;
     }
-
     addToCart({
       product,
       vendor: defaultVendor,
@@ -184,79 +183,48 @@ export function HomePage() {
   }
 
   return (
-    <div className="landing-page stack">
-      <section className="landing-hero card">
-        <div className="landing-hero-copy">
-          <span className="landing-kicker">Exclusive Deals</span>
-          <h1>
-            Welcome to
-            <span> glonni</span>
-          </h1>
-          <p>
-            Discover the best deals on mobiles, electronics, fashion & more. Shop from trusted brands with fast delivery and easy returns.
-          </p>
-          <div className="landing-hero-actions">
-            <Link to={getCategoryRoute("Mobiles")} className="btn btn-primary">
-              Shop Now
-            </Link>
-            <Link to={ROUTES.category} className="btn btn-secondary">
-              Browse Categories
-            </Link>
-          </div>
-        </div>
+    <div className="glonni-home">
+      <section className="gh-inline-controls" aria-label="Delivery and search">
+        <button type="button" className="gh-location-chip">
+          Mumbai 400001
+        </button>
+        <form className="gh-inline-search" role="search" onSubmit={(event) => event.preventDefault()}>
+          <input type="search" placeholder="Search products, brands..." />
+        </form>
+      </section>
 
-        <div className="landing-hero-media">
-          <img
-            src={heroProduct?.imageUrl ?? HERO_FALLBACK_IMAGE}
-            alt="Featured product on glonni"
-            className="landing-hero-image"
-          />
-          <div className="landing-score-chip">
-            <span className="landing-score-icon" aria-hidden="true">
-              ✓
-            </span>
-            <div>
-              <p>Customer Rating</p>
-              <strong>4.8 / 5 ★</strong>
-            </div>
-          </div>
+      <section className="gh-hero">
+        <div className="gh-hero-track">
+          {HERO_SLIDES.map((slide) => (
+            <article key={slide.title} className="gh-hero-slide">
+              <img src={slide.imageUrl} alt={slide.title} loading="lazy" />
+              <div className="gh-hero-overlay">
+                <p className="gh-hero-kicker">Big Cashback Days</p>
+                <h1>{slide.title}</h1>
+                <p>{slide.subtitle}</p>
+                <Link to={slide.ctaTo} className="btn btn-primary">
+                  {slide.ctaLabel}
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="gh-hero-dots" aria-hidden="true">
+          <span className="active" />
+          <span />
+          <span />
         </div>
       </section>
 
-      <section className="landing-trust-strip" aria-label="Store guarantees">
-        {LANDING_PROMISES.map((promise) => (
-          <article key={promise.title} className="landing-trust-card">
-            <span className="landing-trust-icon" aria-hidden="true">
-              ✓
-            </span>
-            <div>
-              <h2>{promise.title}</h2>
-              <p>{promise.description}</p>
-            </div>
-          </article>
-        ))}
-      </section>
-
-      <section className="landing-category-section card">
-        <header className="landing-section-header">
-          <h2>Shop by Category</h2>
-          <Link to={ROUTES.category}>View All</Link>
-        </header>
-
-        <div className="landing-category-row" role="list" aria-label="Primary categories">
-          {LANDING_CATEGORIES.map((category) => (
-            <Link
-              key={category.title}
-              to={getCategoryRoute(category.category)}
-              className="landing-category-tile"
-              role="listitem"
-            >
-              <span className="landing-category-image-wrap">
-                <img
-                  src={getProductImage(category.imageProductId)}
-                  alt={`${category.title} category preview`}
-                  loading="lazy"
-                />
+      <section className="gh-categories">
+        <div className="gh-section-head">
+          <h2>Categories</h2>
+        </div>
+        <div className="gh-category-rail">
+          {HOME_CATEGORIES.map((category) => (
+            <Link key={category.title} to={getCategoryRoute(category.category)} className="gh-category-card">
+              <span className="gh-category-image">
+                <img src={getProductImage(category.imageProductId)} alt={category.title} loading="lazy" />
               </span>
               <span>{category.title}</span>
             </Link>
@@ -264,27 +232,149 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="landing-deals-section card">
-        <header className="landing-section-header">
-          <h2>Top Deals for You</h2>
-          <Link to={ROUTES.category}>See All</Link>
+      <section className="gh-sponsored-deals">
+        <header className="gh-section-head">
+          <h2>Sponsored Deals</h2>
+          <span>Promoted</span>
         </header>
+        <div className="gh-sponsored-grid">
+          {sponsoredDeals.map((product) => (
+            <SponsoredDealCard
+              key={product.id}
+              product={product}
+              onAddToCart={addDefaultConfigurationToCart}
+              onBuyNow={handleBuyNow}
+            />
+          ))}
+        </div>
+      </section>
 
-        {trustedDeals.length > 0 ? (
-          <div className="landing-deals-grid">
-            {trustedDeals.map((product) => (
-              <LandingDealCard
-                key={product.id}
-                product={product}
-                sponsored={product.sponsored}
-                onAddToCart={addDefaultConfigurationToCart}
-                onBuyNow={handleBuyNow}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="empty-state">No deals are available right now.</p>
-        )}
+      <section className="gh-flash-deals">
+        <header className="gh-flash-head">
+          <h2>Flash Deals</h2>
+          <p>02:45:10 left</p>
+        </header>
+        <div className="gh-flash-row">
+          {flashDeals.map((product) => (
+            <article key={product.id} className="gh-flash-card">
+              <span className="gh-flash-discount">{getDiscountPercent(product)}% OFF</span>
+              <Link to={ROUTES.productDetail(product.id)} className="gh-flash-media-link">
+                <img src={product.imageUrl} alt={product.name} loading="lazy" />
+              </Link>
+              <p className="gh-flash-price">{formatInr(product.priceInr)}</p>
+              <p className="gh-flash-mrp">{formatInr(product.mrpInr)}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="gh-trending">
+        <header className="gh-section-head">
+          <h2>Trending in Mumbai</h2>
+        </header>
+        <div className="gh-trending-row">
+          {trendingProducts.map((product) => (
+            <article key={product.id} className="gh-trending-card">
+              <Link to={ROUTES.productDetail(product.id)} className="gh-trending-media-link">
+                <img src={product.imageUrl} alt={product.name} loading="lazy" />
+              </Link>
+              <h3>{product.name}</h3>
+              <p>{formatInr(product.priceInr)}</p>
+              <span>Cashback {formatInr(product.cashbackInr)}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="gh-promo-banner">
+        <img
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW6zn0zyTXQhCv6fPOpTw24rlDCeQsQ9NfXnt204Sh-2KKr3hOR8Vq4XfzLAvZvypWCJff2tSsnrwil6FWAyl5X-BthWFlEGuPaaKZi2VG_H2--JNbRsy2mEVrEPrfemVVnpN_0alzof6UPcaNdVkeF8fKlL2NG8q5WG0r1MBGjASlFM6Cm3l748hc38olY2Wpfjb10tcfaGreYqm6yG7xMbqm31I93pmEMk2Avb-1uxu0Ugd7KBfxJMVsDGW6cxnWQJnel4J9agM"
+          alt="IKEA Festival banner"
+          loading="lazy"
+        />
+        <div className="gh-promo-overlay">
+          <span>Sponsored</span>
+          <h2>IKEA Festival</h2>
+          <p>Revamp your home with flat 15% cashback on all furniture.</p>
+          <Link to={ROUTES.category} className="btn btn-secondary">
+            Shop Collection
+          </Link>
+        </div>
+      </section>
+
+      <section className="gh-recommended">
+        <header className="gh-section-head">
+          <h2>Recommended For You</h2>
+        </header>
+        <div className="gh-recommended-grid">
+          {recommendedProducts.map((product) => (
+            <article key={product.id} className="gh-recommended-card">
+              <Link to={ROUTES.productDetail(product.id)} className="gh-recommended-media-link">
+                <img src={product.imageUrl} alt={product.name} loading="lazy" />
+              </Link>
+              <p className="gh-brand-name">{product.brand}</p>
+              <h3>{product.name}</h3>
+              <p className="gh-price-row">
+                <strong>{formatInr(product.priceInr)}</strong>
+                {product.mrpInr > product.priceInr ? <span>{formatInr(product.mrpInr)}</span> : null}
+              </p>
+              <p className="gh-cashback-line">Earn {formatInr(product.cashbackInr)}</p>
+              <div className="gh-card-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => addDefaultConfigurationToCart(product)}>
+                  Add
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => handleBuyNow(product)}>
+                  Buy
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="gh-recently-viewed">
+        <header className="gh-section-head">
+          <h2>Recently Viewed</h2>
+        </header>
+        <div className="gh-recently-row">
+          {recentlyViewedProducts.map((product) => (
+            <Link key={product.id} to={ROUTES.productDetail(product.id)} className="gh-recently-card">
+              <img src={product.imageUrl} alt={product.name} loading="lazy" />
+              <span>{product.name}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="gh-brands">
+        <header className="gh-section-head">
+          <h2>Shop by Brand</h2>
+        </header>
+        <div className="gh-brand-grid">
+          {BRAND_NAMES.map((brand) => (
+            <Link key={brand} to={ROUTES.category} className="gh-brand-chip">
+              {brand}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="gh-trust-strip" aria-label="Marketplace trust signals">
+        {TRUST_ITEMS.map((item) => (
+          <article key={item}>
+            <h3>{item}</h3>
+          </article>
+        ))}
+      </section>
+
+      <section className="gh-vendor-cta">
+        <div>
+          <h2>Sell on Glonni</h2>
+          <p>Grow with India&apos;s most rewarding shopping destination.</p>
+        </div>
+        <Link to={ROUTES.vendor} className="btn btn-primary">
+          Become a Vendor
+        </Link>
       </section>
     </div>
   );
