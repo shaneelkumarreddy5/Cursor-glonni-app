@@ -270,7 +270,7 @@ export function CheckoutPage() {
           </header>
 
           {isCartEmpty ? (
-            <p>Your cart is empty. Add products before checkout.</p>
+            <p className="empty-state">Your cart is empty. Add products before checkout.</p>
           ) : (
             <div className="checkout-line-items">
               {cartItems.map((item) => (

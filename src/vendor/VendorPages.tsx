@@ -389,9 +389,35 @@ export function VendorLoginPage() {
     }
   }
 
+  function handleBackNavigation() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(ROUTES.home);
+  }
+
   return (
     <div className="vendor-auth-shell">
       <section className="vendor-auth-card">
+        <div className="auth-top-controls">
+          <button
+            type="button"
+            className="auth-icon-btn"
+            aria-label="Go back"
+            onClick={handleBackNavigation}
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            className="auth-icon-btn"
+            aria-label="Close login"
+            onClick={() => navigate(ROUTES.home)}
+          >
+            ✕
+          </button>
+        </div>
         <p className="vendor-kicker">Glonni Vendor</p>
         <h1>Vendor Login (Mock)</h1>
         <p>Sign in to access dashboard, products, orders, wallet, ads, and support.</p>

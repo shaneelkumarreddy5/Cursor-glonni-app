@@ -353,7 +353,7 @@ export function CategoryPage() {
 
                       <div className="inline-actions">
                         <Link to={productRoute} className="btn btn-secondary">
-                          Open product
+                          View Details
                         </Link>
                       </div>
                     </div>
@@ -363,7 +363,9 @@ export function CategoryPage() {
             </section>
           ) : (
             <section className="card">
-              <p>No products found for the selected filters. Try clearing one or more filters.</p>
+              <p className="empty-state">
+                No products found for the selected filters. Try clearing one or more filters.
+              </p>
             </section>
           )}
         </div>

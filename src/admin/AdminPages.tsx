@@ -216,9 +216,35 @@ export function AdminLoginPage() {
     }
   }
 
+  function handleBackNavigation() {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(ROUTES.home);
+  }
+
   return (
     <div className="admin-auth-shell">
       <section className="admin-auth-card">
+        <div className="auth-top-controls">
+          <button
+            type="button"
+            className="auth-icon-btn"
+            aria-label="Go back"
+            onClick={handleBackNavigation}
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            className="auth-icon-btn"
+            aria-label="Close login"
+            onClick={() => navigate(ROUTES.home)}
+          >
+            ✕
+          </button>
+        </div>
         <h1>Admin Login (Mock)</h1>
         <p>Sign in to access admin controls for vendors, orders, ads, support, and settings.</p>
 
