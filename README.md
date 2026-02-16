@@ -4,6 +4,10 @@ Modern web application scaffold for an e-commerce platform called **Glonni**.
 
 > **Note**: This repository uses `main` as the default branch.
 
+## 📋 Documentation
+
+- **[Pending Pull Requests](./PULL_REQUESTS.md)** - Overview of all open PRs and their status
+
 ## What is included
 
 - React + TypeScript + Vite setup
