@@ -8,6 +8,7 @@ import { OrderOperationsProvider } from "./state/OrderOperationsContext";
 import { ProductModerationProvider } from "./state/ProductModerationContext";
 import { VendorLifecycleProvider } from "./state/VendorLifecycleContext";
 import "./styles/global.css";
+import "./styles/glonni-theme.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

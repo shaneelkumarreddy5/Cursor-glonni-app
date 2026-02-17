@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { FilterIcon } from "../components/ui/FilterIcon";
 import { catalogProducts, type CatalogCategory } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
 import { useAdMonetization } from "../state/AdMonetizationContext";
@@ -202,17 +203,22 @@ export function CategoryPage() {
               </button>
             ))}
           </div>
-          <label className="plp-sort-control">
-            Sort by
-            <select
-              value={selectedSort}
-              onChange={(event) => setSelectedSort(event.target.value as SortOption)}
-            >
-              <option value="price-low-high">Price: Low to High</option>
-              <option value="price-high-low">Price: High to Low</option>
-              <option value="popularity">Popularity</option>
-            </select>
-          </label>
+          <div className="plp-toolbar-end">
+            <button type="button" className="app-filter-button" aria-label="Open listing filters">
+              <FilterIcon />
+            </button>
+            <label className="plp-sort-control">
+              Sort by
+              <select
+                value={selectedSort}
+                onChange={(event) => setSelectedSort(event.target.value as SortOption)}
+              >
+                <option value="price-low-high">Price: Low to High</option>
+                <option value="price-high-low">Price: High to Low</option>
+                <option value="popularity">Popularity</option>
+              </select>
+            </label>
+          </div>
         </div>
         <div className="plp-brand-filter-row" role="list" aria-label="Brand filters">
           {brandFilters.map(([brandName, logoUrl]) => (

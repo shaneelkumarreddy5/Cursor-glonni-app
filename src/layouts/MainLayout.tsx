@@ -1,10 +1,9 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { BottomNav } from "../components/layout/BottomNav";
+import { Header } from "../components/layout/Header";
+import { SearchBar } from "../components/layout/SearchBar";
 import { ROUTES } from "../routes/paths";
 import { useCommerce } from "../state/CommerceContext";
-
-function mobileNavClassName(isActive: boolean) {
-  return isActive ? "mobile-nav-link active" : "mobile-nav-link";
-}
 
 export function MainLayout() {
   const { cartItemsCount } = useCommerce();
@@ -23,51 +22,13 @@ export function MainLayout() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-main topbar-container">
-          <NavLink to="/" className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              G
-            </span>
-            <span className="brand-text">glonni</span>
-          </NavLink>
-
-          <form
-            className="global-search"
-            role="search"
+      <header className="topbar glonni-theme-topbar">
+        <div className="topbar-container glonni-theme-topbar-inner">
+          <Header cartCountLabel={cartCountLabel} />
+          <SearchBar
+            placeholder="Search products, brands..."
             onSubmit={(event) => event.preventDefault()}
-            aria-label="Search products"
-          >
-            <input type="search" placeholder="Search for mobiles, earbuds, trusted brands..." />
-          </form>
-
-          <div className="topbar-actions">
-            <button type="button" className="topbar-locale-btn">
-              EN/HI
-            </button>
-
-            <NavLink to={ROUTES.vendor} className="topbar-action-link topbar-desktop-link">
-              Seller
-            </NavLink>
-            <NavLink to={ROUTES.admin} className="topbar-action-link topbar-desktop-link">
-              Admin
-            </NavLink>
-
-            <NavLink to={ROUTES.settings} className="topbar-profile-link">
-              <span className="topbar-profile-avatar" aria-hidden="true">
-                A
-              </span>
-              <span className="topbar-profile-copy">
-                <small>Namaste,</small>
-                <strong>Arjun</strong>
-              </span>
-            </NavLink>
-
-            <NavLink to={ROUTES.cart} className="topbar-cart-link" aria-label="Open cart">
-              <span>Cart</span>
-              <strong>{cartCountLabel}</strong>
-            </NavLink>
-          </div>
+          />
         </div>
       </header>
 
@@ -83,32 +44,7 @@ export function MainLayout() {
         <Outlet />
       </main>
 
-      <nav aria-label="Mobile bottom navigation" className="mobile-bottom-nav">
-        <NavLink to={ROUTES.home} className={({ isActive }) => mobileNavClassName(isActive)}>
-          Home
-        </NavLink>
-        <NavLink to={ROUTES.category} className={({ isActive }) => mobileNavClassName(isActive)}>
-          Search
-        </NavLink>
-        <NavLink
-          to={ROUTES.settingsOrders}
-          className={({ isActive }) => mobileNavClassName(isActive)}
-        >
-          Orders
-        </NavLink>
-        <NavLink
-          to={ROUTES.settingsWallet}
-          className={({ isActive }) => mobileNavClassName(isActive)}
-        >
-          Wallet
-        </NavLink>
-        <NavLink
-          to={ROUTES.settingsProfile}
-          className={({ isActive }) => mobileNavClassName(isActive)}
-        >
-          Profile
-        </NavLink>
-      </nav>
+      <BottomNav />
 
       <footer className="footer">
         <div className="footer-inner">
