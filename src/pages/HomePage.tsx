@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { CategoryShortcuts, type CategoryShortcut } from "../components/home/CategoryShortcuts";
 import { FlashDeals } from "../components/home/FlashDeals";
-import { HeroBanner } from "../components/home/HeroBanner";
+import { HeroBanner, type HeroDeal } from "../components/home/HeroBanner";
 import { RecommendedList } from "../components/home/RecommendedList";
 import { SponsoredGrid } from "../components/home/SponsoredGrid";
 import { TrustSection } from "../components/home/TrustSection";
@@ -16,9 +16,6 @@ import "../styles/homepage-glonni.css";
 
 const HOME_FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80";
-
-const HOME_HERO_IMAGE =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDC7N4t2J3BHQ9sbbDuinU4yYreLsYs5Y11TgF9RgjU7jLRNvELugFCfXKQrBHWMSEyIFvIYb9pDYD3ieganbZNO5vGJJi33tJt8QPbf_qFsgMMrJwmbMlpLAkBxW78aaAWy2V-Y4RgPJSch5oq-_B17r6SUrtocW4p1doOnFkBwOdjbsagv1Kn__RwpsaLyMloOdZlpIl4xnI4y3c2n4p9Zn8rOT41410604ul8kLUyGd-b6tLPs0xCOtJM2GiHf8JOP09qD_GxCc";
 
 type HomeCategoryTile = {
   title: CategoryShortcut["title"];
@@ -37,6 +34,69 @@ const HOME_CATEGORY_TILES: HomeCategoryTile[] = [
 function getCategoryRoute(category: CatalogCategory) {
   return `${ROUTES.category}?category=${encodeURIComponent(category)}`;
 }
+
+const HOME_MOCK_DEALS: HeroDeal[] = [
+  {
+    id: "deal-mobile-fest",
+    kicker: "Mobile Fest",
+    title: "Save up to 45% on top smartphones",
+    subtitle: "Starting at Rs 8,999 with cashback bundles this week.",
+    ctaLabel: "Shop Mobiles",
+    ctaTo: getCategoryRoute("Mobiles"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "deal-laptop-upgrade",
+    kicker: "Laptop Upgrade Days",
+    title: "Performance laptops under Rs 59,999",
+    subtitle: "Exchange-ready offers on thin-and-light work essentials.",
+    ctaLabel: "Shop Laptops",
+    ctaTo: getCategoryRoute("Laptops"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "deal-audio-essentials",
+    kicker: "Audio Essentials",
+    title: "Wireless accessories at weekend prices",
+    subtitle: "Earbuds, speakers, and power banks with instant deal cuts.",
+    ctaLabel: "Shop Accessories",
+    ctaTo: getCategoryRoute("Accessories"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "deal-footwear-run",
+    kicker: "Footwear Flash",
+    title: "Flat 35% off on trending sneakers",
+    subtitle: "Daily-wear pairs from best-rated brands at lower prices.",
+    ctaLabel: "Shop Footwear",
+    ctaTo: getCategoryRoute("Footwear"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "deal-gaming-combo",
+    kicker: "Gamer Choice",
+    title: "Phones plus accessories combo deals",
+    subtitle: "Bundle controllers, earbuds, and chargers with select mobiles.",
+    ctaLabel: "View Combos",
+    ctaTo: getCategoryRoute("Mobiles"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    id: "deal-night-saver",
+    kicker: "Night Saver",
+    title: "Extra cashback unlocked after 9 PM",
+    subtitle: "Late-hour checkout bonus across laptops and accessories.",
+    ctaLabel: "Grab Night Deals",
+    ctaTo: getCategoryRoute("Accessories"),
+    imageUrl:
+      "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80",
+  },
+];
 
 function getProductImage(productId: string) {
   return catalogProducts.find((product) => product.id === productId)?.imageUrl ?? HOME_FALLBACK_IMAGE;
@@ -136,7 +196,7 @@ export function HomePage() {
 
   return (
     <div className="glonni-home">
-      <HeroBanner ctaTo={getCategoryRoute("Mobiles")} imageUrl={HOME_HERO_IMAGE} />
+      <HeroBanner deals={HOME_MOCK_DEALS} />
 
       <CategoryShortcuts shortcuts={categoryShortcuts} />
 

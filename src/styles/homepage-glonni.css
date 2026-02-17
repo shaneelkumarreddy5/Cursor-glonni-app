@@ -38,31 +38,39 @@
 }
 
 .home-hero-banner {
-  position: relative;
   border-radius: 14px;
   box-shadow: 0 8px 22px rgb(17 17 17 / 9%);
+  background: #111111;
+  display: grid;
+  gap: 0.5rem;
+  overflow: hidden;
+  padding: 0.55rem 0.55rem 0.65rem;
+}
+
+.home-hero-track {
+  display: flex;
+  width: 100%;
+}
+
+.home-hero-slide {
+  min-width: 100%;
+}
+
+.home-hero-slide-surface {
+  min-height: 196px;
+  border-radius: 12px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   overflow: hidden;
 }
 
-.home-hero-banner > img {
-  width: 100%;
-  min-height: 220px;
-  object-fit: cover;
-}
-
 .home-hero-overlay {
-  position: absolute;
-  inset: 0;
+  min-height: 196px;
   display: grid;
   align-content: center;
-  gap: 0.48rem;
-  background: linear-gradient(
-    120deg,
-    rgb(17 17 17 / 56%) 0%,
-    rgb(17 17 17 / 12%) 65%,
-    rgb(17 17 17 / 0%) 100%
-  );
-  padding: 1rem;
+  gap: 0.45rem;
+  padding: 0.95rem;
 }
 
 .home-hero-kicker {
@@ -78,14 +86,48 @@
 }
 
 .home-hero-overlay h1 {
-  max-width: 12ch;
+  max-width: 17ch;
   color: #ffffff;
-  font-size: clamp(1.5rem, 4.4vw, 2.2rem);
-  line-height: 1.05;
+  font-size: clamp(1.05rem, 2.8vw, 1.45rem);
+  line-height: 1.15;
+}
+
+.home-hero-subtitle {
+  max-width: 32ch;
+  color: #f0f0f0;
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .home-hero-overlay .btn {
   width: fit-content;
+}
+
+.home-hero-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.home-hero-dot {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 46%);
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.home-hero-dot:focus-visible {
+  outline: 2px solid #ffd400;
+  outline-offset: 2px;
+}
+
+.home-hero-dot.is-active {
+  width: 22px;
+  background: #ffd400;
 }
 
 .home-category-shortcuts {
@@ -445,6 +487,15 @@
 }
 
 @media (min-width: 900px) {
+  .home-hero-slide-surface,
+  .home-hero-overlay {
+    min-height: 220px;
+  }
+
+  .home-hero-overlay h1 {
+    font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  }
+
   .home-sponsored-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
