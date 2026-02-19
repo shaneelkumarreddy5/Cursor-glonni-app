@@ -60,6 +60,9 @@ a {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.65rem;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 body.plp-page-active.plp-header-collapsed .topbar.glonni-theme-topbar {
@@ -68,12 +71,14 @@ body.plp-page-active.plp-header-collapsed .topbar.glonni-theme-topbar {
 }
 
 body.plp-page-active.plp-header-collapsed .glonni-theme-topbar-inner {
-  padding-top: 0;
-  padding-bottom: 0;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
 }
 
 body.plp-page-active.plp-header-collapsed .app-header {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
 }
 .app-brand-block {
   display: grid;
