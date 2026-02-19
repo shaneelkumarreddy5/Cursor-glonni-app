@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FilterIcon } from "../components/ui/FilterIcon";
-import { catalogProducts, type CatalogCategory } from "../data/mockCatalog";
+import { bankOffers, catalogProducts, type CatalogCategory, type CatalogProduct } from "../data/mockCatalog";
 import { ROUTES } from "../routes/paths";
 import { useAdMonetization } from "../state/AdMonetizationContext";
 import { formatInr } from "../utils/currency";
@@ -38,6 +38,15 @@ const PRICE_FILTERS: PriceFilter[] = [
   { id: "above-60000", label: "Above ₹60,000", min: 60000, max: null },
 ];
 
+type FeedItem =
+  | { type: "label"; id: string; label: string }
+  | {
+      type: "product";
+      id: string;
+      product: CatalogProduct & { sponsored: boolean };
+      slotTag: "Sponsored" | "Related" | "Organic";
+    };
+
 function isWithinAnySelectedPriceRange(priceInr: number, selectedPriceRangeIds: string[]) {
   if (selectedPriceRangeIds.length === 0) {
     return true;
@@ -56,13 +65,52 @@ function isWithinAnySelectedPriceRange(priceInr: number, selectedPriceRangeIds: 
   });
 }
 
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M7 6h10M9 12h6M11 18h2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="m6 9 6 6 6-6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function CategoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSort, setSelectedSort] = useState<SortOption>("popularity");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [cashbackOnly, setCashbackOnly] = useState(false);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
+  const [gridColumns, setGridColumns] = useState(2);
+  const [visibleFeedCount, setVisibleFeedCount] = useState(24);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const { getCatalogSponsoredFlag } = useAdMonetization();
+  const scrollYRef = useRef(0);
+  const scrollTickingRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const categoryFilters: Array<CatalogCategory | "All"> = [
     "All",
     "Mobiles",
@@ -97,7 +145,7 @@ export function CategoryPage() {
     ).entries(),
   );
 
-  const filteredAndSortedProducts = useMemo(() => {
+  const { organicSorted, sponsoredSorted } = useMemo(() => {
     const filtered = categoryScopedProductsWithVisibility.filter((product) => {
       const matchesBrand =
         selectedBrands.length === 0 || selectedBrands.includes(product.brand);
@@ -129,7 +177,10 @@ export function CategoryPage() {
       });
     };
 
-    return [...sortProducts(sponsoredProducts), ...sortProducts(organicProducts)];
+    return {
+      sponsoredSorted: sortProducts(sponsoredProducts),
+      organicSorted: sortProducts(organicProducts),
+    };
   }, [
     cashbackOnly,
     categoryScopedProductsWithVisibility,
@@ -138,10 +189,7 @@ export function CategoryPage() {
     selectedSort,
   ]);
 
-  const sponsoredVisibleCount = filteredAndSortedProducts.filter(
-    (product) => product.sponsored,
-  ).length;
-  const organicVisibleCount = filteredAndSortedProducts.length - sponsoredVisibleCount;
+  const totalVisibleCount = organicSorted.length + sponsoredSorted.length;
 
   function updateCategorySelection(nextCategory: CatalogCategory | "All") {
     const nextParams = new URLSearchParams(searchParams);
@@ -151,6 +199,7 @@ export function CategoryPage() {
       nextParams.set("category", nextCategory);
     }
     setSearchParams(nextParams);
+    setVisibleFeedCount(24);
   }
 
   function toggleBrand(brandName: string) {
@@ -176,206 +225,523 @@ export function CategoryPage() {
     setCashbackOnly(false);
   }
 
+  const { topBankOffer, topBrandOfferLine, topCouponOrComboLine } = useMemo(() => {
+    const topBankOffer = bankOffers[0] ?? null;
+
+    const topBrandProduct = [...sponsoredSorted, ...organicSorted].find((product) => product.bestOfferLine) ?? null;
+    const topBrandOfferLine = topBrandProduct
+      ? `Top brand offer (${topBrandProduct.brand}): ${topBrandProduct.bestOfferLine ?? "Extra savings available."}`
+      : "Top brand offer: Extra savings on select products.";
+
+    const couponCandidate = [...organicSorted, ...sponsoredSorted].find((product) => {
+      const offer = product.bestOfferLine?.toLowerCase() ?? "";
+      return offer.includes("coupon") || offer.includes("buy") || offer.includes("combo") || offer.includes("exchange");
+    });
+    const topCouponOrComboLine = couponCandidate?.bestOfferLine ?? null;
+
+    return { topBankOffer, topBrandOfferLine, topCouponOrComboLine };
+  }, [organicSorted, sponsoredSorted]);
+
+  const selectedFilterChips = useMemo(() => {
+    const chips: Array<{ id: string; label: string }> = [];
+    selectedBrands.forEach((brand) => chips.push({ id: `brand:${brand}`, label: brand }));
+    selectedPriceRanges.forEach((rangeId) => {
+      const range = PRICE_FILTERS.find((candidate) => candidate.id === rangeId);
+      chips.push({ id: `price:${rangeId}`, label: range ? range.label : "Price range" });
+    });
+    if (cashbackOnly) {
+      chips.push({ id: "cashbackOnly", label: "Cashback only" });
+    }
+    return chips;
+  }, [cashbackOnly, selectedBrands, selectedPriceRanges]);
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const usedIds = new Set<string>();
+    const sponsoredPool = sponsoredSorted;
+    const organicPool = organicSorted;
+
+    const takeDistinct = (
+      primary: Array<CatalogProduct & { sponsored: boolean }>,
+      fallback: Array<CatalogProduct & { sponsored: boolean }>,
+      count: number,
+    ) => {
+      const picked: Array<{ product: CatalogProduct & { sponsored: boolean }; slotTag: "Sponsored" | "Related" }> = [];
+      for (const product of primary) {
+        if (picked.length >= count) break;
+        if (usedIds.has(product.id)) continue;
+        usedIds.add(product.id);
+        picked.push({ product, slotTag: "Sponsored" });
+      }
+      for (const product of fallback) {
+        if (picked.length >= count) break;
+        if (usedIds.has(product.id)) continue;
+        usedIds.add(product.id);
+        picked.push({ product, slotTag: "Related" });
+      }
+      return picked;
+    };
+
+    const nextItems: FeedItem[] = [];
+    const rowSize = Math.max(2, gridColumns);
+    const rowsPerInsertion = 4;
+
+    // Top sponsored block (industry standard): one full row worth of items.
+    const topSponsored = takeDistinct(sponsoredPool, organicPool, rowSize);
+    if (topSponsored.length > 0) {
+      const hasRealSponsored = topSponsored.some((item) => item.slotTag === "Sponsored");
+      nextItems.push({
+        type: "label",
+        id: "label:top",
+        label: hasRealSponsored ? "Sponsored" : "Featured products",
+      });
+      topSponsored.forEach((item) =>
+        nextItems.push({
+          type: "product",
+          id: `top:${item.product.id}`,
+          product: item.product,
+          slotTag: item.slotTag,
+        }),
+      );
+    }
+
+    // Organic stream with sponsored injection every 4 organic rows.
+    let organicCountSinceInsertion = 0;
+    for (const product of organicPool) {
+      if (usedIds.has(product.id)) {
+        continue;
+      }
+      nextItems.push({
+        type: "product",
+        id: `og:${product.id}`,
+        product,
+        slotTag: "Organic",
+      });
+      organicCountSinceInsertion += 1;
+
+      const organicPerInsertion = rowsPerInsertion * rowSize;
+      if (organicCountSinceInsertion >= organicPerInsertion) {
+        organicCountSinceInsertion = 0;
+        const injected = takeDistinct(sponsoredPool, organicPool, rowSize);
+        if (injected.length > 0) {
+          const hasRealSponsored = injected.some((item) => item.slotTag === "Sponsored");
+          nextItems.push({
+            type: "label",
+            id: `label:inline:${product.id}`,
+            label: hasRealSponsored ? "Sponsored" : "Featured products",
+          });
+          injected.forEach((item) =>
+            nextItems.push({
+              type: "product",
+              id: `in:${item.product.id}:${product.id}`,
+              product: item.product,
+              slotTag: item.slotTag,
+            }),
+          );
+        }
+      }
+    }
+
+    return nextItems;
+  }, [gridColumns, organicSorted, sponsoredSorted]);
+
+  const visibleFeed = useMemo(() => feedItems.slice(0, Math.min(visibleFeedCount, feedItems.length)), [feedItems, visibleFeedCount]);
+  const hasMoreFeed = visibleFeedCount < feedItems.length;
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 900px)");
+    const update = () => setGridColumns(media.matches ? 4 : 2);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.add("plp-page-active");
+    return () => {
+      document.body.classList.remove("plp-page-active");
+      document.body.classList.remove("plp-header-collapsed");
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHeaderCollapsed) {
+      document.body.classList.add("plp-header-collapsed");
+    } else {
+      document.body.classList.remove("plp-header-collapsed");
+    }
+  }, [isHeaderCollapsed]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (scrollTickingRef.current) return;
+      scrollTickingRef.current = true;
+      window.requestAnimationFrame(() => {
+        const y = window.scrollY ?? 0;
+        const previousY = scrollYRef.current;
+        const isScrollingDown = y > previousY;
+        scrollYRef.current = y;
+
+        setShowBackToTop(y > 700);
+        if (y < 80) {
+          setIsHeaderCollapsed(false);
+        } else if (isScrollingDown && y > 140) {
+          setIsHeaderCollapsed(true);
+        } else if (!isScrollingDown) {
+          setIsHeaderCollapsed(false);
+        }
+        scrollTickingRef.current = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const node = sentinelRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        setVisibleFeedCount((count) => Math.min(count + 24, feedItems.length));
+      },
+      { root: null, rootMargin: "240px", threshold: 0 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [feedItems.length]);
+
   return (
     <div className="plp-page stack">
-      <section className="card plp-intro">
-        <span className="badge plp-badge">Category listing</span>
-        <h1>Discover curated products with clear pricing and offer visibility</h1>
-        <p>
-          Filter by category, brand, price, cashback, and sorting preference for transparent
-          browsing.
-        </p>
-        <div className="plp-toolbar">
-          <div className="plp-filter-row" role="list" aria-label="Category filters">
-            {categoryFilters.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={
-                  selectedCategory === category
-                    ? "plp-filter-chip is-selected"
-                    : "plp-filter-chip"
-                }
-                role="listitem"
-                onClick={() => updateCategorySelection(category)}
-              >
-                {category}
+      {isHeaderCollapsed ? (
+        <div className="plp-sticky-actionbar" role="region" aria-label="Listing actions">
+          <div className="plp-sticky-inner">
+            <div className="plp-sticky-title">
+              <strong>{selectedCategory === "All" ? "All products" : selectedCategory}</strong>
+              <span>{totalVisibleCount} items</span>
+            </div>
+            <div className="plp-sticky-actions">
+              <button type="button" className="plp-icon-btn" onClick={() => setIsSortSheetOpen(true)} aria-label="Open sort options">
+                <SortIcon />
               </button>
-            ))}
-          </div>
-          <div className="plp-toolbar-end">
-            <button type="button" className="app-filter-button" aria-label="Open listing filters">
-              <FilterIcon />
-            </button>
-            <label className="plp-sort-control">
-              Sort by
-              <select
-                value={selectedSort}
-                onChange={(event) => setSelectedSort(event.target.value as SortOption)}
-              >
-                <option value="price-low-high">Price: Low to High</option>
-                <option value="price-high-low">Price: High to Low</option>
-                <option value="popularity">Popularity</option>
-              </select>
-            </label>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsFilterDrawerOpen(true)} aria-label="Open filters">
+                <FilterIcon />
+              </button>
+            </div>
           </div>
         </div>
-        <div className="plp-brand-filter-row" role="list" aria-label="Brand filters">
-          {brandFilters.map(([brandName, logoUrl]) => (
+      ) : null}
+
+      <section className="card plp-intro">
+        <div className="plp-header-row">
+          <div className="plp-header-copy">
+            <span className="badge plp-badge">Listing</span>
+            <h1>{selectedCategory === "All" ? "Browse all products" : selectedCategory}</h1>
+            <p>
+              {totalVisibleCount} items • Clean offers, clear pricing, and sponsored visibility that matches this category.
+            </p>
+          </div>
+          <div className="plp-header-cta">
+            <button type="button" className="plp-sort-btn" onClick={() => setIsSortSheetOpen(true)}>
+              <SortIcon />
+              <span>Sort</span>
+              <ChevronDownIcon />
+            </button>
+            <button type="button" className="app-filter-button" aria-label="Open listing filters" onClick={() => setIsFilterDrawerOpen(true)}>
+              <FilterIcon />
+            </button>
+          </div>
+        </div>
+
+        <div className="plp-filter-row" role="list" aria-label="Category filters">
+          {categoryFilters.map((category) => (
             <button
-              key={brandName}
+              key={category}
               type="button"
-              className={
-                selectedBrands.includes(brandName)
-                  ? "plp-brand-filter-chip is-selected"
-                  : "plp-brand-filter-chip"
-              }
+              className={selectedCategory === category ? "plp-filter-chip is-selected" : "plp-filter-chip"}
               role="listitem"
-              onClick={() => toggleBrand(brandName)}
+              onClick={() => updateCategorySelection(category)}
             >
-              <img src={logoUrl} alt={`${brandName} logo`} />
-              <span>{brandName}</span>
+              {category}
             </button>
           ))}
         </div>
-      </section>
 
-      <section className="plp-layout">
-        <aside className="card plp-filter-panel">
-          <section className="plp-filter-group">
-            <h3>Brand</h3>
-            {brandFilters.map(([brandName]) => (
-              <label key={brandName} className="plp-filter-option">
-                <span>{brandName}</span>
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.includes(brandName)}
-                  onChange={() => toggleBrand(brandName)}
-                />
-              </label>
-            ))}
-          </section>
-
-          <section className="plp-filter-group">
-            <h3>Price range</h3>
-            {PRICE_FILTERS.map((priceRange) => (
-              <label key={priceRange.id} className="plp-filter-option">
-                <span>{priceRange.label}</span>
-                <input
-                  type="checkbox"
-                  checked={selectedPriceRanges.includes(priceRange.id)}
-                  onChange={() => togglePriceRange(priceRange.id)}
-                />
-              </label>
-            ))}
-          </section>
-
-          <section className="plp-filter-group">
-            <h3>Cashback</h3>
-            <label className="plp-filter-option">
-              <span>Cashback available only</span>
-              <input
-                type="checkbox"
-                checked={cashbackOnly}
-                onChange={(event) => setCashbackOnly(event.target.checked)}
-              />
-            </label>
-          </section>
-
-          <button type="button" className="btn btn-secondary btn-block" onClick={clearAllFilters}>
-            Clear all filters
-          </button>
-        </aside>
-
-        <div className="stack-sm">
-          <section className="card plp-summary">
-            <p>
-              Showing {filteredAndSortedProducts.length} products: {sponsoredVisibleCount} sponsored
-              {" + "}
-              {organicVisibleCount} organic.
-            </p>
-          </section>
-
-          {filteredAndSortedProducts.length > 0 ? (
-            <section className="plp-grid" aria-label="Product listing grid">
-              {filteredAndSortedProducts.map((product, index) => {
-                const productRoute = ROUTES.productDetail(product.id);
-
-                return (
-                  <article key={product.id} className="plp-product-card">
-                    <div className="plp-image-wrap">
-                      {product.sponsored ? <span className="plp-sponsored-pill">Sponsored</span> : null}
-                      <button
-                        type="button"
-                        className="plp-wishlist-button"
-                        aria-label={`Save ${product.name} to wishlist`}
-                      >
-                        <WishlistIcon />
-                      </button>
-                      <Link to={productRoute}>
-                        <img
-                          src={product.imageUrl}
-                          alt={`${product.name} ${product.category} product image`}
-                          className="plp-product-image"
-                          loading="lazy"
-                        />
-                      </Link>
-                    </div>
-
-                    <div className="plp-product-copy">
-                      <span className="plp-category-pill">{product.category}</span>
-                      <div className="plp-brand-row">
-                        <img
-                          src={product.brandLogoUrl}
-                          alt={`${product.brand} logo`}
-                          className="plp-brand-logo"
-                        />
-                        <span>{product.brand}</span>
-                      </div>
-                      <h2>
-                        <Link to={productRoute}>{product.name}</Link>
-                      </h2>
-                      <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
-
-                      <div className="plp-price-block">
-                        <div className="plp-price-headline">
-                          <strong>{formatInr(product.priceInr)}</strong>
-                          <span>{formatInr(product.mrpInr)}</span>
-                        </div>
-                        <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
-                      </div>
-
-                      {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}
-
-                      <div className="plp-rating-row">
-                        <span className="plp-rating-pill">
-                          <StarIcon />
-                          {product.rating.toFixed(1)}
-                        </span>
-                        <span className="plp-rank-label">
-                          {selectedSort === "popularity" ? `Popularity rank ${index + 1}` : "Sorted result"}
-                        </span>
-                      </div>
-
-                      <div className="inline-actions">
-                        <Link to={productRoute} className="btn btn-secondary">
-                          View Details
-                        </Link>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </section>
-          ) : (
-            <section className="card">
-              <p className="empty-state">
-                No products found for the selected filters. Try clearing one or more filters.
-              </p>
-            </section>
-          )}
+        <div className="plp-offers-strip" aria-label="Top offers">
+          {topBankOffer ? (
+            <div className="plp-offer-tile">
+              <span className="muted-tag">Top bank offer</span>
+              <div className="plp-offer-row">
+                <img src={topBankOffer.logoUrl} alt={topBankOffer.bankName} className="plp-offer-logo" />
+                <p>{topBankOffer.offerText}</p>
+              </div>
+            </div>
+          ) : null}
+          <div className="plp-offer-tile">
+            <span className="muted-tag">Top brand offer</span>
+            <p>{topBrandOfferLine}</p>
+          </div>
+          {topCouponOrComboLine ? (
+            <div className="plp-offer-tile">
+              <span className="muted-tag">Top coupon / combo</span>
+              <p>{topCouponOrComboLine}</p>
+            </div>
+          ) : null}
         </div>
       </section>
+
+      {selectedFilterChips.length > 0 ? (
+        <section className="card plp-selected-filters" aria-label="Selected filters">
+          <div className="plp-selected-row">
+            <div className="chip-row">
+              {selectedFilterChips.map((chip) => (
+                <span key={chip.id} className="chip">
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+            <button type="button" className="btn btn-secondary plp-clear-btn" onClick={clearAllFilters}>
+              Clear
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {visibleFeed.length > 0 ? (
+        <section
+          className={gridColumns === 4 ? "plp-grid is-4col" : "plp-grid is-2col"}
+          aria-label="Product listing grid"
+        >
+          {visibleFeed.map((item) => {
+            if (item.type === "label") {
+              return (
+                <div key={item.id} className="plp-grid-label" aria-label={item.label}>
+                  <span className="muted-tag">{item.label}</span>
+                  <span className="plp-grid-label-note">Ads match this category; related products may appear if inventory is low.</span>
+                </div>
+              );
+            }
+
+            const product = item.product;
+            const productRoute = ROUTES.productDetail(product.id);
+            const tagClass = item.slotTag === "Sponsored" ? "plp-sponsored-pill" : "plp-sponsored-pill is-related";
+
+            return (
+              <article key={item.id} className="plp-product-card">
+                <div className="plp-image-wrap">
+                  {item.slotTag !== "Organic" ? <span className={tagClass}>{item.slotTag}</span> : null}
+                  <button
+                    type="button"
+                    className="plp-wishlist-button"
+                    aria-label={`Save ${product.name} to wishlist`}
+                  >
+                    <WishlistIcon />
+                  </button>
+                  <Link to={productRoute}>
+                    <img
+                      src={product.imageUrl}
+                      alt={`${product.name} ${product.category} product image`}
+                      className="plp-product-image"
+                      loading="lazy"
+                    />
+                  </Link>
+                </div>
+
+                <div className="plp-product-copy">
+                  <span className="plp-category-pill">{product.category}</span>
+                  <div className="plp-brand-row">
+                    <img
+                      src={product.brandLogoUrl}
+                      alt={`${product.brand} logo`}
+                      className="plp-brand-logo"
+                    />
+                    <span>{product.brand}</span>
+                  </div>
+                  <h2>
+                    <Link to={productRoute}>{product.name}</Link>
+                  </h2>
+                  <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
+
+                  <div className="plp-price-block">
+                    <div className="plp-price-headline">
+                      <strong>{formatInr(product.priceInr)}</strong>
+                      <span>{formatInr(product.mrpInr)}</span>
+                    </div>
+                    <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
+                  </div>
+
+                  {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}
+
+                  <div className="plp-rating-row">
+                    <span className="plp-rating-pill">
+                      <StarIcon />
+                      {product.rating.toFixed(1)}
+                    </span>
+                    <span className="plp-rank-label">
+                      {selectedSort === "popularity" ? "Popular pick" : "Sorted result"}
+                    </span>
+                  </div>
+
+                  <div className="inline-actions">
+                    <Link to={productRoute} className="btn btn-secondary">
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <section className="card">
+          <p className="empty-state">
+            No products found for the selected filters. Try clearing one or more filters.
+          </p>
+        </section>
+      )}
+
+      <div ref={sentinelRef} />
+      {hasMoreFeed ? (
+        <section className="card plp-loading-row" aria-label="Loading more products">
+          <p>Loading more…</p>
+        </section>
+      ) : null}
+
+      {showBackToTop ? (
+        <button
+          type="button"
+          className="plp-back-to-top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to top"
+        >
+          ↑
+        </button>
+      ) : null}
+
+      {isFilterDrawerOpen ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="Filters">
+          <div className="plp-drawer">
+            <div className="plp-drawer-head">
+              <strong>Filters</strong>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsFilterDrawerOpen(false)} aria-label="Close filters">
+                ✕
+              </button>
+            </div>
+
+            <div className="plp-drawer-body">
+              <section className="plp-filter-group">
+                <h3>Brand</h3>
+                {brandFilters.map(([brandName]) => (
+                  <label key={brandName} className="plp-filter-option">
+                    <span>{brandName}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedBrands.includes(brandName)}
+                      onChange={() => toggleBrand(brandName)}
+                    />
+                  </label>
+                ))}
+              </section>
+
+              <section className="plp-filter-group">
+                <h3>Price range</h3>
+                {PRICE_FILTERS.map((priceRange) => (
+                  <label key={priceRange.id} className="plp-filter-option">
+                    <span>{priceRange.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedPriceRanges.includes(priceRange.id)}
+                      onChange={() => togglePriceRange(priceRange.id)}
+                    />
+                  </label>
+                ))}
+              </section>
+
+              <section className="plp-filter-group">
+                <h3>Cashback</h3>
+                <label className="plp-filter-option">
+                  <span>Cashback available only</span>
+                  <input
+                    type="checkbox"
+                    checked={cashbackOnly}
+                    onChange={(event) => setCashbackOnly(event.target.checked)}
+                  />
+                </label>
+              </section>
+            </div>
+
+            <div className="plp-drawer-foot">
+              <button type="button" className="btn btn-secondary btn-block" onClick={clearAllFilters}>
+                Clear all
+              </button>
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setIsFilterDrawerOpen(false)}>
+                Show results ({totalVisibleCount})
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="plp-drawer-scrim"
+            onClick={() => setIsFilterDrawerOpen(false)}
+            aria-label="Close filters"
+          />
+        </div>
+      ) : null}
+
+      {isSortSheetOpen ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="Sort">
+          <div className="plp-sheet">
+            <div className="plp-drawer-head">
+              <strong>Sort by</strong>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsSortSheetOpen(false)} aria-label="Close sort">
+                ✕
+              </button>
+            </div>
+
+            <div className="plp-drawer-body">
+              <label className="plp-radio-row">
+                <span>Popularity</span>
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={selectedSort === "popularity"}
+                  onChange={() => setSelectedSort("popularity")}
+                />
+              </label>
+              <label className="plp-radio-row">
+                <span>Price: Low to High</span>
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={selectedSort === "price-low-high"}
+                  onChange={() => setSelectedSort("price-low-high")}
+                />
+              </label>
+              <label className="plp-radio-row">
+                <span>Price: High to Low</span>
+                <input
+                  type="radio"
+                  name="sort"
+                  checked={selectedSort === "price-high-low"}
+                  onChange={() => setSelectedSort("price-high-low")}
+                />
+              </label>
+            </div>
+
+            <div className="plp-drawer-foot">
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setIsSortSheetOpen(false)}>
+                Apply
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="plp-drawer-scrim"
+            onClick={() => setIsSortSheetOpen(false)}
+            aria-label="Close sort"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

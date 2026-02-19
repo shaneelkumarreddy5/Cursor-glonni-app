@@ -59,7 +59,28 @@ a {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
+}
+
+body.plp-page-active.plp-header-collapsed .topbar.glonni-theme-topbar {
+  box-shadow: none;
+  border-bottom-color: transparent;
+}
+
+body.plp-page-active.plp-header-collapsed .glonni-theme-topbar-inner {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+body.plp-page-active.plp-header-collapsed .app-header {
+  display: none;
+}
+
+.app-brand-block {
+  display: grid;
+  gap: 0.22rem;
+  align-content: start;
+  justify-items: start;
 }
 
 .app-logo {
