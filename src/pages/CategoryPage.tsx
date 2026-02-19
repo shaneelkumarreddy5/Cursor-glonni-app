@@ -95,6 +95,110 @@ function ChevronDownIcon() {
   );
 }
 
+function CouponIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M20 12a2 2 0 0 0 0-4V6a2 2 0 0 0-2-2h-2a2 2 0 0 1-4 0H6a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h2a2 2 0 0 1 4 0h6a2 2 0 0 0 2-2v-2a2 2 0 0 0 0-4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 9h.01M15 15h.01"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 9 9 15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+type ProductOfferKind = "bank" | "brand" | "coupon" | "combo";
+
+type ProductOfferPresentation = {
+  kind: ProductOfferKind;
+  text: string;
+  logoType: "image" | "icon";
+  logoUrl?: string;
+  logoAlt?: string;
+};
+
+function normalizeOfferText(text: string) {
+  return text.replace(/^best offer:\s*/i, "").trim();
+}
+
+function resolveBestOfferPresentation(product: CatalogProduct, fallbackBank = bankOffers[0]): ProductOfferPresentation | null {
+  const rawOffer = product.bestOfferLine?.trim();
+  if (!rawOffer) {
+    if (!fallbackBank) {
+      return null;
+    }
+    return {
+      kind: "bank",
+      text: `Bank offer: ${fallbackBank.offerText}`,
+      logoType: "image",
+      logoUrl: fallbackBank.logoUrl,
+      logoAlt: fallbackBank.bankName,
+    };
+  }
+
+  const offer = normalizeOfferText(rawOffer);
+  const offerLower = offer.toLowerCase();
+
+  const matchedBank =
+    bankOffers.find((bank) => offerLower.includes(bank.bankName.toLowerCase())) ??
+    (offerLower.includes("bank") || offerLower.includes("card") || offerLower.includes("emi")
+      ? (bankOffers[0] ?? null)
+      : null);
+
+  if (matchedBank) {
+    return {
+      kind: "bank",
+      text: offer,
+      logoType: "image",
+      logoUrl: matchedBank.logoUrl,
+      logoAlt: matchedBank.bankName,
+    };
+  }
+
+  if (offerLower.includes("coupon") || offerLower.includes("code")) {
+    return {
+      kind: "coupon",
+      text: offer,
+      logoType: "icon",
+    };
+  }
+
+  if (offerLower.includes("combo") || offerLower.includes("bundle") || offerLower.includes("buy")) {
+    return {
+      kind: "combo",
+      text: offer,
+      logoType: "icon",
+    };
+  }
+
+  return {
+    kind: "brand",
+    text: offer,
+    logoType: "image",
+    logoUrl: product.brandLogoUrl,
+    logoAlt: product.brand,
+  };
+}
+
 export function CategoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSort, setSelectedSort] = useState<SortOption>("popularity");
@@ -109,6 +213,8 @@ export function CategoryPage() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const { getCatalogSponsoredFlag } = useAdMonetization();
   const scrollYRef = useRef(0);
+  const scrollDownAccumRef = useRef(0);
+  const scrollUpAccumRef = useRef(0);
   const scrollTickingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const categoryFilters: Array<CatalogCategory | "All"> = [
@@ -224,23 +330,6 @@ export function CategoryPage() {
     setSelectedPriceRanges([]);
     setCashbackOnly(false);
   }
-
-  const { topBankOffer, topBrandOfferLine, topCouponOrComboLine } = useMemo(() => {
-    const topBankOffer = bankOffers[0] ?? null;
-
-    const topBrandProduct = [...sponsoredSorted, ...organicSorted].find((product) => product.bestOfferLine) ?? null;
-    const topBrandOfferLine = topBrandProduct
-      ? `Top brand offer (${topBrandProduct.brand}): ${topBrandProduct.bestOfferLine ?? "Extra savings available."}`
-      : "Top brand offer: Extra savings on select products.";
-
-    const couponCandidate = [...organicSorted, ...sponsoredSorted].find((product) => {
-      const offer = product.bestOfferLine?.toLowerCase() ?? "";
-      return offer.includes("coupon") || offer.includes("buy") || offer.includes("combo") || offer.includes("exchange");
-    });
-    const topCouponOrComboLine = couponCandidate?.bestOfferLine ?? null;
-
-    return { topBankOffer, topBrandOfferLine, topCouponOrComboLine };
-  }, [organicSorted, sponsoredSorted]);
 
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ id: string; label: string }> = [];
@@ -378,17 +467,47 @@ export function CategoryPage() {
       window.requestAnimationFrame(() => {
         const y = window.scrollY ?? 0;
         const previousY = scrollYRef.current;
-        const isScrollingDown = y > previousY;
+        const delta = y - previousY;
+        const isScrollingDown = delta > 0;
         scrollYRef.current = y;
 
         setShowBackToTop(y > 700);
-        if (y < 80) {
-          setIsHeaderCollapsed(false);
-        } else if (isScrollingDown && y > 140) {
-          setIsHeaderCollapsed(true);
-        } else if (!isScrollingDown) {
-          setIsHeaderCollapsed(false);
+
+        if (Math.abs(delta) >= 3) {
+          if (isScrollingDown) {
+            scrollDownAccumRef.current += delta;
+            scrollUpAccumRef.current = 0;
+          } else {
+            scrollUpAccumRef.current += Math.abs(delta);
+            scrollDownAccumRef.current = 0;
+          }
         }
+
+        const COLLAPSE_MIN_Y = 220;
+        const EXPAND_MIN_Y = 120;
+        const COLLAPSE_ACCUM_PX = 120;
+        const EXPAND_ACCUM_PX = 70;
+
+        setIsHeaderCollapsed((current) => {
+          if (!current) {
+            if (y > COLLAPSE_MIN_Y && scrollDownAccumRef.current >= COLLAPSE_ACCUM_PX) {
+              scrollDownAccumRef.current = 0;
+              return true;
+            }
+            return current;
+          }
+
+          if (y < EXPAND_MIN_Y) {
+            scrollUpAccumRef.current = 0;
+            return false;
+          }
+          if (scrollUpAccumRef.current >= EXPAND_ACCUM_PX) {
+            scrollUpAccumRef.current = 0;
+            return false;
+          }
+          return current;
+        });
+
         scrollTickingRef.current = false;
       });
     };
@@ -438,7 +557,7 @@ export function CategoryPage() {
             <span className="badge plp-badge">Listing</span>
             <h1>{selectedCategory === "All" ? "Browse all products" : selectedCategory}</h1>
             <p>
-              {totalVisibleCount} items • Clean offers, clear pricing, and sponsored visibility that matches this category.
+              {totalVisibleCount} items • Clear pricing, and sponsored visibility that matches this category.
             </p>
           </div>
           <div className="plp-header-cta">
@@ -465,28 +584,6 @@ export function CategoryPage() {
               {category}
             </button>
           ))}
-        </div>
-
-        <div className="plp-offers-strip" aria-label="Top offers">
-          {topBankOffer ? (
-            <div className="plp-offer-tile">
-              <span className="muted-tag">Top bank offer</span>
-              <div className="plp-offer-row">
-                <img src={topBankOffer.logoUrl} alt={topBankOffer.bankName} className="plp-offer-logo" />
-                <p>{topBankOffer.offerText}</p>
-              </div>
-            </div>
-          ) : null}
-          <div className="plp-offer-tile">
-            <span className="muted-tag">Top brand offer</span>
-            <p>{topBrandOfferLine}</p>
-          </div>
-          {topCouponOrComboLine ? (
-            <div className="plp-offer-tile">
-              <span className="muted-tag">Top coupon / combo</span>
-              <p>{topCouponOrComboLine}</p>
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -525,6 +622,7 @@ export function CategoryPage() {
             const product = item.product;
             const productRoute = ROUTES.productDetail(product.id);
             const tagClass = item.slotTag === "Sponsored" ? "plp-sponsored-pill" : "plp-sponsored-pill is-related";
+            const offerPresentation = resolveBestOfferPresentation(product);
 
             return (
               <article key={item.id} className="plp-product-card">
@@ -570,7 +668,20 @@ export function CategoryPage() {
                     <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
                   </div>
 
-                  {product.bestOfferLine ? <p className="plp-offer-line">{product.bestOfferLine}</p> : null}
+                  {offerPresentation ? (
+                    <div className="plp-best-offer" aria-label="Best offer">
+                      <span className="plp-best-offer-logo" aria-hidden="true">
+                        {offerPresentation.logoType === "image" && offerPresentation.logoUrl ? (
+                          <img src={offerPresentation.logoUrl} alt={offerPresentation.logoAlt ?? ""} />
+                        ) : (
+                          <span className="plp-best-offer-icon">
+                            <CouponIcon />
+                          </span>
+                        )}
+                      </span>
+                      <p className="plp-best-offer-text">{offerPresentation.text}</p>
+                    </div>
+                  ) : null}
 
                   <div className="plp-rating-row">
                     <span className="plp-rating-pill">
