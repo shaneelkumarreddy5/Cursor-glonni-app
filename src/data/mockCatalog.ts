@@ -13,6 +13,11 @@ export type CatalogProduct = {
   keySpecs: string[];
   sponsored: boolean;
   bestOfferLine?: string;
+  variants?: {
+    colors?: string[];
+    storages?: string[];
+    sizes?: string[];
+  };
   imageUrl: string;
 };
 
@@ -142,6 +147,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["8 GB RAM", "256 GB Storage", "50 MP Triple Camera"],
     sponsored: true,
     bestOfferLine: "Best offer: Instant ₹4,000 bank discount on select cards.",
+    variants: { colors: ["Black", "Blue"], storages: ["256 GB", "512 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -157,6 +163,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["128 GB Storage", "A16 Bionic", "48 MP Main Camera"],
     sponsored: true,
     bestOfferLine: "Best offer: Exchange bonus up to ₹6,000.",
+    variants: { colors: ["Black", "Blue", "Green"], storages: ["128 GB", "256 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -172,6 +179,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["8 GB RAM", "256 GB Storage", "120 Hz AMOLED"],
     sponsored: true,
     bestOfferLine: "Best offer: Flat ₹2,000 off with select cards.",
+    variants: { colors: ["Black", "Blue"], storages: ["128 GB", "256 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -187,6 +195,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["12 GB RAM", "256 GB Storage", "Leica Camera"],
     sponsored: true,
     bestOfferLine: "Best offer: Extra ₹3,000 exchange value.",
+    variants: { colors: ["Black", "White"], storages: ["256 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1510557880182-3f8ec8d146f8?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -201,6 +210,7 @@ export const catalogProducts: CatalogProduct[] = [
     rating: 4.2,
     keySpecs: ["8 GB RAM", "128 GB Storage", "45W Fast Charge"],
     sponsored: false,
+    variants: { colors: ["Black", "Green"], storages: ["128 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -216,6 +226,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["8 GB RAM", "256 GB Storage", "50 MP OIS Camera"],
     sponsored: false,
     bestOfferLine: "Best offer: Flat ₹2,000 off with coupon VIVO2K.",
+    variants: { colors: ["Blue", "Black"], storages: ["128 GB", "256 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -231,6 +242,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["8 GB RAM", "256 GB Storage", "Portrait Camera"],
     sponsored: false,
     bestOfferLine: "Best offer: Extra ₹1,500 off on prepaid orders.",
+    variants: { colors: ["Black", "Gold"], storages: ["256 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -245,6 +257,7 @@ export const catalogProducts: CatalogProduct[] = [
     rating: 4.4,
     keySpecs: ["16 GB RAM", "512 GB SSD", "Intel Core i5"],
     sponsored: false,
+    variants: { colors: ["Silver", "Gray"], storages: ["512 GB", "1 TB"] },
     imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -260,6 +273,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["8 GB RAM", "256 GB SSD", "M2 Chip"],
     sponsored: false,
     bestOfferLine: "Best offer: Student pricing savings up to ₹5,000.",
+    variants: { colors: ["Midnight", "Starlight", "Silver"], storages: ["256 GB", "512 GB"] },
     imageUrl: "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -275,6 +289,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["ANC", "44 hours playback", "Dual drivers"],
     sponsored: false,
     bestOfferLine: "Best offer: Cashback boost on UPI payments.",
+    variants: { colors: ["Black", "White"] },
     imageUrl: "https://images.unsplash.com/photo-1606220838315-056192d5e927?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -289,6 +304,7 @@ export const catalogProducts: CatalogProduct[] = [
     rating: 4.6,
     keySpecs: ["25W output", "USB-C", "Fast charging"],
     sponsored: false,
+    variants: { colors: ["White", "Black"] },
     imageUrl: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=1200&q=80",
   },
   {
@@ -304,6 +320,7 @@ export const catalogProducts: CatalogProduct[] = [
     keySpecs: ["Mesh upper", "Cushioned sole", "Daily running"],
     sponsored: false,
     bestOfferLine: "Best offer: Buy 2 and save extra ₹500.",
+    variants: { colors: ["Black", "White"], sizes: ["7", "8", "9", "10"] },
     imageUrl: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=1200&q=80",
   },
 ];
