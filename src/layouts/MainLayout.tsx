@@ -1,7 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BottomNav } from "../components/layout/BottomNav";
 import { Header } from "../components/layout/Header";
-import { SearchBar } from "../components/layout/SearchBar";
 import { ROUTES } from "../routes/paths";
 import { useCommerce } from "../state/CommerceContext";
 
@@ -25,10 +24,6 @@ export function MainLayout() {
       <header className="topbar glonni-theme-topbar">
         <div className="topbar-container glonni-theme-topbar-inner">
           <Header cartCountLabel={cartCountLabel} />
-          <SearchBar
-            placeholder="Search products, brands..."
-            onSubmit={(event) => event.preventDefault()}
-          />
         </div>
       </header>
 

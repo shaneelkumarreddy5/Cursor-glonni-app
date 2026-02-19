@@ -57,9 +57,16 @@ a {
 
 .app-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
+}
+
+.app-brand-block {
+  display: grid;
+  gap: 0.22rem;
+  align-content: start;
+  justify-items: start;
 }
 
 .app-logo {
@@ -87,21 +94,21 @@ a {
   letter-spacing: -0.01em;
 }
 
-.app-location-selector {
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: #fffdf3;
-  color: #323232;
+.app-location-under-logo {
+  width: 100%;
+  max-width: 112px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.24rem;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  min-height: 34px;
-  padding: 0.25rem 0.55rem;
+  line-height: 1.1;
+  padding: 0;
+  text-align: left;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-cart-button {
@@ -178,7 +185,7 @@ a {
   height: 2rem;
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  background: #fffdf5;
+  background: #ffffff;
   color: #262626;
   cursor: pointer;
   display: inline-grid;
@@ -459,5 +466,19 @@ a {
 @media (max-width: 899px) {
   .footer {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-header {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .app-location-under-logo {
+    max-width: 92px;
+  }
+
+  .app-searchbar input {
+    padding: 0.58rem 0.6rem;
   }
 }

@@ -204,23 +204,6 @@ export function HomePage() {
         products={extraCashbackProducts}
         onAddToCart={handleAddToCartById}
       />
-
-      <section className="home-section-card home-footer-card" aria-label="Footer">
-        <div className="home-footer-grid">
-          <div>
-            <h2 className="home-footer-title">Glonni</h2>
-            <p className="home-footer-copy">
-              Shop from multiple sellers with transparent pricing, cashback, and delivery estimates.
-            </p>
-          </div>
-          <div className="home-footer-links">
-            <Link to={ROUTES.settings}>My Account</Link>
-            <Link to={ROUTES.settingsOrders}>Orders</Link>
-            <Link to={ROUTES.settingsSupport}>Help Center</Link>
-            <Link to={ROUTES.vendor}>Seller Hub</Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
