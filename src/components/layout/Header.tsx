@@ -4,11 +4,13 @@ import { ROUTES } from "../../routes/paths";
 type HeaderProps = {
   cartCountLabel: string;
   locationLabel?: string;
+  userInitials?: string;
 };
 
 export function Header({
   cartCountLabel,
   locationLabel = "Mumbai 400001",
+  userInitials = "RS",
 }: HeaderProps) {
   return (
     <header className="app-header">
@@ -24,10 +26,16 @@ export function Header({
         <span>{locationLabel}</span>
       </button>
 
-      <Link to={ROUTES.cart} className="app-cart-button" aria-label="Open cart">
-        <span aria-hidden="true">🛒</span>
-        <strong>{cartCountLabel}</strong>
-      </Link>
+      <div className="app-header-actions">
+        <Link to={ROUTES.cart} className="app-cart-button" aria-label="Open cart">
+          <span aria-hidden="true">🛒</span>
+          <strong>{cartCountLabel}</strong>
+        </Link>
+
+        <Link to={ROUTES.settings} className="app-user-avatar" aria-label="Open my account">
+          <span aria-hidden="true">{userInitials}</span>
+        </Link>
+      </div>
     </header>
   );
 }

@@ -1,13 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
-import { CategoryShortcuts, type CategoryShortcut } from "../components/home/CategoryShortcuts";
-import { FlashDeals } from "../components/home/FlashDeals";
-import { HeroBanner, type HeroDeal } from "../components/home/HeroBanner";
-import { RecommendedList } from "../components/home/RecommendedList";
-import { SponsoredGrid } from "../components/home/SponsoredGrid";
-import { TrustSection } from "../components/home/TrustSection";
-import { TrendingNearYou } from "../components/home/TrendingNearYou";
-import { type HomeProduct } from "../components/home/types";
-import { catalogProducts, type CatalogCategory, type CatalogProduct } from "../data/mockCatalog";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { HeroTwoUpCarousel, type HeroTwoUpSlide } from "../components/home/HeroTwoUpCarousel";
+import { HomeBankOffersRail } from "../components/home/HomeBankOffersRail";
+import { HomeBrandRail } from "../components/home/HomeBrandRail";
+import { HomeCategoryTiles, type HomeCategoryTile } from "../components/home/HomeCategoryTiles";
+import { HomeProductRail } from "../components/home/HomeProductRail";
+import { bankOffers, catalogProducts, type CatalogCategory, type CatalogProduct } from "../data/mockCatalog";
 import { getVendorOptionsForProduct } from "../data/mockCommerce";
 import { ROUTES } from "../routes/paths";
 import { useAdMonetization } from "../state/AdMonetizationContext";
@@ -17,112 +15,39 @@ import "../styles/homepage-glonni.css";
 const HOME_FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80";
 
-type HomeCategoryTile = {
-  title: CategoryShortcut["title"];
+const HOME_CATEGORY_TILES: Array<{
+  title: HomeCategoryTile["title"];
   category: CatalogCategory;
   imageProductId: string;
-};
-
-const HOME_CATEGORY_TILES: HomeCategoryTile[] = [
-  { title: "Electronics", category: "Mobiles", imageProductId: "sp-1" },
-  { title: "Fashion", category: "Footwear", imageProductId: "og-8" },
-  { title: "Home", category: "Laptops", imageProductId: "og-4" },
-  { title: "Mobile", category: "Mobiles", imageProductId: "sp-2" },
-  { title: "Grocery", category: "Accessories", imageProductId: "og-7" },
+}> = [
+  { title: "Smart Phones", category: "Mobiles", imageProductId: "sp-2" },
+  { title: "Laptops", category: "Laptops", imageProductId: "og-4" },
+  { title: "Accessories", category: "Accessories", imageProductId: "og-7" },
+  { title: "Footwear", category: "Footwear", imageProductId: "og-8" },
 ];
 
 function getCategoryRoute(category: CatalogCategory) {
   return `${ROUTES.category}?category=${encodeURIComponent(category)}`;
 }
 
-const HOME_MOCK_DEALS: HeroDeal[] = [
-  {
-    id: "deal-mobile-fest",
-    kicker: "Mobile Fest",
-    title: "Save up to 45% on top smartphones",
-    subtitle: "Starting at Rs 8,999 with cashback bundles this week.",
-    ctaLabel: "Shop Mobiles",
-    ctaTo: getCategoryRoute("Mobiles"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "deal-laptop-upgrade",
-    kicker: "Laptop Upgrade Days",
-    title: "Performance laptops under Rs 59,999",
-    subtitle: "Exchange-ready offers on thin-and-light work essentials.",
-    ctaLabel: "Shop Laptops",
-    ctaTo: getCategoryRoute("Laptops"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "deal-audio-essentials",
-    kicker: "Audio Essentials",
-    title: "Wireless accessories at weekend prices",
-    subtitle: "Earbuds, speakers, and power banks with instant deal cuts.",
-    ctaLabel: "Shop Accessories",
-    ctaTo: getCategoryRoute("Accessories"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "deal-footwear-run",
-    kicker: "Footwear Flash",
-    title: "Flat 35% off on trending sneakers",
-    subtitle: "Daily-wear pairs from best-rated brands at lower prices.",
-    ctaLabel: "Shop Footwear",
-    ctaTo: getCategoryRoute("Footwear"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "deal-gaming-combo",
-    kicker: "Gamer Choice",
-    title: "Phones plus accessories combo deals",
-    subtitle: "Bundle controllers, earbuds, and chargers with select mobiles.",
-    ctaLabel: "View Combos",
-    ctaTo: getCategoryRoute("Mobiles"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
-  },
-  {
-    id: "deal-night-saver",
-    kicker: "Night Saver",
-    title: "Extra cashback unlocked after 9 PM",
-    subtitle: "Late-hour checkout bonus across laptops and accessories.",
-    ctaLabel: "Grab Night Deals",
-    ctaTo: getCategoryRoute("Accessories"),
-    imageUrl:
-      "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?auto=format&fit=crop&w=1200&q=80",
-  },
-];
-
 function getProductImage(productId: string) {
   return catalogProducts.find((product) => product.id === productId)?.imageUrl ?? HOME_FALLBACK_IMAGE;
 }
 
-function getDiscountPercent(product: CatalogProduct) {
-  if (product.mrpInr <= product.priceInr) {
-    return 0;
-  }
-  return Math.round(((product.mrpInr - product.priceInr) / product.mrpInr) * 100);
-}
-
-function toHomeProduct(product: CatalogProduct): HomeProduct {
+function toHeroItem(product: CatalogProduct, overrides: Partial<Omit<HeroTwoUpSlide["left"], "id" | "ctaTo" | "imageUrl">> = {}) {
   return {
     id: product.id,
-    name: product.name,
+    badge: overrides.badge,
+    title: overrides.title ?? product.name,
+    subtitle: overrides.subtitle,
+    priceLine: overrides.priceLine,
+    ctaLabel: overrides.ctaLabel ?? "Shop now",
+    ctaTo: ROUTES.productDetail(product.id),
     imageUrl: product.imageUrl,
-    brand: product.brand,
-    priceInr: product.priceInr,
-    mrpInr: product.mrpInr,
-    cashbackInr: product.cashbackInr,
   };
 }
 
 export function HomePage() {
-  const navigate = useNavigate();
   const { addToCart } = useCommerce();
   const { getCatalogSponsoredFlag } = useAdMonetization();
 
@@ -134,22 +59,9 @@ export function HomePage() {
   const sponsoredProducts = productsWithVisibility.filter((product) => product.sponsored);
   const organicProducts = productsWithVisibility.filter((product) => !product.sponsored);
 
-  const sponsoredGridProducts =
-    sponsoredProducts.length >= 4
-      ? sponsoredProducts.slice(0, 4)
-      : [...sponsoredProducts, ...organicProducts].slice(0, 4);
-
-  const flashDeals = [...productsWithVisibility]
-    .sort((first, second) => getDiscountPercent(second) - getDiscountPercent(first))
-    .slice(0, 6);
-
-  const trendingProducts = [...productsWithVisibility]
-    .sort((first, second) => second.rating - first.rating)
-    .slice(0, 4);
-
-  const recommendedProducts = [...organicProducts, ...sponsoredProducts].slice(0, 4);
-  const homeProductsById = new Map(
-    productsWithVisibility.map((product) => [product.id, product]),
+  const homeProductsById = useMemo(
+    () => new Map(productsWithVisibility.map((product) => [product.id, product])),
+    [productsWithVisibility],
   );
 
   function addDefaultConfigurationToCart(product: CatalogProduct) {
@@ -167,11 +79,6 @@ export function HomePage() {
     });
   }
 
-  function handleBuyNow(product: CatalogProduct) {
-    addDefaultConfigurationToCart(product);
-    navigate(ROUTES.checkout);
-  }
-
   function handleAddToCartById(productId: string) {
     const product = homeProductsById.get(productId);
     if (!product) {
@@ -180,61 +87,139 @@ export function HomePage() {
     addDefaultConfigurationToCart(product);
   }
 
-  function handleBuyNowById(productId: string) {
-    const product = homeProductsById.get(productId);
-    if (!product) {
-      return;
-    }
-    handleBuyNow(product);
-  }
-
-  const categoryShortcuts: CategoryShortcut[] = HOME_CATEGORY_TILES.map((tile) => ({
+  const categoryTiles: HomeCategoryTile[] = HOME_CATEGORY_TILES.map((tile) => ({
     title: tile.title,
     to: getCategoryRoute(tile.category),
     imageUrl: getProductImage(tile.imageProductId),
   }));
 
+  const heroSlides: HeroTwoUpSlide[] = useMemo(() => {
+    const base = [...productsWithVisibility].slice(0, 8);
+    const slides: HeroTwoUpSlide[] = [];
+    for (let index = 0; index < base.length; index += 2) {
+      const left = base[index];
+      const right = base[index + 1];
+      if (!left || !right) {
+        break;
+      }
+      slides.push({
+        id: `hero-${left.id}-${right.id}`,
+        left: toHeroItem(left, {
+          badge: "Big Saving",
+          title: left.name,
+          priceLine: `From ${left.priceInr.toLocaleString("en-IN")} INR`,
+          ctaLabel: "Shop now",
+        }),
+        right: toHeroItem(right, {
+          badge: "Limited offer",
+          title: right.name,
+          priceLine: `From ${right.priceInr.toLocaleString("en-IN")} INR`,
+          ctaLabel: "Shop now",
+        }),
+      });
+    }
+    return slides;
+  }, [productsWithVisibility]);
+
+  const trendingProducts = useMemo(
+    () => [...productsWithVisibility].sort((a, b) => b.rating - a.rating).slice(0, 10),
+    [productsWithVisibility],
+  );
+
+  const newArrivals = useMemo(
+    () => [...productsWithVisibility].slice().reverse().slice(0, 10),
+    [productsWithVisibility],
+  );
+
+  const basedOnSearchProducts = useMemo(
+    () => [...organicProducts, ...sponsoredProducts].slice(0, 10),
+    [organicProducts, sponsoredProducts],
+  );
+
+  const extraCashbackProducts = useMemo(
+    () =>
+      [...productsWithVisibility]
+        .sort((a, b) => {
+          if (b.cashbackInr !== a.cashbackInr) {
+            return b.cashbackInr - a.cashbackInr;
+          }
+          return b.rating - a.rating;
+        })
+        .slice(0, 10),
+    [productsWithVisibility],
+  );
+
+  const brandTiles = useMemo(() => {
+    const unique = new Map<string, string>();
+    productsWithVisibility.forEach((product) => {
+      if (!unique.has(product.brand)) {
+        unique.set(product.brand, product.brandLogoUrl);
+      }
+    });
+    return Array.from(unique.entries()).map(([name, logoUrl]) => ({ name, logoUrl }));
+  }, [productsWithVisibility]);
+
   return (
     <div className="glonni-home">
-      <HeroBanner deals={HOME_MOCK_DEALS} />
+      <HeroTwoUpCarousel slides={heroSlides} />
 
-      <CategoryShortcuts shortcuts={categoryShortcuts} />
+      <HomeCategoryTiles tiles={categoryTiles} />
 
-      <SponsoredGrid
-        products={sponsoredGridProducts.map(toHomeProduct)}
+      <HomeProductRail
+        title="Sponsored"
+        subtitle="Paid placements from verified sellers (mock)."
+        badge="Sponsored"
+        products={sponsoredProducts.slice(0, 10)}
         onAddToCart={handleAddToCartById}
-        onBuyNow={handleBuyNowById}
       />
 
-      <FlashDeals
-        products={flashDeals.map(toHomeProduct)}
-        getDiscountLabel={(productId) => {
-          const product = homeProductsById.get(productId);
-          if (!product) {
-            return "Deal";
-          }
-          return `${getDiscountPercent(product)}% OFF`;
-        }}
-      />
-
-      <TrendingNearYou products={trendingProducts.map(toHomeProduct)} />
-
-      <RecommendedList
-        products={recommendedProducts.map(toHomeProduct)}
+      <HomeProductRail
+        title="Trending"
+        subtitle="Popular picks based on ratings (mock)."
+        products={trendingProducts}
         onAddToCart={handleAddToCartById}
-        onBuyNow={handleBuyNowById}
       />
 
-      <TrustSection />
+      <HomeBrandRail title="Top Brands" brands={brandTiles} />
 
-      <section className="home-section-card home-vendor-cta">
-        <div>
-          <h2>Sell on Glonni</h2>
-          <p>Grow with India&apos;s most rewarding shopping destination.</p>
+      <HomeProductRail
+        title="Based on your search"
+        subtitle="Personalized after search is enabled."
+        products={basedOnSearchProducts}
+        onAddToCart={handleAddToCartById}
+      />
+
+      <HomeProductRail
+        title="New arrivals"
+        subtitle="Fresh additions to the catalog (mock)."
+        products={newArrivals}
+        onAddToCart={handleAddToCartById}
+      />
+
+      <HomeBankOffersRail title="Bank offers" offers={bankOffers} />
+
+      <HomeProductRail
+        title="Extra cashback"
+        subtitle="Top cashback picks right now (mock)."
+        products={extraCashbackProducts}
+        onAddToCart={handleAddToCartById}
+      />
+
+      <section className="home-section-card home-footer-card" aria-label="Footer">
+        <div className="home-footer-grid">
+          <div>
+            <h2 className="home-footer-title">Glonni</h2>
+            <p className="home-footer-copy">
+              Shop from multiple sellers with transparent pricing, cashback, and delivery estimates.
+            </p>
+          </div>
+          <div className="home-footer-links">
+            <Link to={ROUTES.settings}>My Account</Link>
+            <Link to={ROUTES.settingsOrders}>Orders</Link>
+            <Link to={ROUTES.settingsSupport}>Help Center</Link>
+            <Link to={ROUTES.vendor}>Seller Hub</Link>
+          </div>
         </div>
-        <Link to={ROUTES.vendor} className="btn btn-primary">
-          Become a Vendor
-        </Link>
       </section>
     </div>
   );
