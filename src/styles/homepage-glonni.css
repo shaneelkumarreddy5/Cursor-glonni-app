@@ -86,7 +86,7 @@
   border-radius: 14px;
   background: #ffffff;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
+  grid-template-columns: 120px minmax(0, 1fr);
   gap: 0.55rem;
   align-items: center;
   overflow: hidden;
@@ -879,7 +879,7 @@
   }
 
   .home-hero-two-up-card {
-    grid-template-columns: minmax(0, 1fr) 160px;
+    grid-template-columns: 160px minmax(0, 1fr);
   }
 
   .home-hero-two-up-media {

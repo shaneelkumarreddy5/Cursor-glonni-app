@@ -121,15 +121,15 @@ export function HeroTwoUpCarousel({
                   className="home-hero-two-up-card"
                   aria-label={item.title}
                 >
+                  <div className="home-hero-two-up-media">
+                    <img src={item.imageUrl} alt="" loading="lazy" />
+                  </div>
                   <div className="home-hero-two-up-copy">
                     {item.badge ? <span className="home-hero-badge">{item.badge}</span> : null}
                     <h2>{item.title}</h2>
                     {item.subtitle ? <p className="home-hero-subtitle">{item.subtitle}</p> : null}
                     {item.priceLine ? <p className="home-hero-price">{item.priceLine}</p> : null}
                     <span className="btn btn-primary home-hero-cta">{item.ctaLabel}</span>
-                  </div>
-                  <div className="home-hero-two-up-media">
-                    <img src={item.imageUrl} alt="" loading="lazy" />
                   </div>
                 </Link>
               ))}
