@@ -38,14 +38,11 @@ const PRICE_FILTERS: PriceFilter[] = [
   { id: "above-60000", label: "Above ₹60,000", min: 60000, max: null },
 ];
 
-type FeedItem =
-  | { type: "label"; id: string; label: string }
-  | {
-      type: "product";
-      id: string;
-      product: CatalogProduct & { sponsored: boolean };
-      slotTag: "Sponsored" | "Related" | "Organic";
-    };
+type FeedItem = {
+  id: string;
+  product: CatalogProduct & { sponsored: boolean };
+  slotTag: "Sponsored" | "Related" | "Organic";
+};
 
 function isWithinAnySelectedPriceRange(priceInr: number, selectedPriceRangeIds: string[]) {
   if (selectedPriceRangeIds.length === 0) {
@@ -205,6 +202,9 @@ export function CategoryPage() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [cashbackOnly, setCashbackOnly] = useState(false);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedStorages, setSelectedStorages] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState(2);
@@ -260,7 +260,29 @@ export function CategoryPage() {
         selectedPriceRanges,
       );
       const matchesCashback = cashbackOnly ? product.cashbackInr > 0 : true;
-      return matchesBrand && matchesPrice && matchesCashback;
+      const matchesColors =
+        selectedColors.length === 0
+          ? true
+          : (product.variants?.colors ?? []).some((color) => selectedColors.includes(color));
+      const matchesStorages =
+        selectedStorages.length === 0
+          ? true
+          : (product.variants?.storages ?? []).some((storage) =>
+              selectedStorages.includes(storage),
+            );
+      const matchesSizes =
+        selectedSizes.length === 0
+          ? true
+          : (product.variants?.sizes ?? []).some((size) => selectedSizes.includes(size));
+
+      return (
+        matchesBrand &&
+        matchesPrice &&
+        matchesCashback &&
+        matchesColors &&
+        matchesStorages &&
+        matchesSizes
+      );
     });
 
     const sponsoredProducts = filtered.filter((product) => product.sponsored);
@@ -291,8 +313,11 @@ export function CategoryPage() {
     cashbackOnly,
     categoryScopedProductsWithVisibility,
     selectedBrands,
+    selectedColors,
     selectedPriceRanges,
+    selectedSizes,
     selectedSort,
+    selectedStorages,
   ]);
 
   const totalVisibleCount = organicSorted.length + sponsoredSorted.length;
@@ -324,12 +349,55 @@ export function CategoryPage() {
     );
   }
 
+  function toggleColor(color: string) {
+    setSelectedColors((current) =>
+      current.includes(color) ? current.filter((item) => item !== color) : [...current, color],
+    );
+  }
+
+  function toggleStorage(storage: string) {
+    setSelectedStorages((current) =>
+      current.includes(storage) ? current.filter((item) => item !== storage) : [...current, storage],
+    );
+  }
+
+  function toggleSize(size: string) {
+    setSelectedSizes((current) =>
+      current.includes(size) ? current.filter((item) => item !== size) : [...current, size],
+    );
+  }
+
   function clearAllFilters() {
     setSelectedSort("popularity");
     setSelectedBrands([]);
     setSelectedPriceRanges([]);
     setCashbackOnly(false);
+    setSelectedColors([]);
+    setSelectedStorages([]);
+    setSelectedSizes([]);
   }
+
+  const { availableColors, availableStorages, availableSizes } = useMemo(() => {
+    const availableColors = Array.from(
+      new Set(
+        categoryScopedProductsWithVisibility.flatMap((product) => product.variants?.colors ?? []),
+      ),
+    ).sort();
+    const availableStorages = Array.from(
+      new Set(
+        categoryScopedProductsWithVisibility.flatMap(
+          (product) => product.variants?.storages ?? [],
+        ),
+      ),
+    ).sort();
+    const availableSizes = Array.from(
+      new Set(
+        categoryScopedProductsWithVisibility.flatMap((product) => product.variants?.sizes ?? []),
+      ),
+    ).sort((a, b) => Number(a) - Number(b));
+
+    return { availableColors, availableStorages, availableSizes };
+  }, [categoryScopedProductsWithVisibility]);
 
   const selectedFilterChips = useMemo(() => {
     const chips: Array<{ id: string; label: string }> = [];
@@ -341,8 +409,11 @@ export function CategoryPage() {
     if (cashbackOnly) {
       chips.push({ id: "cashbackOnly", label: "Cashback only" });
     }
+    selectedColors.forEach((color) => chips.push({ id: `color:${color}`, label: color }));
+    selectedStorages.forEach((storage) => chips.push({ id: `storage:${storage}`, label: storage }));
+    selectedSizes.forEach((size) => chips.push({ id: `size:${size}`, label: `Size ${size}` }));
     return chips;
-  }, [cashbackOnly, selectedBrands, selectedPriceRanges]);
+  }, [cashbackOnly, selectedBrands, selectedColors, selectedPriceRanges, selectedSizes, selectedStorages]);
 
   const feedItems = useMemo<FeedItem[]>(() => {
     const usedIds = new Set<string>();
@@ -376,22 +447,13 @@ export function CategoryPage() {
 
     // Top sponsored block (industry standard): one full row worth of items.
     const topSponsored = takeDistinct(sponsoredPool, organicPool, rowSize);
-    if (topSponsored.length > 0) {
-      const hasRealSponsored = topSponsored.some((item) => item.slotTag === "Sponsored");
+    topSponsored.forEach((item) =>
       nextItems.push({
-        type: "label",
-        id: "label:top",
-        label: hasRealSponsored ? "Sponsored" : "Featured products",
-      });
-      topSponsored.forEach((item) =>
-        nextItems.push({
-          type: "product",
-          id: `top:${item.product.id}`,
-          product: item.product,
-          slotTag: item.slotTag,
-        }),
-      );
-    }
+        id: `top:${item.product.id}`,
+        product: item.product,
+        slotTag: item.slotTag,
+      }),
+    );
 
     // Organic stream with sponsored injection every 4 organic rows.
     let organicCountSinceInsertion = 0;
@@ -399,8 +461,8 @@ export function CategoryPage() {
       if (usedIds.has(product.id)) {
         continue;
       }
+      usedIds.add(product.id);
       nextItems.push({
-        type: "product",
         id: `og:${product.id}`,
         product,
         slotTag: "Organic",
@@ -411,22 +473,13 @@ export function CategoryPage() {
       if (organicCountSinceInsertion >= organicPerInsertion) {
         organicCountSinceInsertion = 0;
         const injected = takeDistinct(sponsoredPool, organicPool, rowSize);
-        if (injected.length > 0) {
-          const hasRealSponsored = injected.some((item) => item.slotTag === "Sponsored");
+        injected.forEach((item) =>
           nextItems.push({
-            type: "label",
-            id: `label:inline:${product.id}`,
-            label: hasRealSponsored ? "Sponsored" : "Featured products",
-          });
-          injected.forEach((item) =>
-            nextItems.push({
-              type: "product",
-              id: `in:${item.product.id}:${product.id}`,
-              product: item.product,
-              slotTag: item.slotTag,
-            }),
-          );
-        }
+            id: `in:${item.product.id}:${product.id}`,
+            product: item.product,
+            slotTag: item.slotTag,
+          }),
+        );
       }
     }
 
@@ -610,19 +663,14 @@ export function CategoryPage() {
           aria-label="Product listing grid"
         >
           {visibleFeed.map((item) => {
-            if (item.type === "label") {
-              return (
-                <div key={item.id} className="plp-grid-label" aria-label={item.label}>
-                  <span className="muted-tag">{item.label}</span>
-                  <span className="plp-grid-label-note">Ads match this category; related products may appear if inventory is low.</span>
-                </div>
-              );
-            }
-
             const product = item.product;
             const productRoute = ROUTES.productDetail(product.id);
             const tagClass = item.slotTag === "Sponsored" ? "plp-sponsored-pill" : "plp-sponsored-pill is-related";
             const offerPresentation = resolveBestOfferPresentation(product);
+            const colorOptions = product.variants?.colors ?? [];
+            const storageOptions = product.variants?.storages ?? [];
+            const sizeOptions = product.variants?.sizes ?? [];
+            const hasVariants = colorOptions.length + storageOptions.length + sizeOptions.length > 0;
 
             return (
               <article key={item.id} className="plp-product-card">
@@ -659,6 +707,37 @@ export function CategoryPage() {
                     <Link to={productRoute}>{product.name}</Link>
                   </h2>
                   <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
+
+                  {hasVariants ? (
+                    <div className="plp-variant-row" aria-label="Variations">
+                      {colorOptions.slice(0, 2).map((color) => (
+                        <span key={`${product.id}:color:${color}`} className="plp-variant-chip">
+                          {color}
+                        </span>
+                      ))}
+                      {storageOptions.slice(0, 2).map((storage) => (
+                        <span key={`${product.id}:storage:${storage}`} className="plp-variant-chip">
+                          {storage}
+                        </span>
+                      ))}
+                      {sizeOptions.slice(0, 2).map((size) => (
+                        <span key={`${product.id}:size:${size}`} className="plp-variant-chip">
+                          Size {size}
+                        </span>
+                      ))}
+                      {Math.max(0, colorOptions.length - 2) +
+                        Math.max(0, storageOptions.length - 2) +
+                        Math.max(0, sizeOptions.length - 2) >
+                      0 ? (
+                        <span className="plp-variant-chip is-more">
+                          +
+                          {Math.max(0, colorOptions.length - 2) +
+                            Math.max(0, storageOptions.length - 2) +
+                            Math.max(0, sizeOptions.length - 2)}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className="plp-price-block">
                     <div className="plp-price-headline">
@@ -753,6 +832,54 @@ export function CategoryPage() {
                   </label>
                 ))}
               </section>
+
+              {availableColors.length > 0 ? (
+                <section className="plp-filter-group">
+                  <h3>Color</h3>
+                  {availableColors.map((color) => (
+                    <label key={color} className="plp-filter-option">
+                      <span>{color}</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedColors.includes(color)}
+                        onChange={() => toggleColor(color)}
+                      />
+                    </label>
+                  ))}
+                </section>
+              ) : null}
+
+              {availableStorages.length > 0 ? (
+                <section className="plp-filter-group">
+                  <h3>Storage</h3>
+                  {availableStorages.map((storage) => (
+                    <label key={storage} className="plp-filter-option">
+                      <span>{storage}</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedStorages.includes(storage)}
+                        onChange={() => toggleStorage(storage)}
+                      />
+                    </label>
+                  ))}
+                </section>
+              ) : null}
+
+              {availableSizes.length > 0 ? (
+                <section className="plp-filter-group">
+                  <h3>Size</h3>
+                  {availableSizes.map((size) => (
+                    <label key={size} className="plp-filter-option">
+                      <span>{size}</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedSizes.includes(size)}
+                        onChange={() => toggleSize(size)}
+                      />
+                    </label>
+                  ))}
+                </section>
+              ) : null}
 
               <section className="plp-filter-group">
                 <h3>Price range</h3>

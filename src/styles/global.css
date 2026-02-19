@@ -1025,25 +1025,6 @@ input {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.plp-grid-label {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 0.6rem 0.65rem;
-}
-
-.plp-grid-label-note {
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
 .plp-product-card {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1318,6 +1299,28 @@ input {
 .plp-spec-line {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.plp-variant-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.plp-variant-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.14rem 0.45rem;
+  white-space: nowrap;
+}
+
+.plp-variant-chip.is-more {
+  color: #111827;
+  border-color: var(--border-strong);
 }
 
 .plp-price-block {
