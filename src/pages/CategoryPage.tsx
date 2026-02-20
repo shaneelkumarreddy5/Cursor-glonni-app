@@ -535,6 +535,8 @@ export function CategoryPage() {
     const sponsoredPool = sponsoredSorted;
     const organicPool = organicSorted;
 
+    const hasUnusedSponsored = () => sponsoredPool.some((product) => !usedIds.has(product.id));
+
     const takeDistinct = (
       primary: Array<CatalogProduct & { sponsored: boolean }>,
       fallback: Array<CatalogProduct & { sponsored: boolean }>,
@@ -561,14 +563,16 @@ export function CategoryPage() {
     const rowsPerInsertion = 4;
 
     // Top sponsored block (industry standard): one full row worth of items.
-    const topSponsored = takeDistinct(sponsoredPool, organicPool, rowSize);
-    topSponsored.forEach((item) =>
-      nextItems.push({
-        id: `top:${item.product.id}`,
-        product: item.product,
-        slotTag: item.slotTag,
-      }),
-    );
+    if (hasUnusedSponsored()) {
+      const topSponsored = takeDistinct(sponsoredPool, organicPool, rowSize);
+      topSponsored.forEach((item) =>
+        nextItems.push({
+          id: `top:${item.product.id}`,
+          product: item.product,
+          slotTag: item.slotTag,
+        }),
+      );
+    }
 
     // Organic stream with sponsored injection every 4 organic rows.
     let organicCountSinceInsertion = 0;
@@ -587,14 +591,17 @@ export function CategoryPage() {
       const organicPerInsertion = rowsPerInsertion * rowSize;
       if (organicCountSinceInsertion >= organicPerInsertion) {
         organicCountSinceInsertion = 0;
-        const injected = takeDistinct(sponsoredPool, organicPool, rowSize);
-        injected.forEach((item) =>
-          nextItems.push({
-            id: `in:${item.product.id}:${product.id}`,
-            product: item.product,
-            slotTag: item.slotTag,
-          }),
-        );
+        // Stop injecting when sponsored inventory is exhausted. If partially short, fill remaining slots as "Related".
+        if (hasUnusedSponsored()) {
+          const injected = takeDistinct(sponsoredPool, organicPool, rowSize);
+          injected.forEach((item) =>
+            nextItems.push({
+              id: `in:${item.product.id}:${product.id}`,
+              product: item.product,
+              slotTag: item.slotTag,
+            }),
+          );
+        }
       }
     }
 
