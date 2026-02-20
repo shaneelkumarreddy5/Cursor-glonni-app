@@ -127,7 +127,8 @@ type ProductOfferKind = "bank" | "brand" | "coupon" | "combo";
 
 type ProductOfferPresentation = {
   kind: ProductOfferKind;
-  text: string;
+  title: string;
+  description: string;
   logoType: "image" | "icon";
   logoUrl?: string;
   logoAlt?: string;
@@ -145,7 +146,8 @@ function resolveBestOfferPresentation(product: CatalogProduct, fallbackBank = ba
     }
     return {
       kind: "bank",
-      text: `Bank offer: ${fallbackBank.offerText}`,
+      title: "Bank offer",
+      description: fallbackBank.offerText,
       logoType: "image",
       logoUrl: fallbackBank.logoUrl,
       logoAlt: fallbackBank.bankName,
@@ -164,7 +166,8 @@ function resolveBestOfferPresentation(product: CatalogProduct, fallbackBank = ba
   if (matchedBank) {
     return {
       kind: "bank",
-      text: offer,
+      title: "Bank offer",
+      description: offer,
       logoType: "image",
       logoUrl: matchedBank.logoUrl,
       logoAlt: matchedBank.bankName,
@@ -174,7 +177,8 @@ function resolveBestOfferPresentation(product: CatalogProduct, fallbackBank = ba
   if (offerLower.includes("coupon") || offerLower.includes("code")) {
     return {
       kind: "coupon",
-      text: offer,
+      title: "Coupon",
+      description: offer,
       logoType: "icon",
     };
   }
@@ -182,14 +186,16 @@ function resolveBestOfferPresentation(product: CatalogProduct, fallbackBank = ba
   if (offerLower.includes("combo") || offerLower.includes("bundle") || offerLower.includes("buy")) {
     return {
       kind: "combo",
-      text: offer,
+      title: "Combo offer",
+      description: offer,
       logoType: "icon",
     };
   }
 
   return {
     kind: "brand",
-    text: offer,
+    title: "Brand offer",
+    description: offer,
     logoType: "image",
     logoUrl: product.brandLogoUrl,
     logoAlt: product.brand,
@@ -207,6 +213,10 @@ export function CategoryPage() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isSortSheetOpen, setIsSortSheetOpen] = useState(false);
+  const [variantSheetProductId, setVariantSheetProductId] = useState<string | null>(null);
+  const [variantSelectionByProductId, setVariantSelectionByProductId] = useState<
+    Record<string, { color?: string; storage?: string; size?: string }>
+  >({});
   const [gridColumns, setGridColumns] = useState(2);
   const [visibleFeedCount, setVisibleFeedCount] = useState(24);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
@@ -321,6 +331,19 @@ export function CategoryPage() {
   ]);
 
   const totalVisibleCount = organicSorted.length + sponsoredSorted.length;
+  const activeFilterCount =
+    selectedBrands.length +
+    selectedPriceRanges.length +
+    selectedColors.length +
+    selectedStorages.length +
+    selectedSizes.length +
+    (cashbackOnly ? 1 : 0);
+  const sortLabel =
+    selectedSort === "popularity"
+      ? "Popularity"
+      : selectedSort === "price-low-high"
+        ? "Price: Low to High"
+        : "Price: High to Low";
 
   function updateCategorySelection(nextCategory: CatalogCategory | "All") {
     const nextParams = new URLSearchParams(searchParams);
@@ -400,20 +423,112 @@ export function CategoryPage() {
   }, [categoryScopedProductsWithVisibility]);
 
   const selectedFilterChips = useMemo(() => {
-    const chips: Array<{ id: string; label: string }> = [];
-    selectedBrands.forEach((brand) => chips.push({ id: `brand:${brand}`, label: brand }));
+    const chips: Array<{ id: string; label: string; kind: string; value: string }> = [];
+    selectedBrands.forEach((brand) =>
+      chips.push({ id: `brand:${brand}`, label: brand, kind: "brand", value: brand }),
+    );
     selectedPriceRanges.forEach((rangeId) => {
       const range = PRICE_FILTERS.find((candidate) => candidate.id === rangeId);
-      chips.push({ id: `price:${rangeId}`, label: range ? range.label : "Price range" });
+      chips.push({
+        id: `price:${rangeId}`,
+        label: range ? range.label : "Price range",
+        kind: "price",
+        value: rangeId,
+      });
     });
     if (cashbackOnly) {
-      chips.push({ id: "cashbackOnly", label: "Cashback only" });
+      chips.push({ id: "cashbackOnly", label: "Cashback only", kind: "cashbackOnly", value: "1" });
     }
-    selectedColors.forEach((color) => chips.push({ id: `color:${color}`, label: color }));
-    selectedStorages.forEach((storage) => chips.push({ id: `storage:${storage}`, label: storage }));
-    selectedSizes.forEach((size) => chips.push({ id: `size:${size}`, label: `Size ${size}` }));
+    selectedColors.forEach((color) =>
+      chips.push({ id: `color:${color}`, label: color, kind: "color", value: color }),
+    );
+    selectedStorages.forEach((storage) =>
+      chips.push({
+        id: `storage:${storage}`,
+        label: storage,
+        kind: "storage",
+        value: storage,
+      }),
+    );
+    selectedSizes.forEach((size) =>
+      chips.push({ id: `size:${size}`, label: `Size ${size}`, kind: "size", value: size }),
+    );
     return chips;
   }, [cashbackOnly, selectedBrands, selectedColors, selectedPriceRanges, selectedSizes, selectedStorages]);
+
+  function removeFilterChip(kind: string, value: string) {
+    if (kind === "brand") {
+      setSelectedBrands((current) => current.filter((item) => item !== value));
+      return;
+    }
+    if (kind === "price") {
+      setSelectedPriceRanges((current) => current.filter((item) => item !== value));
+      return;
+    }
+    if (kind === "cashbackOnly") {
+      setCashbackOnly(false);
+      return;
+    }
+    if (kind === "color") {
+      setSelectedColors((current) => current.filter((item) => item !== value));
+      return;
+    }
+    if (kind === "storage") {
+      setSelectedStorages((current) => current.filter((item) => item !== value));
+      return;
+    }
+    if (kind === "size") {
+      setSelectedSizes((current) => current.filter((item) => item !== value));
+    }
+  }
+
+  const variantSheetProduct = useMemo(() => {
+    if (!variantSheetProductId) {
+      return null;
+    }
+    return (
+      categoryScopedProductsWithVisibility.find((product) => product.id === variantSheetProductId) ??
+      null
+    );
+  }, [categoryScopedProductsWithVisibility, variantSheetProductId]);
+
+  const variantSelection = useMemo(() => {
+    if (!variantSheetProductId) {
+      return null;
+    }
+    return variantSelectionByProductId[variantSheetProductId] ?? {};
+  }, [variantSelectionByProductId, variantSheetProductId]);
+
+  function openVariantSheet(productId: string) {
+    setVariantSheetProductId(productId);
+    setVariantSelectionByProductId((current) => {
+      const existing = current[productId];
+      if (existing) return current;
+      const product =
+        categoryScopedProductsWithVisibility.find((candidate) => candidate.id === productId) ??
+        null;
+      if (!product) return current;
+      const defaults = {
+        color: product.variants?.colors?.[0],
+        storage: product.variants?.storages?.[0],
+        size: product.variants?.sizes?.[0],
+      };
+      return { ...current, [productId]: defaults };
+    });
+  }
+
+  function updateVariantSelection(
+    productId: string,
+    patch: Partial<{ color?: string; storage?: string; size?: string }>,
+  ) {
+    setVariantSelectionByProductId((current) => ({
+      ...current,
+      [productId]: {
+        ...(current[productId] ?? {}),
+        ...patch,
+      },
+    }));
+  }
 
   const feedItems = useMemo<FeedItem[]>(() => {
     const usedIds = new Set<string>();
@@ -593,10 +708,11 @@ export function CategoryPage() {
               <span>{totalVisibleCount} items</span>
             </div>
             <div className="plp-sticky-actions">
-              <button type="button" className="plp-icon-btn" onClick={() => setIsSortSheetOpen(true)} aria-label="Open sort options">
+              <button type="button" className="plp-icon-btn" onClick={() => setIsSortSheetOpen(true)} aria-label={`Open sort options (${sortLabel})`}>
                 <SortIcon />
               </button>
-              <button type="button" className="plp-icon-btn" onClick={() => setIsFilterDrawerOpen(true)} aria-label="Open filters">
+              <button type="button" className="plp-icon-btn plp-icon-btn-has-badge" onClick={() => setIsFilterDrawerOpen(true)} aria-label={`Open filters (${activeFilterCount} active)`}>
+                {activeFilterCount > 0 ? <span className="plp-icon-badge" aria-hidden="true">{activeFilterCount > 99 ? "99+" : activeFilterCount}</span> : null}
                 <FilterIcon />
               </button>
             </div>
@@ -616,10 +732,20 @@ export function CategoryPage() {
           <div className="plp-header-cta">
             <button type="button" className="plp-sort-btn" onClick={() => setIsSortSheetOpen(true)}>
               <SortIcon />
-              <span>Sort</span>
+              <span>{sortLabel}</span>
               <ChevronDownIcon />
             </button>
-            <button type="button" className="app-filter-button" aria-label="Open listing filters" onClick={() => setIsFilterDrawerOpen(true)}>
+            <button
+              type="button"
+              className="app-filter-button plp-filter-button-has-badge"
+              aria-label={`Open listing filters (${activeFilterCount} active)`}
+              onClick={() => setIsFilterDrawerOpen(true)}
+            >
+              {activeFilterCount > 0 ? (
+                <span className="plp-icon-badge" aria-hidden="true">
+                  {activeFilterCount > 99 ? "99+" : activeFilterCount}
+                </span>
+              ) : null}
               <FilterIcon />
             </button>
           </div>
@@ -645,9 +771,18 @@ export function CategoryPage() {
           <div className="plp-selected-row">
             <div className="chip-row">
               {selectedFilterChips.map((chip) => (
-                <span key={chip.id} className="chip">
-                  {chip.label}
-                </span>
+                <button
+                  key={chip.id}
+                  type="button"
+                  className="chip plp-chip-btn"
+                  onClick={() => removeFilterChip(chip.kind, chip.value)}
+                  aria-label={`Remove filter: ${chip.label}`}
+                >
+                  <span>{chip.label}</span>
+                  <span aria-hidden="true" className="plp-chip-x">
+                    ×
+                  </span>
+                </button>
               ))}
             </div>
             <button type="button" className="btn btn-secondary plp-clear-btn" onClick={clearAllFilters}>
@@ -671,6 +806,7 @@ export function CategoryPage() {
             const storageOptions = product.variants?.storages ?? [];
             const sizeOptions = product.variants?.sizes ?? [];
             const hasVariants = colorOptions.length + storageOptions.length + sizeOptions.length > 0;
+            const selectedVariant = variantSelectionByProductId[product.id] ?? {};
 
             return (
               <article key={item.id} className="plp-product-card">
@@ -709,34 +845,44 @@ export function CategoryPage() {
                   <p className="plp-spec-line">{product.keySpecs.slice(0, 3).join(" • ")}</p>
 
                   {hasVariants ? (
-                    <div className="plp-variant-row" aria-label="Variations">
-                      {colorOptions.slice(0, 2).map((color) => (
-                        <span key={`${product.id}:color:${color}`} className="plp-variant-chip">
-                          {color}
-                        </span>
-                      ))}
-                      {storageOptions.slice(0, 2).map((storage) => (
-                        <span key={`${product.id}:storage:${storage}`} className="plp-variant-chip">
-                          {storage}
-                        </span>
-                      ))}
-                      {sizeOptions.slice(0, 2).map((size) => (
-                        <span key={`${product.id}:size:${size}`} className="plp-variant-chip">
-                          Size {size}
-                        </span>
-                      ))}
-                      {Math.max(0, colorOptions.length - 2) +
-                        Math.max(0, storageOptions.length - 2) +
-                        Math.max(0, sizeOptions.length - 2) >
+                    <button
+                      type="button"
+                      className="plp-variant-row"
+                      onClick={() => openVariantSheet(product.id)}
+                      aria-label="Select variations"
+                    >
+                      {selectedVariant.color ? (
+                        <span className="plp-variant-chip">{selectedVariant.color}</span>
+                      ) : colorOptions[0] ? (
+                        <span className="plp-variant-chip">{colorOptions[0]}</span>
+                      ) : null}
+
+                      {selectedVariant.storage ? (
+                        <span className="plp-variant-chip">{selectedVariant.storage}</span>
+                      ) : storageOptions[0] ? (
+                        <span className="plp-variant-chip">{storageOptions[0]}</span>
+                      ) : null}
+
+                      {selectedVariant.size ? (
+                        <span className="plp-variant-chip">Size {selectedVariant.size}</span>
+                      ) : sizeOptions[0] ? (
+                        <span className="plp-variant-chip">Size {sizeOptions[0]}</span>
+                      ) : null}
+
+                      {Math.max(0, colorOptions.length - 1) +
+                        Math.max(0, storageOptions.length - 1) +
+                        Math.max(0, sizeOptions.length - 1) >
                       0 ? (
                         <span className="plp-variant-chip is-more">
                           +
-                          {Math.max(0, colorOptions.length - 2) +
-                            Math.max(0, storageOptions.length - 2) +
-                            Math.max(0, sizeOptions.length - 2)}
+                          {Math.max(0, colorOptions.length - 1) +
+                            Math.max(0, storageOptions.length - 1) +
+                            Math.max(0, sizeOptions.length - 1)}
                         </span>
-                      ) : null}
-                    </div>
+                      ) : (
+                        <span className="plp-variant-chip is-more">Select</span>
+                      )}
+                    </button>
                   ) : null}
 
                   <div className="plp-price-block">
@@ -758,7 +904,15 @@ export function CategoryPage() {
                           </span>
                         )}
                       </span>
-                      <p className="plp-best-offer-text">{offerPresentation.text}</p>
+                      <div className="plp-best-offer-copy">
+                        <div className="plp-best-offer-head">
+                          <strong>{offerPresentation.title}</strong>
+                          <Link to={`${productRoute}#offers`} className="plp-best-offer-link">
+                            View all
+                          </Link>
+                        </div>
+                        <p className="plp-best-offer-text">{offerPresentation.description}</p>
+                      </div>
                     </div>
                   ) : null}
 
@@ -977,6 +1131,100 @@ export function CategoryPage() {
             className="plp-drawer-scrim"
             onClick={() => setIsSortSheetOpen(false)}
             aria-label="Close sort"
+          />
+        </div>
+      ) : null}
+
+      {variantSheetProduct ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="Select variations">
+          <div className="plp-sheet">
+            <div className="plp-drawer-head">
+              <strong>Choose options</strong>
+              <button
+                type="button"
+                className="plp-icon-btn"
+                onClick={() => setVariantSheetProductId(null)}
+                aria-label="Close variations"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="plp-drawer-body">
+              <p className="plp-variant-sheet-title">{variantSheetProduct.name}</p>
+
+              {variantSheetProduct.variants?.colors?.length ? (
+                <section className="plp-variant-sheet-group">
+                  <h3>Color</h3>
+                  <div className="plp-variant-sheet-options">
+                    {variantSheetProduct.variants.colors.map((color) => (
+                      <button
+                        key={`vs:${variantSheetProduct.id}:color:${color}`}
+                        type="button"
+                        className={
+                          variantSelection?.color === color ? "plp-variant-pill is-selected" : "plp-variant-pill"
+                        }
+                        onClick={() => updateVariantSelection(variantSheetProduct.id, { color })}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {variantSheetProduct.variants?.storages?.length ? (
+                <section className="plp-variant-sheet-group">
+                  <h3>Storage</h3>
+                  <div className="plp-variant-sheet-options">
+                    {variantSheetProduct.variants.storages.map((storage) => (
+                      <button
+                        key={`vs:${variantSheetProduct.id}:storage:${storage}`}
+                        type="button"
+                        className={
+                          variantSelection?.storage === storage ? "plp-variant-pill is-selected" : "plp-variant-pill"
+                        }
+                        onClick={() => updateVariantSelection(variantSheetProduct.id, { storage })}
+                      >
+                        {storage}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {variantSheetProduct.variants?.sizes?.length ? (
+                <section className="plp-variant-sheet-group">
+                  <h3>Size</h3>
+                  <div className="plp-variant-sheet-options">
+                    {variantSheetProduct.variants.sizes.map((size) => (
+                      <button
+                        key={`vs:${variantSheetProduct.id}:size:${size}`}
+                        type="button"
+                        className={
+                          variantSelection?.size === size ? "plp-variant-pill is-selected" : "plp-variant-pill"
+                        }
+                        onClick={() => updateVariantSelection(variantSheetProduct.id, { size })}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </div>
+
+            <div className="plp-drawer-foot">
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setVariantSheetProductId(null)}>
+                Done
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="plp-drawer-scrim"
+            onClick={() => setVariantSheetProductId(null)}
+            aria-label="Close variations"
           />
         </div>
       ) : null}

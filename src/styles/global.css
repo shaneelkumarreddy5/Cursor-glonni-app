@@ -865,6 +865,20 @@ input {
   flex-wrap: wrap;
 }
 
+.plp-chip-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.plp-chip-x {
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 900;
+  opacity: 0.85;
+}
+
 .plp-clear-btn {
   min-height: 36px;
   padding: 0.35rem 0.65rem;
@@ -1305,6 +1319,12 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.4rem 0.45rem;
+  cursor: pointer;
+  text-align: left;
 }
 
 .plp-variant-chip {
@@ -1323,6 +1343,28 @@ input {
   border-color: var(--border-strong);
 }
 
+.plp-filter-button-has-badge,
+.plp-icon-btn-has-badge {
+  position: relative;
+}
+
+.plp-icon-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 5px;
+  font-size: 0.65rem;
+  font-weight: 900;
+}
+
 .plp-price-block {
   display: grid;
   gap: 0.15rem;
@@ -1337,6 +1379,39 @@ input {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.5rem;
+}
+
+.plp-best-offer-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.plp-best-offer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.plp-best-offer-head strong {
+  font-size: 0.8rem;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plp-best-offer-link {
+  color: var(--link);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.plp-best-offer-link:hover {
+  text-decoration: underline;
 }
 
 .plp-best-offer-logo {
@@ -1374,6 +1449,47 @@ input {
   font-weight: 700;
   line-height: 1.35;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plp-variant-sheet-title {
+  color: #111827;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.plp-variant-sheet-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.plp-variant-sheet-group h3 {
+  font-size: 0.85rem;
+}
+
+.plp-variant-sheet-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.plp-variant-pill {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3d3d3d;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.32rem 0.68rem;
+}
+
+.plp-variant-pill.is-selected {
+  border-color: #ffe680;
+  background: #fff9de;
+  color: #242424;
 }
 
 .plp-price-headline {
@@ -1403,10 +1519,6 @@ input {
   padding: 0.15rem 0.44rem;
 }
 
-.plp-offer-line {
-  font-size: 0.81rem;
-  color: #475569;
-}
 
 .plp-rating-row {
   display: flex;
