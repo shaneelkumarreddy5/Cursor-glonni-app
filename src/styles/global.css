@@ -1693,6 +1693,227 @@ input {
   font-weight: 600;
 }
 
+.pdp-right-col {
+  min-width: 0;
+}
+
+.pdp-title {
+  font-size: 1.12rem;
+  line-height: 1.25;
+}
+
+.pdp-price-meta {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.pdp-variants-card .section-header {
+  margin-bottom: 0.55rem;
+}
+
+.pdp-variant-group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pdp-variant-group h3 {
+  font-size: 0.85rem;
+}
+
+.pdp-variant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pdp-variant-pill {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3d3d3d;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.32rem 0.68rem;
+}
+
+.pdp-variant-pill.is-selected {
+  border-color: #ffe680;
+  background: #fff9de;
+  color: #242424;
+}
+
+.pdp-offers-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.55rem;
+}
+
+.pdp-offers-head h2 {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.pdp-link-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--link);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pdp-link-btn:hover {
+  text-decoration: underline;
+}
+
+.pdp-offers-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pdp-offer-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.55rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.pdp-offer-logo {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.pdp-offer-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.2rem;
+}
+
+.pdp-offer-icon {
+  color: #4b5563;
+  display: inline-grid;
+  place-items: center;
+}
+
+.pdp-offer-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.pdp-offer-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pdp-offer-copy strong {
+  font-size: 0.82rem;
+}
+
+.pdp-offer-copy p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdp-selected-variant {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pdp-buy-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.pdp-description {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.pdp-description.is-expanded {
+  -webkit-line-clamp: initial;
+  overflow: visible;
+  display: block;
+}
+
+.pdp-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.65rem 0;
+}
+
+.pdp-warranty-line {
+  margin: 0;
+  color: #475569;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pdp-seller-summary p {
+  margin: 0;
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pdp-muted-line {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pdp-offer-sheet-icon {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  display: inline-grid;
+  place-items: center;
+  color: #4b5563;
+}
+
+.pdp-offer-sheet-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.pdp-muted-inline {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .pdp-lower-grid {
   align-items: start;
 }
