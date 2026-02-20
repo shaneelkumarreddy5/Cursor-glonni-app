@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { PageIntro } from "../components/ui/PageIntro";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   getVendorOptionsForProduct,
   type ProductVendorExtraOffer,
@@ -29,6 +28,50 @@ type SellerTrustInfo = {
 
 const RETURN_WINDOW_DAYS = 7;
 const COD_LIMIT_INR = 5000;
+
+type OfferRow = {
+  kind: "bank" | "brand" | "coupon" | "combo";
+  title: string;
+  description: string;
+  logoType: "image" | "icon";
+  logoUrl?: string;
+  logoAlt?: string;
+};
+
+function CouponIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M20 12a2 2 0 0 0 0-4V6a2 2 0 0 0-2-2h-2a2 2 0 0 1-4 0H6a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h2a2 2 0 0 1 4 0h6a2 2 0 0 0 2-2v-2a2 2 0 0 0 0-4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 9h.01M15 15h.01"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 9 9 15"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function normalizeOfferText(text: string) {
+  return text.replace(/^best offer:\s*/i, "").trim();
+}
 
 function getProductNarrative(product: CatalogProduct): ProductNarrative {
   if (product.category === "Mobiles") {
@@ -152,6 +195,13 @@ export function ProductPage() {
     null,
   );
   const [addToCartMessage, setAddToCartMessage] = useState("");
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedStorage, setSelectedStorage] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [isOffersSheetOpen, setIsOffersSheetOpen] = useState(false);
+  const [isSellersSheetOpen, setIsSellersSheetOpen] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
 
   useEffect(() => {
     setSelectedVendorId(vendorOptions[0].id);
@@ -159,6 +209,16 @@ export function ProductPage() {
     setSelectedImageIndex(0);
     setAddToCartMessage("");
   }, [vendorOptions]);
+
+  useEffect(() => {
+    setSelectedColor(featuredProduct.variants?.colors?.[0] ?? null);
+    setSelectedStorage(featuredProduct.variants?.storages?.[0] ?? null);
+    setSelectedSize(featuredProduct.variants?.sizes?.[0] ?? null);
+    setIsOffersSheetOpen(false);
+    setIsSellersSheetOpen(false);
+    setIsDescriptionExpanded(false);
+    setIsSpecsExpanded(false);
+  }, [featuredProduct.id]);
 
   const selectedVendor =
     vendorOptions.find((vendor) => vendor.id === selectedVendorId) ?? vendorOptions[0];
@@ -188,6 +248,7 @@ export function ProductPage() {
     selectedVendor.cashbackInr + (selectedExtraOffer?.cashbackAdjustmentInr ?? 0),
   );
   const isCurrentConfigCodEligible = finalPriceInr <= COD_LIMIT_INR;
+  const bestSeller = vendorOptions[0];
   const faqItems = useMemo(
     () => [
       {
@@ -210,6 +271,76 @@ export function ProductPage() {
     ],
     [isCurrentConfigCodEligible, finalPriceInr],
   );
+
+  const selectedVariantSummary = useMemo(() => {
+    const parts = [selectedColor, selectedStorage, selectedSize].filter(Boolean) as string[];
+    return parts.length > 0 ? parts.join(" • ") : "Standard configuration";
+  }, [selectedColor, selectedSize, selectedStorage]);
+
+  const offerRows = useMemo<OfferRow[]>(() => {
+    const rows: OfferRow[] = [];
+    const topBank = bankOffers[0] ?? null;
+    if (topBank) {
+      rows.push({
+        kind: "bank",
+        title: "Bank offer",
+        description: topBank.offerText,
+        logoType: "image",
+        logoUrl: topBank.logoUrl,
+        logoAlt: topBank.bankName,
+      });
+    }
+
+    const productOfferText = featuredProduct.bestOfferLine?.trim()
+      ? normalizeOfferText(featuredProduct.bestOfferLine)
+      : "";
+    const lower = productOfferText.toLowerCase();
+
+    const vendorCoupon =
+      selectedVendor.extraOffers.find((offer) => offer.title.toLowerCase().includes("coupon")) ??
+      null;
+    const couponLine =
+      lower.includes("coupon") || lower.includes("code")
+        ? productOfferText
+        : vendorCoupon
+          ? `${vendorCoupon.title}: ${vendorCoupon.description}`
+          : "";
+
+    const comboOffer =
+      selectedVendor.extraOffers.find((offer) => offer.title.toLowerCase().includes("bundle")) ??
+      selectedVendor.extraOffers.find((offer) => offer.title.toLowerCase().includes("protection")) ??
+      null;
+    const comboLine = comboOffer ? `${comboOffer.title}: ${comboOffer.description}` : "";
+
+    rows.push({
+      kind: "brand",
+      title: "Brand offer",
+      description: productOfferText || `Extra savings on ${featuredProduct.brand} products.`,
+      logoType: "image",
+      logoUrl: featuredProduct.brandLogoUrl,
+      logoAlt: featuredProduct.brand,
+    });
+
+    if (couponLine) {
+      rows.push({
+        kind: "coupon",
+        title: "Coupon",
+        description: couponLine,
+        logoType: "icon",
+      });
+    }
+
+    if (comboLine) {
+      rows.push({
+        kind: "combo",
+        title: "Combo offer",
+        description: comboLine,
+        logoType: "icon",
+      });
+    }
+
+    return rows.slice(0, 4);
+  }, [featuredProduct, selectedVendor.extraOffers]);
 
   function getOfferImpactLabel(extraOffer: ProductVendorExtraOffer) {
     const priceDelta =
@@ -243,25 +374,6 @@ export function ProductPage() {
 
   return (
     <div className="stack pdp-page">
-      <PageIntro
-        badge="Product details"
-        title={featuredProduct.name}
-        description="Compare verified sellers, review offers, and choose the best final value before checkout."
-        actions={
-          <div className="inline-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => navigate(-1)}
-            >
-              Back
-            </button>
-            <Link to={ROUTES.category} className="btn btn-secondary">
-              Explore more products
-            </Link>
-          </div>
-        }
-      />
       {productId && !requestedProduct ? (
         <section className="card">
           <p>Requested product was not found. Showing a featured product instead.</p>
@@ -290,220 +402,230 @@ export function ProductPage() {
           </div>
         </article>
 
-        <article className="card pdp-buy-card">
-          <div className="pdp-meta-row">
-            <div className="pdp-brand-header">
-              <img src={featuredProduct.brandLogoUrl} alt={`${featuredProduct.brand} logo`} />
-              <span>{featuredProduct.brand}</span>
+        <div className="stack-sm pdp-right-col">
+          <section className="card pdp-title-card">
+            <div className="pdp-meta-row">
+              <div className="pdp-brand-header">
+                <img src={featuredProduct.brandLogoUrl} alt={`${featuredProduct.brand} logo`} />
+                <span>{featuredProduct.brand}</span>
+              </div>
+              <span className="pdp-rating">Rating {featuredProduct.rating.toFixed(1)}</span>
             </div>
-            <span className="pdp-rating">Rating {featuredProduct.rating.toFixed(1)}</span>
-          </div>
-          <h2>{featuredProduct.name}</h2>
-          <p className="pdp-specs">{featuredProduct.keySpecs.join(" • ")}</p>
+            <h2 className="pdp-title">{featuredProduct.name}</h2>
+            <p className="pdp-specs">{featuredProduct.keySpecs.join(" • ")}</p>
+          </section>
 
-          <div className="pdp-price-box">
-            <strong>{formatInr(finalPriceInr)}</strong>
-            <span className="pdp-mrp">{formatInr(featuredProduct.mrpInr)}</span>
-          </div>
-          <p className="pdp-cashback-line">
-            Cashback: <strong>{formatInr(finalCashbackInr)}</strong> (credited by Glonni
-            after successful delivery)
-          </p>
-          <p className="pdp-delivery-line">{selectedVendor.deliveryEstimate}</p>
+          <section className="card pdp-price-card">
+            <div className="pdp-price-box">
+              <strong>{formatInr(finalPriceInr)}</strong>
+              <span className="pdp-mrp">{formatInr(featuredProduct.mrpInr)}</span>
+            </div>
+            <div className="pdp-price-meta">
+              <span className="pdp-cashback-line">
+                Cashback: <strong>{formatInr(finalCashbackInr)}</strong>
+              </span>
+              <span className="pdp-delivery-line">{selectedVendor.deliveryEstimate}</span>
+            </div>
+          </section>
 
-          <section className="stack-sm">
-            <header className="section-header">
-              <h2>Extra vendor offers</h2>
-            </header>
-            <div className="pdp-vendor-list">
-              <label
-                className={
-                  selectedExtraOfferId === null
-                    ? "pdp-vendor-option is-selected"
-                    : "pdp-vendor-option"
-                }
-              >
-                <input
-                  type="radio"
-                  name="extra-offer"
-                  checked={selectedExtraOfferId === null}
-                  onChange={() => setSelectedExtraOfferId(null)}
-                />
-                <div>
-                  <h3>No extra offer</h3>
-                  <p>Use base seller price and cashback.</p>
-                </div>
-              </label>
-              {selectedVendor.extraOffers.map((extraOffer) => (
-                <label
-                  key={extraOffer.id}
-                  className={
-                    selectedExtraOfferId === extraOffer.id
-                      ? "pdp-vendor-option is-selected"
-                      : "pdp-vendor-option"
-                  }
-                >
-                  <input
-                    type="radio"
-                    name="extra-offer"
-                    checked={selectedExtraOfferId === extraOffer.id}
-                    onChange={() => setSelectedExtraOfferId(extraOffer.id)}
-                  />
-                  <div>
-                    <h3>{extraOffer.title}</h3>
-                    <p>{extraOffer.description}</p>
-                    <p>{getOfferImpactLabel(extraOffer)}</p>
+          {(featuredProduct.variants?.colors?.length ||
+            featuredProduct.variants?.storages?.length ||
+            featuredProduct.variants?.sizes?.length) ? (
+            <section className="card pdp-variants-card">
+              <header className="section-header">
+                <h2>Variations</h2>
+              </header>
+
+              {featuredProduct.variants?.colors?.length ? (
+                <div className="pdp-variant-group">
+                  <h3>Color</h3>
+                  <div className="pdp-variant-options">
+                    {featuredProduct.variants.colors.map((color) => (
+                      <button
+                        key={`${featuredProduct.id}:color:${color}`}
+                        type="button"
+                        className={
+                          selectedColor === color ? "pdp-variant-pill is-selected" : "pdp-variant-pill"
+                        }
+                        onClick={() => setSelectedColor(color)}
+                      >
+                        {color}
+                      </button>
+                    ))}
                   </div>
-                </label>
+                </div>
+              ) : null}
+
+              {featuredProduct.variants?.storages?.length ? (
+                <div className="pdp-variant-group">
+                  <h3>Storage</h3>
+                  <div className="pdp-variant-options">
+                    {featuredProduct.variants.storages.map((storage) => (
+                      <button
+                        key={`${featuredProduct.id}:storage:${storage}`}
+                        type="button"
+                        className={
+                          selectedStorage === storage ? "pdp-variant-pill is-selected" : "pdp-variant-pill"
+                        }
+                        onClick={() => setSelectedStorage(storage)}
+                      >
+                        {storage}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {featuredProduct.variants?.sizes?.length ? (
+                <div className="pdp-variant-group">
+                  <h3>Size</h3>
+                  <div className="pdp-variant-options">
+                    {featuredProduct.variants.sizes.map((size) => (
+                      <button
+                        key={`${featuredProduct.id}:size:${size}`}
+                        type="button"
+                        className={
+                          selectedSize === size ? "pdp-variant-pill is-selected" : "pdp-variant-pill"
+                        }
+                        onClick={() => setSelectedSize(size)}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          <section className="card pdp-offers-card" aria-label="Offers">
+            <header className="pdp-offers-head" id="offers">
+              <h2>Offers</h2>
+              <button type="button" className="pdp-link-btn" onClick={() => setIsOffersSheetOpen(true)}>
+                View all offers
+              </button>
+            </header>
+            <div className="pdp-offers-list">
+              {offerRows.map((offer) => (
+                <div key={`${offer.kind}:${offer.title}`} className="pdp-offer-row">
+                  <span className="pdp-offer-logo" aria-hidden="true">
+                    {offer.logoType === "image" && offer.logoUrl ? (
+                      <img src={offer.logoUrl} alt={offer.logoAlt ?? ""} />
+                    ) : (
+                      <span className="pdp-offer-icon">
+                        <CouponIcon />
+                      </span>
+                    )}
+                  </span>
+                  <div className="pdp-offer-copy">
+                    <strong>{offer.title}</strong>
+                    <p>{offer.description}</p>
+                  </div>
+                </div>
               ))}
             </div>
           </section>
 
-          <div className="inline-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleBuyNow}
-            >
-              Buy Now
+          <section className="card pdp-buy-card" aria-label="Buy actions">
+            <p className="pdp-selected-variant">Selected: {selectedVariantSummary}</p>
+            <div className="pdp-buy-actions">
+              <button type="button" className="btn btn-primary" onClick={addCurrentConfigurationToCart}>
+                Add to Cart
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleBuyNow}>
+                Buy Now
+              </button>
+            </div>
+            {addToCartMessage ? <p className="pdp-delivery-line">{addToCartMessage}</p> : null}
+            <div className="chip-row" aria-label="Shopping assurance">
+              <span className="chip">7 day replacement</span>
+              <span className="chip">Secure payment</span>
+              <span className="chip">GST invoice available</span>
+            </div>
+          </section>
+
+          <section className="card pdp-info-card" aria-label="Description, specifications and warranty">
+            <header className="section-header">
+              <h2>Description</h2>
+            </header>
+            <p className={isDescriptionExpanded ? "pdp-description is-expanded" : "pdp-description"}>
+              {productNarrative.fullDescription}
+            </p>
+            <button type="button" className="pdp-link-btn" onClick={() => setIsDescriptionExpanded((v) => !v)}>
+              {isDescriptionExpanded ? "Show less" : "Read more"}
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={addCurrentConfigurationToCart}
+
+            <div className="pdp-divider" role="separator" />
+
+            <header className="section-header">
+              <h2>Specifications</h2>
+            </header>
+            <div
+              className={isSpecsExpanded ? "pdp-spec-table is-expanded" : "pdp-spec-table"}
+              role="table"
+              aria-label="Product specifications"
             >
-              Add to Cart
-            </button>
-          </div>
-          {addToCartMessage ? <p className="pdp-delivery-line">{addToCartMessage}</p> : null}
+              {productNarrative.specifications
+                .slice(0, isSpecsExpanded ? productNarrative.specifications.length : 6)
+                .map((spec) => (
+                  <div key={spec.label} className="pdp-spec-row" role="row">
+                    <span>{spec.label}</span>
+                    <strong>{spec.value}</strong>
+                  </div>
+                ))}
+            </div>
+            {productNarrative.specifications.length > 6 ? (
+              <button type="button" className="pdp-link-btn" onClick={() => setIsSpecsExpanded((v) => !v)}>
+                {isSpecsExpanded ? "Show less specs" : "See all specs"}
+              </button>
+            ) : null}
 
-          <div className="chip-row" aria-label="Shopping assurance">
-            <span className="chip">7 day replacement</span>
-            <span className="chip">Secure payment</span>
-            <span className="chip">GST invoice available</span>
-          </div>
-        </article>
-      </section>
+            <div className="pdp-divider" role="separator" />
 
-      <section className="two-column pdp-lower-grid">
-        <article className="card">
-          <header className="section-header">
-            <h2>Seller comparison</h2>
-          </header>
-          <div className="pdp-vendor-list">
-            {vendorOptions.map((vendor) => (
-              <label
-                key={vendor.id}
-                className={
-                  selectedVendorId === vendor.id ? "pdp-vendor-option is-selected" : "pdp-vendor-option"
-                }
-              >
-                <input
-                  type="radio"
-                  name="vendor"
-                  checked={selectedVendorId === vendor.id}
-                  onChange={() => {
-                    setSelectedVendorId(vendor.id);
-                    setSelectedExtraOfferId(null);
-                  }}
-                />
-                <div>
-                  <h3>{vendor.name}</h3>
-                  <p>{formatInr(vendor.priceInr)}</p>
-                  <p>{vendor.vendorOffer}</p>
-                  <p>Cashback: {formatInr(vendor.cashbackInr)}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </article>
-
-        <article className="card">
-          <header className="section-header">
-            <h2>Bank and payment offers</h2>
-          </header>
-          <div className="pdp-bank-offer-list">
-            {bankOffers.map((offer) => (
-              <article key={offer.bankName} className="pdp-bank-offer-card">
-                <img src={offer.logoUrl} alt={`${offer.bankName} logo`} />
-                <p>{offer.offerText}</p>
-              </article>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="pdp-detail-grid">
-        <article className="card">
-          <header className="section-header">
-            <h2>Description</h2>
-          </header>
-          <div className="stack-sm">
-            <p>{productNarrative.fullDescription}</p>
-            <ul className="bullet-list pdp-highlight-list">
-              {productNarrative.highlights.map((highlight) => (
-                <li key={highlight}>{highlight}</li>
-              ))}
-            </ul>
-          </div>
-        </article>
-
-        <article className="card">
-          <header className="section-header">
-            <h2>Specifications</h2>
-          </header>
-          <div className="pdp-spec-table" role="table" aria-label="Product specifications">
-            {productNarrative.specifications.map((spec) => (
-              <div key={spec.label} className="pdp-spec-row" role="row">
-                <span>{spec.label}</span>
-                <strong>{spec.value}</strong>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="card">
-          <header className="section-header">
-            <h2>Terms & Conditions</h2>
-          </header>
-          <div className="stack-sm">
-            <p>
-              <strong>Vendor terms:</strong> {selectedVendor.vendorOffer}
+            <header className="section-header">
+              <h2>Warranty</h2>
+            </header>
+            <p className="pdp-warranty-line">
+              {productNarrative.specifications.find((spec) => spec.label.toLowerCase() === "warranty")?.value ??
+                "Warranty information available with invoice."}
             </p>
-            <p>
-              <strong>Platform purchase terms:</strong> Final pricing, cashback, and return
-              eligibility are determined at checkout using selected seller, offer, and payment
-              mode.
-            </p>
-            <p>
-              Cashback is promotional and linked to successful order completion as per Glonni
-              policy.
-            </p>
-          </div>
-        </article>
+          </section>
 
-        <article className="card">
-          <header className="section-header">
-            <h2>Returns & Replacement</h2>
-          </header>
-          <div className="stack-sm">
-            <p>
-              <strong>Return window:</strong> {RETURN_WINDOW_DAYS} days from delivery date.
+          <section className="card pdp-delivery-card" aria-label="Delivery and returns">
+            <header className="section-header">
+              <h2>Delivery & Returns</h2>
+            </header>
+            <div className="stack-sm">
+              <p className="pdp-delivery-line">
+                <strong>Delivery:</strong> {selectedVendor.deliveryEstimate}
+              </p>
+              <p className="pdp-delivery-line">
+                <strong>Return window:</strong> {RETURN_WINDOW_DAYS} days (eligible items)
+              </p>
+              <p className="pdp-delivery-line">
+                <strong>COD:</strong> {isCurrentConfigCodEligible ? "Available" : "Usually not available for this price"}
+              </p>
+            </div>
+          </section>
+
+          <section className="card pdp-seller-card" aria-label="Seller">
+            <header className="pdp-offers-head">
+              <h2>Seller</h2>
+              <button type="button" className="pdp-link-btn" onClick={() => setIsSellersSheetOpen(true)}>
+                View all sellers
+              </button>
+            </header>
+            <div className="pdp-seller-summary">
+              <p>
+                <strong>{selectedVendor.name}</strong> · {formatInr(selectedVendor.priceInr)} · Cashback {formatInr(selectedVendor.cashbackInr)}
+              </p>
+              <p className="pdp-delivery-line">{selectedVendor.vendorOffer}</p>
+            </div>
+            <p className="pdp-muted-line">
+              Best price currently: <strong>{bestSeller.name}</strong> at {formatInr(bestSeller.priceInr)}
             </p>
-            <p>
-              <strong>Replacement eligibility:</strong> Replacement is supported for wrong,
-              damaged, or defective products subject to seller verification.
-            </p>
-            <p>
-              <strong>Non-returnable conditions:</strong>
-            </p>
-            <ul className="bullet-list">
-              <li>Physical damage due to misuse or unauthorized repair.</li>
-              <li>Missing accessories, manuals, or original packaging.</li>
-              <li>Serial number mismatch or tampered product seal.</li>
-            </ul>
-          </div>
-        </article>
+          </section>
+        </div>
       </section>
 
       <section className="two-column">
@@ -542,18 +664,134 @@ export function ProductPage() {
         </article>
       </section>
 
-      <section className="pdp-mobile-action-bar" aria-label="Quick purchase actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={addCurrentConfigurationToCart}
-        >
-          Add to Cart
-        </button>
-        <button type="button" className="btn btn-primary" onClick={handleBuyNow}>
-          Buy Now
-        </button>
-      </section>
+      {isOffersSheetOpen ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="All offers">
+          <div className="plp-sheet">
+            <div className="plp-drawer-head">
+              <strong>All offers</strong>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsOffersSheetOpen(false)} aria-label="Close offers">
+                ✕
+              </button>
+            </div>
+            <div className="plp-drawer-body">
+              <div className="stack-sm">
+                {bankOffers.map((offer) => (
+                  <article key={offer.bankName} className="pdp-bank-offer-card">
+                    <img src={offer.logoUrl} alt={`${offer.bankName} logo`} />
+                    <p>{offer.offerText}</p>
+                  </article>
+                ))}
+                {featuredProduct.bestOfferLine ? (
+                  <article className="pdp-bank-offer-card">
+                    <img src={featuredProduct.brandLogoUrl} alt={`${featuredProduct.brand} logo`} />
+                    <p>{normalizeOfferText(featuredProduct.bestOfferLine)}</p>
+                  </article>
+                ) : null}
+                {selectedVendor.extraOffers.map((extra) => (
+                  <article key={extra.id} className="pdp-bank-offer-card">
+                    <span className="pdp-offer-sheet-icon" aria-hidden="true">
+                      <CouponIcon />
+                    </span>
+                    <p>
+                      <strong>{extra.title}:</strong> {extra.description} <span className="pdp-muted-inline">({getOfferImpactLabel(extra)})</span>
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div className="plp-drawer-foot">
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setIsOffersSheetOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+          <button type="button" className="plp-drawer-scrim" onClick={() => setIsOffersSheetOpen(false)} aria-label="Close offers" />
+        </div>
+      ) : null}
+
+      {isSellersSheetOpen ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="All sellers">
+          <div className="plp-sheet">
+            <div className="plp-drawer-head">
+              <strong>All sellers</strong>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsSellersSheetOpen(false)} aria-label="Close sellers">
+                ✕
+              </button>
+            </div>
+            <div className="plp-drawer-body">
+              <div className="stack-sm">
+                <div className="pdp-vendor-list">
+                  {vendorOptions.map((vendor) => (
+                    <label
+                      key={vendor.id}
+                      className={selectedVendorId === vendor.id ? "pdp-vendor-option is-selected" : "pdp-vendor-option"}
+                    >
+                      <input
+                        type="radio"
+                        name="vendor"
+                        checked={selectedVendorId === vendor.id}
+                        onChange={() => {
+                          setSelectedVendorId(vendor.id);
+                          setSelectedExtraOfferId(null);
+                        }}
+                      />
+                      <div>
+                        <h3>{vendor.name}</h3>
+                        <p>{formatInr(vendor.priceInr)} · Cashback {formatInr(vendor.cashbackInr)}</p>
+                        <p>{vendor.deliveryEstimate}</p>
+                        <p>{vendor.vendorOffer}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                <section className="stack-sm">
+                  <header className="section-header">
+                    <h2>Extra vendor offers</h2>
+                  </header>
+                  <div className="pdp-vendor-list">
+                    <label className={selectedExtraOfferId === null ? "pdp-vendor-option is-selected" : "pdp-vendor-option"}>
+                      <input
+                        type="radio"
+                        name="extra-offer"
+                        checked={selectedExtraOfferId === null}
+                        onChange={() => setSelectedExtraOfferId(null)}
+                      />
+                      <div>
+                        <h3>No extra offer</h3>
+                        <p>Use base seller price and cashback.</p>
+                      </div>
+                    </label>
+                    {selectedVendor.extraOffers.map((extraOffer) => (
+                      <label
+                        key={extraOffer.id}
+                        className={selectedExtraOfferId === extraOffer.id ? "pdp-vendor-option is-selected" : "pdp-vendor-option"}
+                      >
+                        <input
+                          type="radio"
+                          name="extra-offer"
+                          checked={selectedExtraOfferId === extraOffer.id}
+                          onChange={() => setSelectedExtraOfferId(extraOffer.id)}
+                        />
+                        <div>
+                          <h3>{extraOffer.title}</h3>
+                          <p>{extraOffer.description}</p>
+                          <p>{getOfferImpactLabel(extraOffer)}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </div>
+            <div className="plp-drawer-foot">
+              <button type="button" className="btn btn-primary btn-block" onClick={() => setIsSellersSheetOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+          <button type="button" className="plp-drawer-scrim" onClick={() => setIsSellersSheetOpen(false)} aria-label="Close sellers" />
+        </div>
+      ) : null}
     </div>
   );
 }
