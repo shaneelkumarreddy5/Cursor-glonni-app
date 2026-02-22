@@ -1454,6 +1454,41 @@ input {
   white-space: nowrap;
 }
 
+.plp-exchange-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.48rem 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plp-exchange-row:hover {
+  border-color: #ffe680;
+  background: #fff9de;
+}
+
+.plp-exchange-pill {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3d3d3d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 0.14rem 0.45rem;
+  white-space: nowrap;
+}
+
+.plp-exchange-text {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .plp-variant-sheet-title {
   color: #111827;
   font-weight: 800;
@@ -1847,6 +1882,79 @@ input {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.6rem;
+}
+
+.pdp-exchange-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.55rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.pdp-exchange-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.pdp-exchange-copy strong {
+  font-size: 0.9rem;
+}
+
+.pdp-exchange-copy p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.pdp-exchange-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pdp-exchange-actions .btn {
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+}
+
+.pdp-exchange-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.pdp-exchange-field {
+  display: grid;
+  gap: 0.3rem;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.pdp-exchange-field input,
+.pdp-exchange-field select {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.55rem 0.62rem;
+}
+
+.pdp-exchange-estimate {
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.25rem;
+  color: #111827;
+  font-weight: 800;
 }
 
 .pdp-description {
