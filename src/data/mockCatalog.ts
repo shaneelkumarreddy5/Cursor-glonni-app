@@ -9,6 +9,8 @@ export type CatalogProduct = {
   priceInr: number;
   mrpInr: number;
   cashbackInr: number;
+  exchangeEligible?: boolean;
+  exchangeUptoInr?: number;
   rating: number;
   keySpecs: string[];
   sponsored: boolean;
@@ -143,6 +145,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 71999,
     mrpInr: 79999,
     cashbackInr: 1300,
+    exchangeEligible: true,
+    exchangeUptoInr: 12000,
     rating: 4.6,
     keySpecs: ["8 GB RAM", "256 GB Storage", "50 MP Triple Camera"],
     sponsored: true,
@@ -159,6 +163,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 72999,
     mrpInr: 79900,
     cashbackInr: 1600,
+    exchangeEligible: true,
+    exchangeUptoInr: 6000,
     rating: 4.7,
     keySpecs: ["128 GB Storage", "A16 Bionic", "48 MP Main Camera"],
     sponsored: true,
@@ -175,6 +181,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 38999,
     mrpInr: 42999,
     cashbackInr: 1100,
+    exchangeEligible: true,
+    exchangeUptoInr: 8000,
     rating: 4.5,
     keySpecs: ["8 GB RAM", "256 GB Storage", "120 Hz AMOLED"],
     sponsored: true,
@@ -191,6 +199,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 42999,
     mrpInr: 47999,
     cashbackInr: 1200,
+    exchangeEligible: true,
+    exchangeUptoInr: 7000,
     rating: 4.4,
     keySpecs: ["12 GB RAM", "256 GB Storage", "Leica Camera"],
     sponsored: true,
@@ -207,6 +217,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 15999,
     mrpInr: 17999,
     cashbackInr: 500,
+    exchangeEligible: true,
+    exchangeUptoInr: 5000,
     rating: 4.2,
     keySpecs: ["8 GB RAM", "128 GB Storage", "45W Fast Charge"],
     sponsored: false,
@@ -222,6 +234,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 30999,
     mrpInr: 33999,
     cashbackInr: 900,
+    exchangeEligible: true,
+    exchangeUptoInr: 5500,
     rating: 4.3,
     keySpecs: ["8 GB RAM", "256 GB Storage", "50 MP OIS Camera"],
     sponsored: false,
@@ -238,6 +252,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 28999,
     mrpInr: 31999,
     cashbackInr: 850,
+    exchangeEligible: true,
+    exchangeUptoInr: 5200,
     rating: 4.3,
     keySpecs: ["8 GB RAM", "256 GB Storage", "Portrait Camera"],
     sponsored: false,
@@ -254,6 +270,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 62999,
     mrpInr: 70999,
     cashbackInr: 2200,
+    exchangeEligible: true,
+    exchangeUptoInr: 15000,
     rating: 4.4,
     keySpecs: ["16 GB RAM", "512 GB SSD", "Intel Core i5"],
     sponsored: false,
@@ -269,6 +287,8 @@ export const catalogProducts: CatalogProduct[] = [
     priceInr: 94900,
     mrpInr: 99900,
     cashbackInr: 2800,
+    exchangeEligible: true,
+    exchangeUptoInr: 18000,
     rating: 4.4,
     keySpecs: ["8 GB RAM", "256 GB SSD", "M2 Chip"],
     sponsored: false,

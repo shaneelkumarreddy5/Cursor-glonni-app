@@ -814,6 +814,11 @@ export function CategoryPage() {
             const sizeOptions = product.variants?.sizes ?? [];
             const hasVariants = colorOptions.length + storageOptions.length + sizeOptions.length > 0;
             const selectedVariant = variantSelectionByProductId[product.id] ?? {};
+            const exchangeLabel = product.exchangeEligible
+              ? typeof product.exchangeUptoInr === "number"
+                ? `Exchange up to ${formatInr(product.exchangeUptoInr)}`
+                : "Exchange available"
+              : "";
 
             return (
               <article key={item.id} className="plp-product-card">
@@ -899,6 +904,13 @@ export function CategoryPage() {
                     </div>
                     <span className="plp-cashback-badge">{formatInr(product.cashbackInr)} Cashback</span>
                   </div>
+
+                  {product.exchangeEligible ? (
+                    <Link to={`${productRoute}?exchange=1`} className="plp-exchange-row" aria-label="Check exchange value">
+                      <span className="plp-exchange-pill">Exchange</span>
+                      <span className="plp-exchange-text">{exchangeLabel}</span>
+                    </Link>
+                  ) : null}
 
                   {offerPresentation ? (
                     <div className="plp-best-offer" aria-label="Best offer">

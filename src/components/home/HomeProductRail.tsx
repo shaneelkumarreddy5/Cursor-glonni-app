@@ -74,6 +74,17 @@ export function HomeProductRail({
               {product.cashbackInr > 0 ? (
                 <p className="home-cashback-badge">Cashback {formatInr(product.cashbackInr)}</p>
               ) : null}
+              {product.exchangeEligible ? (
+                <Link
+                  to={`${ROUTES.productDetail(product.id)}?exchange=1`}
+                  className="home-exchange-badge"
+                >
+                  Exchange{" "}
+                  {typeof product.exchangeUptoInr === "number"
+                    ? `up to ${formatInr(product.exchangeUptoInr)}`
+                    : "available"}
+                </Link>
+              ) : null}
               {onAddToCart ? (
                 <button
                   type="button"

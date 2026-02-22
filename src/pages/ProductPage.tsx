@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   getVendorOptionsForProduct,
   type ProductVendorExtraOffer,
@@ -179,6 +179,7 @@ function getSellerTrustInfo(vendorCode: string): SellerTrustInfo {
 
 export function ProductPage() {
   const { productId } = useParams<{ productId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { addToCart } = useCommerce();
   const requestedProduct = productId
@@ -200,6 +201,13 @@ export function ProductPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [isOffersSheetOpen, setIsOffersSheetOpen] = useState(false);
   const [isSellersSheetOpen, setIsSellersSheetOpen] = useState(false);
+  const [isExchangeSheetOpen, setIsExchangeSheetOpen] = useState(false);
+  const [exchangeOldDeviceType, setExchangeOldDeviceType] = useState<"Mobile" | "Laptop">("Mobile");
+  const [exchangeBrand, setExchangeBrand] = useState("");
+  const [exchangeModel, setExchangeModel] = useState("");
+  const [exchangeCondition, setExchangeCondition] = useState<"Good" | "Average" | "Not working">("Good");
+  const [exchangePincode, setExchangePincode] = useState("");
+  const [appliedExchangeInr, setAppliedExchangeInr] = useState<number | null>(null);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isSpecsExpanded, setIsSpecsExpanded] = useState(false);
 
@@ -216,6 +224,8 @@ export function ProductPage() {
     setSelectedSize(featuredProduct.variants?.sizes?.[0] ?? null);
     setIsOffersSheetOpen(false);
     setIsSellersSheetOpen(false);
+    setIsExchangeSheetOpen(false);
+    setAppliedExchangeInr(null);
     setIsDescriptionExpanded(false);
     setIsSpecsExpanded(false);
   }, [featuredProduct.id]);
@@ -341,6 +351,33 @@ export function ProductPage() {
 
     return rows.slice(0, 4);
   }, [featuredProduct, selectedVendor.extraOffers]);
+
+  const exchangeEligible =
+    featuredProduct.exchangeEligible === true &&
+    (featuredProduct.category === "Mobiles" || featuredProduct.category === "Laptops");
+  const exchangeMaxInr = featuredProduct.exchangeUptoInr ?? 0;
+  const exchangeEstimateInr = useMemo(() => {
+    if (!exchangeEligible) {
+      return 0;
+    }
+    const factor =
+      exchangeCondition === "Good" ? 1 : exchangeCondition === "Average" ? 0.7 : 0.3;
+    return Math.max(0, Math.round(exchangeMaxInr * factor));
+  }, [exchangeCondition, exchangeEligible, exchangeMaxInr]);
+
+  useEffect(() => {
+    if (!exchangeEligible) {
+      return;
+    }
+    const wantsExchange = searchParams.get("exchange") === "1";
+    if (wantsExchange) {
+      setIsExchangeSheetOpen(true);
+      setExchangeOldDeviceType(featuredProduct.category === "Laptops" ? "Laptop" : "Mobile");
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("exchange");
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [exchangeEligible, featuredProduct.category, searchParams, setSearchParams]);
 
   function getOfferImpactLabel(extraOffer: ProductVendorExtraOffer) {
     const priceDelta =
@@ -528,6 +565,29 @@ export function ProductPage() {
 
           <section className="card pdp-buy-card" aria-label="Buy actions">
             <p className="pdp-selected-variant">Selected: {selectedVariantSummary}</p>
+            {exchangeEligible ? (
+              <div className="pdp-exchange-row" aria-label="Exchange">
+                <div className="pdp-exchange-copy">
+                  <strong>Exchange</strong>
+                  <p>
+                    {typeof featuredProduct.exchangeUptoInr === "number"
+                      ? `Up to ${formatInr(featuredProduct.exchangeUptoInr)} on old device`
+                      : "Exchange available for this product"}
+                    {appliedExchangeInr ? ` · Applied -${formatInr(appliedExchangeInr)} (est.)` : ""}
+                  </p>
+                </div>
+                <div className="pdp-exchange-actions">
+                  {appliedExchangeInr ? (
+                    <button type="button" className="btn btn-secondary" onClick={() => setAppliedExchangeInr(null)}>
+                      Remove
+                    </button>
+                  ) : null}
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsExchangeSheetOpen(true)}>
+                    {appliedExchangeInr ? "Edit" : "Check"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div className="pdp-buy-actions">
               <button type="button" className="btn btn-primary" onClick={addCurrentConfigurationToCart}>
                 Add to Cart
@@ -790,6 +850,68 @@ export function ProductPage() {
             </div>
           </div>
           <button type="button" className="plp-drawer-scrim" onClick={() => setIsSellersSheetOpen(false)} aria-label="Close sellers" />
+        </div>
+      ) : null}
+
+      {isExchangeSheetOpen && exchangeEligible ? (
+        <div className="plp-drawer-overlay" role="dialog" aria-modal="true" aria-label="Exchange">
+          <div className="plp-sheet">
+            <div className="plp-drawer-head">
+              <strong>Exchange old device</strong>
+              <button type="button" className="plp-icon-btn" onClick={() => setIsExchangeSheetOpen(false)} aria-label="Close exchange">
+                ✕
+              </button>
+            </div>
+            <div className="plp-drawer-body">
+              <div className="pdp-exchange-form">
+                <label className="pdp-exchange-field">
+                  <span>Old device type</span>
+                  <select value={exchangeOldDeviceType} onChange={(e) => setExchangeOldDeviceType(e.target.value as "Mobile" | "Laptop")}>
+                    <option value="Mobile">Mobile</option>
+                    <option value="Laptop">Laptop</option>
+                  </select>
+                </label>
+                <label className="pdp-exchange-field">
+                  <span>Brand</span>
+                  <input value={exchangeBrand} onChange={(e) => setExchangeBrand(e.target.value)} placeholder="e.g. Samsung" />
+                </label>
+                <label className="pdp-exchange-field">
+                  <span>Model</span>
+                  <input value={exchangeModel} onChange={(e) => setExchangeModel(e.target.value)} placeholder="e.g. Galaxy S21" />
+                </label>
+                <label className="pdp-exchange-field">
+                  <span>Condition</span>
+                  <select value={exchangeCondition} onChange={(e) => setExchangeCondition(e.target.value as "Good" | "Average" | "Not working")}>
+                    <option value="Good">Good</option>
+                    <option value="Average">Average</option>
+                    <option value="Not working">Not working</option>
+                  </select>
+                </label>
+                <label className="pdp-exchange-field">
+                  <span>Pincode</span>
+                  <input value={exchangePincode} onChange={(e) => setExchangePincode(e.target.value)} inputMode="numeric" placeholder="6-digit pincode" />
+                </label>
+
+                <div className="pdp-exchange-estimate">
+                  <strong>Estimated value:</strong> {formatInr(exchangeEstimateInr)}
+                  <p className="pdp-muted-inline">Final value is confirmed at pickup.</p>
+                </div>
+              </div>
+            </div>
+            <div className="plp-drawer-foot">
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  setAppliedExchangeInr(exchangeEstimateInr);
+                  setIsExchangeSheetOpen(false);
+                }}
+              >
+                Apply exchange
+              </button>
+            </div>
+          </div>
+          <button type="button" className="plp-drawer-scrim" onClick={() => setIsExchangeSheetOpen(false)} aria-label="Close exchange" />
         </div>
       ) : null}
     </div>
